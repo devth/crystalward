@@ -1,0 +1,21 @@
+# OS / editor
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# Game / engine (placeholder until stack chosen)
+.godot/
+*.import
+export/
+build/
+dist/
+
+# Env / secrets
+.env
+.env.*
+*.local
+
+# Executor / agent machine-local (if any land in-repo)
+.ce/
+.executor/
