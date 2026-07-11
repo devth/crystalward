@@ -527,28 +527,33 @@ func _fire_at(target: Node2D) -> void:
 	if host == null:
 		host = self
 
-	match special:
-		"multishot":
+	match type_id:
+		"thornspire":
 			_fire_multishot(host)
-		"chain":
-			_fire_chain(target, host)
-		"execute":
-			_hit_one(target, _execute_damage(target), host)
-			_muzzle_flash(target.global_position)
-		"root":
-			_fire_root_pulse(target, host)
-		"splash":
+		"emberfall":
 			_fire_splash(target, host)
-		"slow_aura":
-			# Light tick damage on nearest + aura handles slow
-			_hit_one(target, damage, host)
-			_muzzle_flash(target.global_position)
+		"skyshard":
+			_fire_chain(target, host)
+		"shardbow":
+			_fire_snipe_bolt(target, host)
+		"mistvent":
+			_fire_mist_pulse(target, host)
+		"rootgate":
+			_fire_root_pulse(target, host)
 		_:
-			if splash > 0.0:
-				_fire_splash(target, host)
-			else:
-				_hit_one(target, damage, host)
-				_muzzle_flash(target.global_position)
+			# Fallback by special
+			match special:
+				"multishot":
+					_fire_multishot(host)
+				"chain":
+					_fire_chain(target, host)
+				"root":
+					_fire_root_pulse(target, host)
+				"splash":
+					_fire_splash(target, host)
+				_:
+					_hit_one(target, damage, host)
+					_fx_generic_spark(target.global_position)
 
 
 func _execute_damage(target: Node2D) -> int:
@@ -592,45 +597,68 @@ func _hit_one(target: Node2D, dmg: int, host: Node) -> void:
 
 
 func _fire_splash(target: Node2D, host: Node) -> void:
-	var tree := get_tree()
-	if tree == null:
-		return
-	var r := maxf(splash, 80.0)
-	for e in tree.get_nodes_in_group("enemies"):
-		if not (e is Node2D) or not is_instance_valid(e) or not _can_target(e):
-			continue
-		if target.global_position.distance_to(e.global_position) <= r:
-			var mult := 1.0 if e == target else 0.55
-			_hit_one(e, int(float(damage) * mult), host)
-	_muzzle_flash(target.global_position)
-	_splash_fx(target.global_position, r)
-
-
-func _splash_fx(at: Vector2, radius: float) -> void:
-	var ring := FX.make_ellipse_poly(radius * 0.35, radius * 0.22, 24, Color(_def_color.r, _def_color.g, _def_color.b, 0.45))
-	ring.position = at - global_position
-	ring.z_index = 15
-	add_child(ring)
-	var tw := create_tween()
-	tw.tween_property(ring, "scale", Vector2(2.2, 2.2), 0.22)
-	tw.parallel().tween_property(ring, "modulate:a", 0.0, 0.22)
-	tw.tween_callback(ring.queue_free)
-	if FX:
-		FX.burst_particles(self, at, _def_color, 10, "glow", 0.35)
+	## Emberfall: lob a molten ember, then detonate a fire nova on impact.
+	var impact := target.global_position
+	_fx_ember_lob(impact, func():
+		if not is_inside_tree():
+			return
+		var tree := get_tree()
+		if tree == null:
+			return
+		var r := maxf(splash, 80.0)
+		for e in tree.get_nodes_in_group("enemies"):
+			if not (e is Node2D) or not is_instance_valid(e) or not _can_target(e):
+				continue
+			if impact.distance_to(e.global_position) <= r:
+				var mult := 1.0 if (is_instance_valid(target) and e == target) else 0.55
+				_hit_one(e, int(float(damage) * mult), host)
+		_fx_ember_nova(impact, r)
+	)
 
 
 func _fire_multishot(host: Node) -> void:
+	## Thornspire: volley of flying thorns (no beam).
 	var targets := _enemies_in_range_sorted(2)
+	if targets.is_empty():
+		return
+	var i := 0
 	for t in targets:
-		_hit_one(t, damage, host)
-		_muzzle_flash(t.global_position)
+		var delay := float(i) * 0.04
+		var tgt: Node2D = t
+		var dmg := damage
+		get_tree().create_timer(delay).timeout.connect(func():
+			if not is_instance_valid(tgt) or not is_inside_tree():
+				return
+			_fx_thorn_projectile(tgt.global_position)
+			_hit_one(tgt, dmg, host)
+		)
+		i += 1
+
+
+func _fire_snipe_bolt(target: Node2D, host: Node) -> void:
+	## Shardbow: long crystal bolt flies to the target.
+	var dmg := _execute_damage(target)
+	var to := target.global_position
+	_fx_shard_bolt(to, func():
+		if is_instance_valid(target) and is_inside_tree():
+			_hit_one(target, dmg, host)
+			_fx_shard_impact(to)
+	)
+
+
+func _fire_mist_pulse(target: Node2D, host: Node) -> void:
+	## Mistvent: vent coughs a mist cloud; damage is a soft tick (aura does the slow).
+	_hit_one(target, damage, host)
+	_fx_mist_vent(target.global_position)
 
 
 func _fire_chain(primary: Node2D, host: Node) -> void:
+	## Skyshard: lightning forks through the air (jagged arcs, no solid beam).
 	var hit_list: Array[Node2D] = []
 	var cur: Node2D = primary
 	var dmg_f := float(damage)
 	var hops := maxi(1, chain_count)
+	var prev_pos := global_position + Vector2(0, -40)
 	for _i in hops:
 		if cur == null or not is_instance_valid(cur) or not _can_target(cur):
 			break
@@ -638,18 +666,20 @@ func _fire_chain(primary: Node2D, host: Node) -> void:
 			break
 		hit_list.append(cur)
 		_hit_one(cur, int(dmg_f), host)
-		_muzzle_flash(cur.global_position)
+		_fx_lightning_arc(prev_pos, cur.global_position + Vector2(0, -12))
+		_fx_lightning_impact(cur.global_position)
+		prev_pos = cur.global_position + Vector2(0, -12)
 		dmg_f *= chain_falloff
 		cur = _nearest_enemy_from(cur.global_position, hit_list, 180.0)
-	for i in range(hit_list.size() - 1):
-		_chain_arc(hit_list[i].global_position, hit_list[i + 1].global_position)
 
 
 func _fire_root_pulse(target: Node2D, host: Node) -> void:
+	## Rootgate: grasping roots erupt under foes — no shot from the tower.
 	var tree := get_tree()
 	if tree == null:
 		return
 	var r := maxf(splash, 80.0)
+	_fx_root_gate_pulse()
 	for e in tree.get_nodes_in_group("enemies"):
 		if not (e is Node2D) or not is_instance_valid(e) or not _can_target(e):
 			continue
@@ -660,8 +690,7 @@ func _fire_root_pulse(target: Node2D, host: Node) -> void:
 				e.call("apply_root", root_duration)
 			if e.has_method("apply_slow"):
 				e.call("apply_slow", 0.35, root_duration + 0.3)
-	_muzzle_flash(target.global_position)
-	_splash_fx(target.global_position, r * 0.8)
+			_fx_roots_at(e.global_position)
 
 
 func _enemies_in_range_sorted(limit: int) -> Array[Node2D]:
@@ -735,30 +764,347 @@ func _find_target() -> Node2D:
 	return best
 
 
-func _muzzle_flash(to: Vector2) -> void:
-	var line := Line2D.new()
-	line.width = 4.0
-	line.default_color = Color(_def_color.r, _def_color.g, _def_color.b, 0.95)
-	line.begin_cap_mode = Line2D.LINE_CAP_ROUND
-	line.end_cap_mode = Line2D.LINE_CAP_ROUND
-	var origin := Vector2(0, -36)
-	line.points = PackedVector2Array([origin, to - global_position])
-	line.z_index = 20
-	add_child(line)
-	var tw := create_tween()
-	tw.tween_property(line, "modulate:a", 0.0, 0.14)
-	tw.tween_callback(line.queue_free)
+# ── Unique attack VFX ─────────────────────────────────────────────────────────
+
+func _muzzle_origin() -> Vector2:
+	return Vector2(0, -36)
 
 
-func _chain_arc(from: Vector2, to: Vector2) -> void:
-	var line := Line2D.new()
-	line.width = 2.5
-	line.default_color = Color(_def_color.r, _def_color.g, _def_color.b, 0.85)
-	line.begin_cap_mode = Line2D.LINE_CAP_ROUND
-	line.end_cap_mode = Line2D.LINE_CAP_ROUND
-	line.points = PackedVector2Array([from - global_position, to - global_position])
-	line.z_index = 20
-	add_child(line)
+func _fx_generic_spark(at: Vector2) -> void:
+	if FX:
+		FX.burst_particles(self, at, _def_color, 8, "spark", 0.3)
+
+
+func _fx_thorn_projectile(world_to: Vector2) -> void:
+	## Flying thorn spike from spire to foe.
+	var origin := _muzzle_origin()
+	var dest := world_to - global_position + Vector2(0, -8)
+	var thorn := Polygon2D.new()
+	thorn.polygon = PackedVector2Array([
+		Vector2(0, -10), Vector2(3.5, 2), Vector2(0, 6), Vector2(-3.5, 2)
+	])
+	thorn.color = Color(0.35, 0.75, 0.4, 0.95)
+	thorn.position = origin
+	thorn.z_index = 25
+	var ang := (dest - origin).angle() + PI * 0.5
+	thorn.rotation = ang
+	add_child(thorn)
+	# Tiny leaf fleck trailing
+	var leaf := Polygon2D.new()
+	leaf.polygon = PackedVector2Array([Vector2(-2, 0), Vector2(0, -5), Vector2(2, 0)])
+	leaf.color = Color(0.55, 0.9, 0.45, 0.7)
+	leaf.position = Vector2(0, 4)
+	thorn.add_child(leaf)
+	var dist := origin.distance_to(dest)
+	var dur := clampf(dist / 900.0, 0.08, 0.2)
 	var tw := create_tween()
-	tw.tween_property(line, "modulate:a", 0.0, 0.18)
-	tw.tween_callback(line.queue_free)
+	tw.tween_property(thorn, "position", dest, dur).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_callback(func():
+		if FX:
+			FX.burst_particles(self, world_to, Color(0.4, 0.85, 0.4), 6, "spark", 0.22)
+		if is_instance_valid(thorn):
+			thorn.queue_free()
+	)
+
+
+func _fx_ember_lob(world_to: Vector2, on_land: Callable) -> void:
+	## Arcing molten ball; detonates on landing.
+	var origin := _muzzle_origin()
+	var dest := world_to - global_position
+	var ball := Node2D.new()
+	ball.position = origin
+	ball.z_index = 25
+	add_child(ball)
+	var core := FX.make_ellipse_poly(7, 7, 12, Color(1.0, 0.55, 0.15, 0.95)) if FX else Polygon2D.new()
+	if core.get_parent() == null:
+		core = Polygon2D.new()
+		core.polygon = PackedVector2Array([Vector2(-6, 0), Vector2(0, -6), Vector2(6, 0), Vector2(0, 6)])
+		core.color = Color(1.0, 0.5, 0.15)
+	ball.add_child(core)
+	var glow := FX.make_ellipse_poly(12, 12, 14, Color(1.0, 0.4, 0.1, 0.35)) if FX else null
+	if glow:
+		ball.add_child(glow)
+	var mid := origin.lerp(dest, 0.5) + Vector2(0, -70.0 - origin.distance_to(dest) * 0.08)
+	var dur := clampf(origin.distance_to(dest) / 520.0, 0.22, 0.42)
+	var tw := create_tween()
+	tw.set_parallel(false)
+	# Simple 2-segment arc
+	tw.tween_property(ball, "position", mid, dur * 0.5).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tw.tween_property(ball, "position", dest, dur * 0.5).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	tw.tween_callback(func():
+		if is_instance_valid(ball):
+			ball.queue_free()
+		if on_land.is_valid():
+			on_land.call()
+	)
+
+
+func _fx_ember_nova(world_at: Vector2, radius: float) -> void:
+	var local := world_at - global_position
+	# Expanding fire rings
+	for i in 3:
+		var ring := FX.make_ellipse_poly(14 + i * 6, 9 + i * 4, 22, Color(1.0, 0.45 - i * 0.08, 0.1, 0.5 - i * 0.1)) if FX else null
+		if ring == null:
+			continue
+		ring.position = local
+		ring.z_index = 18
+		ring.scale = Vector2(0.3, 0.3)
+		add_child(ring)
+		var tw := create_tween()
+		var sc := (radius / 50.0) * (0.7 + i * 0.25)
+		tw.tween_property(ring, "scale", Vector2(sc, sc * 0.65), 0.28 + i * 0.05).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tw.parallel().tween_property(ring, "modulate:a", 0.0, 0.28 + i * 0.05)
+		tw.tween_callback(ring.queue_free)
+	# Flame tongues
+	for j in 6:
+		var ang := TAU * float(j) / 6.0 + randf() * 0.2
+		var flame := Polygon2D.new()
+		flame.polygon = PackedVector2Array([
+			Vector2(0, 4), Vector2(5, -8), Vector2(0, -18), Vector2(-5, -8)
+		])
+		flame.color = Color(1.0, 0.55, 0.15, 0.85)
+		flame.position = local
+		flame.rotation = ang
+		flame.z_index = 19
+		add_child(flame)
+		var tip := local + Vector2(cos(ang), sin(ang)) * (radius * 0.35)
+		var tw2 := create_tween()
+		tw2.tween_property(flame, "position", tip, 0.2)
+		tw2.parallel().tween_property(flame, "modulate:a", 0.0, 0.22)
+		tw2.tween_callback(flame.queue_free)
+	if FX:
+		FX.burst_particles(self, world_at, Color(1.0, 0.5, 0.15), 16, "glow", 0.4)
+		FX.burst_particles(self, world_at, Color(0.95, 0.3, 0.1), 10, "spark", 0.35)
+
+
+func _fx_shard_bolt(world_to: Vector2, on_hit: Callable) -> void:
+	## Long crystalline arrow.
+	var origin := _muzzle_origin()
+	var dest := world_to - global_position + Vector2(0, -10)
+	var bolt := Node2D.new()
+	bolt.position = origin
+	bolt.z_index = 25
+	bolt.rotation = (dest - origin).angle()
+	add_child(bolt)
+	var shaft := Polygon2D.new()
+	shaft.polygon = PackedVector2Array([
+		Vector2(-4, -3), Vector2(22, -2), Vector2(28, 0), Vector2(22, 2), Vector2(-4, 3)
+	])
+	shaft.color = Color(0.95, 0.88, 0.45, 0.95)
+	bolt.add_child(shaft)
+	var tip := Polygon2D.new()
+	tip.polygon = PackedVector2Array([Vector2(28, 0), Vector2(38, -5), Vector2(38, 5)])
+	tip.color = Color(1.0, 0.98, 0.8, 1.0)
+	bolt.add_child(tip)
+	var fletch := Polygon2D.new()
+	fletch.polygon = PackedVector2Array([
+		Vector2(-4, 0), Vector2(-12, -7), Vector2(-8, 0), Vector2(-12, 7)
+	])
+	fletch.color = Color(0.85, 0.7, 0.35, 0.8)
+	bolt.add_child(fletch)
+	# Soft trail
+	var trail := Line2D.new()
+	trail.width = 3.0
+	trail.default_color = Color(0.95, 0.85, 0.45, 0.35)
+	trail.points = PackedVector2Array([Vector2(-8, 0), Vector2(10, 0)])
+	trail.z_index = -1
+	bolt.add_child(trail)
+	var dist := origin.distance_to(dest)
+	var dur := clampf(dist / 1400.0, 0.07, 0.16)
+	var tw := create_tween()
+	tw.tween_property(bolt, "position", dest, dur).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_callback(func():
+		if is_instance_valid(bolt):
+			bolt.queue_free()
+		if on_hit.is_valid():
+			on_hit.call()
+	)
+
+
+func _fx_shard_impact(world_at: Vector2) -> void:
+	var local := world_at - global_position
+	for i in 4:
+		var shard := Polygon2D.new()
+		shard.polygon = PackedVector2Array([Vector2(0, -6), Vector2(3, 0), Vector2(0, 4), Vector2(-3, 0)])
+		shard.color = Color(0.95, 0.9, 0.5, 0.9)
+		shard.position = local
+		shard.rotation = randf() * TAU
+		shard.z_index = 22
+		add_child(shard)
+		var out := local + Vector2(cos(shard.rotation), sin(shard.rotation)) * randf_range(18, 36)
+		var tw := create_tween()
+		tw.tween_property(shard, "position", out, 0.18)
+		tw.parallel().tween_property(shard, "modulate:a", 0.0, 0.18)
+		tw.tween_callback(shard.queue_free)
+	if FX:
+		FX.burst_particles(self, world_at, Color(0.95, 0.85, 0.4), 8, "star", 0.28)
+
+
+func _fx_mist_vent(world_to: Vector2) -> void:
+	## Clouds billow from the cauldron and wash toward the target.
+	var origin := _muzzle_origin() + Vector2(0, 8)
+	for i in 4:
+		var puff := FX.make_ellipse_poly(10 + i * 3, 8 + i * 2, 16, Color(0.6, 0.4, 0.9, 0.35 - i * 0.04)) if FX else null
+		if puff == null:
+			continue
+		puff.position = origin + Vector2(randf_range(-6, 6), randf_range(-4, 4))
+		puff.z_index = 20
+		puff.scale = Vector2(0.4, 0.4)
+		add_child(puff)
+		var dest := (world_to - global_position).lerp(origin, 0.15) + Vector2(randf_range(-20, 20), randf_range(-12, 12))
+		var tw := create_tween()
+		tw.tween_property(puff, "position", dest, 0.35 + i * 0.04).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		tw.parallel().tween_property(puff, "scale", Vector2(1.6 + i * 0.2, 1.2 + i * 0.15), 0.4)
+		tw.parallel().tween_property(puff, "modulate:a", 0.0, 0.45)
+		tw.tween_callback(puff.queue_free)
+	# Soft mist bloom on the target
+	var bloom := FX.make_ellipse_poly(28, 18, 20, Color(0.65, 0.45, 0.95, 0.28)) if FX else null
+	if bloom:
+		bloom.position = world_to - global_position
+		bloom.z_index = 18
+		bloom.scale = Vector2(0.4, 0.4)
+		add_child(bloom)
+		var twb := create_tween()
+		twb.tween_property(bloom, "scale", Vector2(1.5, 1.1), 0.35)
+		twb.parallel().tween_property(bloom, "modulate:a", 0.0, 0.4)
+		twb.tween_callback(bloom.queue_free)
+	if FX:
+		FX.burst_particles(self, global_position + origin, Color(0.65, 0.45, 0.95), 8, "glow", 0.4)
+
+
+func _fx_lightning_arc(from_world: Vector2, to_world: Vector2) -> void:
+	## Jagged forked lightning (not a straight beam).
+	var a := from_world - global_position
+	var b := to_world - global_position
+	var pts := PackedVector2Array()
+	pts.append(a)
+	var segs := 5
+	for i in range(1, segs):
+		var t := float(i) / float(segs)
+		var p := a.lerp(b, t)
+		var perp := Vector2(-(b.y - a.y), b.x - a.x).normalized()
+		if perp.length_squared() < 0.01:
+			perp = Vector2.RIGHT
+		p += perp * randf_range(-14.0, 14.0) * (1.0 - absf(t - 0.5) * 0.5)
+		pts.append(p)
+	pts.append(b)
+	# Outer glow
+	var glow := Line2D.new()
+	glow.width = 7.0
+	glow.default_color = Color(0.55, 0.9, 1.0, 0.35)
+	glow.begin_cap_mode = Line2D.LINE_CAP_ROUND
+	glow.end_cap_mode = Line2D.LINE_CAP_ROUND
+	glow.joint_mode = Line2D.LINE_JOINT_ROUND
+	glow.antialiased = true
+	glow.points = pts
+	glow.z_index = 21
+	add_child(glow)
+	# Core bolt
+	var core := Line2D.new()
+	core.width = 2.2
+	core.default_color = Color(0.9, 0.98, 1.0, 0.95)
+	core.begin_cap_mode = Line2D.LINE_CAP_ROUND
+	core.end_cap_mode = Line2D.LINE_CAP_ROUND
+	core.joint_mode = Line2D.LINE_JOINT_ROUND
+	core.antialiased = true
+	core.points = pts
+	core.z_index = 22
+	add_child(core)
+	# Brief fork branch
+	if pts.size() > 3:
+		var mid: Vector2 = pts[pts.size() / 2]
+		var fork := Line2D.new()
+		fork.width = 1.5
+		fork.default_color = Color(0.7, 0.95, 1.0, 0.7)
+		fork.points = PackedVector2Array([
+			mid, mid + Vector2(randf_range(-20, 20), randf_range(-18, 8))
+		])
+		fork.z_index = 22
+		add_child(fork)
+		var twf := create_tween()
+		twf.tween_property(fork, "modulate:a", 0.0, 0.12)
+		twf.tween_callback(fork.queue_free)
+	var tw := create_tween()
+	tw.tween_property(glow, "modulate:a", 0.0, 0.16)
+	tw.parallel().tween_property(core, "modulate:a", 0.0, 0.14)
+	tw.tween_callback(func():
+		if is_instance_valid(glow):
+			glow.queue_free()
+		if is_instance_valid(core):
+			core.queue_free()
+	)
+
+
+func _fx_lightning_impact(world_at: Vector2) -> void:
+	var local := world_at - global_position
+	var flash := FX.make_ellipse_poly(10, 10, 12, Color(0.8, 0.95, 1.0, 0.7)) if FX else null
+	if flash:
+		flash.position = local + Vector2(0, -10)
+		flash.z_index = 23
+		add_child(flash)
+		var tw := create_tween()
+		tw.tween_property(flash, "scale", Vector2(2.2, 2.2), 0.12)
+		tw.parallel().tween_property(flash, "modulate:a", 0.0, 0.14)
+		tw.tween_callback(flash.queue_free)
+	if FX:
+		FX.burst_particles(self, world_at, Color(0.7, 0.95, 1.0), 6, "star", 0.25)
+
+
+func _fx_root_gate_pulse() -> void:
+	## Gate shudders — roots at base twitch.
+	if _visual:
+		var tw := create_tween()
+		tw.tween_property(_visual, "scale", Vector2.ONE * _level_scale() * 1.06, 0.06)
+		tw.tween_property(_visual, "scale", Vector2.ONE * _level_scale(), 0.12)
+	var base := Vector2(0, 6)
+	for sx in [-1.0, 1.0]:
+		var vine := Line2D.new()
+		vine.width = 3.0
+		vine.default_color = Color(0.35, 0.55, 0.28, 0.85)
+		vine.points = PackedVector2Array([
+			base, base + Vector2(sx * 18, -8), base + Vector2(sx * 28, 4)
+		])
+		vine.z_index = 15
+		add_child(vine)
+		var tw2 := create_tween()
+		tw2.tween_property(vine, "modulate:a", 0.0, 0.35)
+		tw2.tween_callback(vine.queue_free)
+
+
+func _fx_roots_at(world_at: Vector2) -> void:
+	## Grasping roots erupt under the enemy.
+	var local := world_at - global_position
+	var soil := FX.make_ellipse_poly(16, 9, 14, Color(0.2, 0.28, 0.14, 0.45)) if FX else null
+	if soil:
+		soil.position = local + Vector2(0, 6)
+		soil.z_index = 16
+		soil.scale = Vector2(0.3, 0.3)
+		add_child(soil)
+		var tws := create_tween()
+		tws.tween_property(soil, "scale", Vector2(1.4, 1.0), 0.2)
+		tws.parallel().tween_property(soil, "modulate:a", 0.0, 0.45)
+		tws.tween_callback(soil.queue_free)
+	for i in 5:
+		var ang := -0.6 + float(i) * 0.3 + randf_range(-0.1, 0.1)
+		var root := Line2D.new()
+		root.width = 2.8
+		root.default_color = Color(0.38, 0.55, 0.28, 0.95)
+		root.begin_cap_mode = Line2D.LINE_CAP_ROUND
+		root.end_cap_mode = Line2D.LINE_CAP_ROUND
+		var tip := Vector2(sin(ang) * 22.0, -8.0 - float(i) * 5.0)
+		root.points = PackedVector2Array([
+			Vector2.ZERO,
+			Vector2(sin(ang) * 8.0, -2.0),
+			tip
+		])
+		root.position = local + Vector2(0, 8)
+		root.z_index = 17
+		root.scale = Vector2(0.2, 0.2)
+		add_child(root)
+		var tw := create_tween()
+		tw.tween_property(root, "scale", Vector2.ONE, 0.14 + float(i) * 0.02).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		tw.tween_interval(0.15)
+		tw.tween_property(root, "modulate:a", 0.0, 0.25)
+		tw.tween_callback(root.queue_free)
+	if FX:
+		FX.burst_particles(self, world_at, Color(0.4, 0.65, 0.3), 8, "spark", 0.3)
