@@ -80,34 +80,51 @@ func _build_floor() -> void:
 
 
 func _build_elevation_base() -> void:
-	## Sparse material washes only — floor shader carries most of the texture.
+	## Terrain material washes — grass/rock/sand transitions that follow elevation.
 	if PathNetwork == null:
 		return
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 4242
-	for ix in range(-8, 9):
-		for iy in range(-7, 9):
-			if (ix + iy * 3) % 2 == 0:
-				continue  # half density
+	for ix in range(-10, 11):
+		for iy in range(-8, 11):
+			if (ix + iy * 2) % 3 == 0:
+				continue
 			var pos := Vector2(
-				float(ix) * 240.0 + rng.randf_range(-40, 40),
-				float(iy) * 220.0 + rng.randf_range(-30, 30)
+				float(ix) * 200.0 + rng.randf_range(-50, 50),
+				float(iy) * 185.0 + rng.randf_range(-40, 40)
 			)
-			if pos.length() < 220.0:
-				continue  # keep plaza open
-			if PathNetwork.dist_to_path(pos) < PATH_CLEAR * 0.9:
+			if pos.length() < 200.0:
+				continue
+			if PathNetwork.dist_to_path(pos) < PATH_CLEAR * 0.85:
 				continue
 			var elev := PathNetwork.elevation_at(pos)
-			if absf(elev) < 0.18:
+			if absf(elev) < 0.12:
 				continue
-			if elev > 0.0:
-				var r := 50.0 + elev * 70.0
-				var hill := _ellipse(pos, r, r * 0.55, Color(0.2, 0.38, 0.22, 0.1 + elev * 0.08), Z_HILL)
+			var r := 40.0 + absf(elev) * 80.0
+			var ang := rng.randf() * TAU
+			if elev > 0.25:
+				# Rocky high ground
+				var rock := _organic_poly(pos, r * 0.9, 0.7, 10, rng, Color(0.32, 0.32, 0.36, 0.12 + elev * 0.1), Z_HILL)
+				add_child(rock)
+				rock.rotation = ang * 0.15
+			elif elev > 0.0:
+				var hill := _organic_poly(pos, r, 0.65, 12, rng, Color(0.22, 0.4, 0.24, 0.1 + elev * 0.1), Z_HILL)
 				add_child(hill)
+			elif elev < -0.2:
+				# Wet basin / mud near water
+				var wet := _organic_poly(pos, r * 1.1, 0.7, 14, rng, Color(0.2, 0.28, 0.26, 0.12 + absf(elev) * 0.1), Z_HILL)
+				add_child(wet)
 			else:
-				var r2 := 45.0 + absf(elev) * 60.0
-				var hollow := _ellipse(pos, r2, r2 * 0.55, Color(0.18, 0.26, 0.28, 0.1 + absf(elev) * 0.08), Z_HILL)
+				var hollow := _organic_poly(pos, r, 0.6, 11, rng, Color(0.18, 0.26, 0.24, 0.1), Z_HILL)
 				add_child(hollow)
+	# Sand/shore washes around water features
+	for f in PathNetwork.features:
+		if str(f.get("kind", "")) not in ["lake", "pond"]:
+			continue
+		var c: Vector2 = f.get("pos", Vector2.ZERO)
+		var rad: float = float(f.get("radius", 100.0))
+		var sand := _organic_poly(c, rad * 1.25, 0.7, 16, rng, Color(0.42, 0.38, 0.28, 0.18), Z_HILL)
+		add_child(sand)
 
 
 func _build_plaza() -> void:
@@ -178,20 +195,16 @@ func _build_terrain_features() -> void:
 		var pos: Vector2 = f.get("pos", Vector2.ZERO)
 		var kind: String = str(f.get("kind", "forest"))
 		var radius: float = float(f.get("radius", 120.0))
-		# Never plant solid decor on the road
-		if PathNetwork.dist_to_path(pos) < PATH_CLEAR:
+		if PathNetwork.dist_to_path(pos) < PATH_CLEAR * 0.75:
 			continue
 		match kind:
 			"mountain":
-				_add_mountain(pos, radius, rng)
+				_add_mountain(f, rng)
 			"hill":
-				_add_hill(pos, radius, rng, round_tree, pine_tree)
-			"lake":
-				_add_lake(pos, radius, rng, false)
-			"pond":
-				_add_lake(pos, radius, rng, true)
+				_add_hill(f, rng, round_tree, pine_tree)
+			"lake", "pond":
+				_add_natural_water(f, rng)
 			"fairy_ring":
-				# Skip dense mushroom rings — floor materials + sparse botanicals are enough
 				pass
 			"crystal_grove", "crystals":
 				_add_crystal_grove(pos, radius, rng)
@@ -199,139 +212,243 @@ func _build_terrain_features() -> void:
 				_add_forest_cluster(pos, radius, round_tree, pine_tree, rng)
 
 
-func _add_mountain(center: Vector2, radius: float, rng: RandomNumberGenerator) -> void:
-	## Layered rock peaks with moss shoulders — path winds around these.
-	var base := _ellipse(center + Vector2(0, 22), radius * 1.15, radius * 0.52, Color(0.09, 0.08, 0.13, 0.9), Z_MOUNTAIN - 5)
-	add_child(base)
-	# Moss skirts (two layers for lush foothills)
-	var skirt := _ellipse(center + Vector2(0, 12), radius * 1.05, radius * 0.46, Color(0.12, 0.3, 0.16, 0.62), Z_MOUNTAIN - 4)
-	add_child(skirt)
-	var foothill := _ellipse(center + Vector2(0, 28), radius * 1.25, radius * 0.38, Color(0.32, 0.48, 0.38, 0.4), Z_MOUNTAIN - 6)
-	add_child(foothill)
-	var peaks := 6 + int(radius / 40.0)
+func _add_mountain(f: Dictionary, rng: RandomNumberGenerator) -> void:
+	## Ridge-style massif: organic foothill base + staggered peaks along stretch.
+	var center: Vector2 = f.get("pos", Vector2.ZERO)
+	var radius: float = float(f.get("radius", 150.0))
+	var stretch: Vector2 = f.get("stretch", Vector2(1.2, 0.9)) as Vector2
+	var ridge_ang: float = float(f.get("angle", 0.0))
+	var ca := cos(ridge_ang)
+	var sa := sin(ridge_ang)
+
+	# Organic rock/moss base (elongated)
+	var base_pts := _organic_shore_pts(center, radius * 1.15, 0.55, 18, rng, int(f.get("seed", 1)), stretch, ridge_ang)
+	_add_filled_poly(base_pts, Color(0.18, 0.16, 0.2, 0.75), Z_MOUNTAIN - 6)
+	var skirt_pts := _organic_shore_pts(center, radius * 1.0, 0.58, 16, rng, int(f.get("seed", 1)) + 3, stretch, ridge_ang)
+	_add_filled_poly(skirt_pts, Color(0.22, 0.38, 0.24, 0.5), Z_MOUNTAIN - 5)
+
+	var peaks := 5 + int(radius / 45.0)
 	for i in peaks:
-		var ang := -0.55 + float(i) * 0.32 + rng.randf() * 0.1
-		var o := Vector2(cos(ang), sin(ang) * 0.42) * radius * rng.randf_range(0.02, 0.5)
-		var h := rng.randf_range(radius * 0.65, radius * 1.15)
-		var w := rng.randf_range(radius * 0.16, radius * 0.34)
+		var along := (float(i) / float(maxi(1, peaks - 1)) - 0.5) * radius * stretch.x * 1.1
+		var across := rng.randf_range(-0.15, 0.15) * radius * stretch.y
+		var o := Vector2(along * ca - across * sa, along * sa + across * ca)
+		var h := rng.randf_range(radius * 0.55, radius * 1.05)
+		var w := rng.randf_range(radius * 0.14, radius * 0.28)
 		var peak := Polygon2D.new()
 		peak.polygon = PackedVector2Array([
-			Vector2(-w, 16), Vector2(-w * 0.5, -h * 0.48), Vector2(0, -h),
-			Vector2(w * 0.42, -h * 0.46), Vector2(w, 16)
+			Vector2(-w, 14), Vector2(-w * 0.4, -h * 0.45), Vector2(0, -h),
+			Vector2(w * 0.35, -h * 0.42), Vector2(w, 14)
 		])
-		peak.color = Color(0.42, 0.38, 0.52).darkened(rng.randf() * 0.08)
+		peak.color = Color(0.38, 0.36, 0.44).darkened(rng.randf() * 0.1)
 		peak.position = center + o
+		peak.rotation = ridge_ang * 0.3 + rng.randf_range(-0.08, 0.08)
 		peak.z_index = Z_MOUNTAIN + clampi(int((center.y + o.y) / 60.0), -5, 15)
 		add_child(peak)
-		# Moss shoulder on lower slope of peak
 		var moss_s := Polygon2D.new()
 		moss_s.polygon = PackedVector2Array([
-			Vector2(-w * 0.7, 10), Vector2(-w * 0.25, -h * 0.25), Vector2(w * 0.2, -h * 0.22), Vector2(w * 0.65, 10)
+			Vector2(-w * 0.65, 8), Vector2(-w * 0.2, -h * 0.22), Vector2(w * 0.18, -h * 0.2), Vector2(w * 0.6, 8)
 		])
-		moss_s.color = Color(0.38, 0.58, 0.42, 0.55)
+		moss_s.color = Color(0.32, 0.48, 0.34, 0.5)
 		moss_s.position = peak.position
+		moss_s.rotation = peak.rotation
 		moss_s.z_index = peak.z_index + 1
 		add_child(moss_s)
-		# Pearl / champagne crystal cap
 		var cap := Polygon2D.new()
 		cap.polygon = PackedVector2Array([
-			Vector2(0, -h), Vector2(-w * 0.3, -h * 0.7), Vector2(w * 0.24, -h * 0.68)
+			Vector2(0, -h), Vector2(-w * 0.25, -h * 0.68), Vector2(w * 0.2, -h * 0.66)
 		])
-		cap.color = Color(0.9, 0.94, 1.0, 0.85) if i % 2 == 0 else Color(0.98, 0.88, 0.55, 0.75)
+		cap.color = Color(0.88, 0.92, 0.96, 0.8) if i % 2 == 0 else Color(0.95, 0.88, 0.6, 0.7)
 		cap.position = peak.position
+		cap.rotation = peak.rotation
 		cap.z_index = peak.z_index + 2
 		add_child(cap)
-	# Standing stones + small pines on slope
-	for j in 6:
-		var a2 := rng.randf() * TAU
-		var sp := center + Vector2(cos(a2), sin(a2) * 0.65) * radius * rng.randf_range(0.55, 0.95)
+	# Sparse slope stones
+	for j in 4:
+		var t := rng.randf_range(-0.6, 0.6)
+		var sp := center + Vector2(t * radius * stretch.x * ca, t * radius * stretch.x * sa)
+		sp += Vector2(-sa, ca) * rng.randf_range(-radius * 0.35, radius * 0.35)
 		if PathNetwork and PathNetwork.dist_to_path(sp) < PATH_CLEAR:
 			continue
-		_add_standing_stone(sp, rng.randf_range(0.7, 1.2))
+		_add_standing_stone(sp, rng.randf_range(0.65, 1.1))
 
 
 func _add_hill(
-	center: Vector2,
-	radius: float,
+	f: Dictionary,
 	rng: RandomNumberGenerator,
 	round_tree: Texture2D,
 	pine_tree: Texture2D
 ) -> void:
-	## Soft elevated moss mound with dense crown of trees.
-	var r := maxf(60.0, radius)
-	var base := _ellipse(center + Vector2(0, 10), r * 1.2, r * 0.62, Color(0.08, 0.24, 0.12, 0.55), Z_HILL)
-	add_child(base)
-	var mid := _ellipse(center, r * 0.92, r * 0.52, Color(0.12, 0.36, 0.16, 0.52), Z_HILL + 1)
-	add_child(mid)
-	var upper := _ellipse(center + Vector2(0, -r * 0.08), r * 0.68, r * 0.36, Color(0.18, 0.42, 0.2, 0.48), Z_HILL + 2)
-	add_child(upper)
-	var crown := _ellipse(center + Vector2(0, -r * 0.16), r * 0.42, r * 0.24, Color(0.26, 0.5, 0.26, 0.42), Z_HILL + 3)
-	add_child(crown)
-	# North-side shade for elevation read
-	var shade := _ellipse(center + Vector2(0, r * 0.28), r * 0.85, r * 0.2, Color(0.04, 0.08, 0.05, 0.22), Z_HILL)
-	add_child(shade)
-	# Light crown of trees only
-	var count := int(clampf(r / 28.0, 3.0, 8.0))
+	## Irregular rolling mound — organic footprint, layered slopes.
+	var center: Vector2 = f.get("pos", Vector2.ZERO)
+	var r: float = maxf(60.0, float(f.get("radius", 120.0)))
+	var stretch: Vector2 = f.get("stretch", Vector2(1.25, 0.9)) as Vector2
+	var ang: float = float(f.get("angle", 0.0))
+	var seed: int = int(f.get("seed", hash(str(f.get("id", "")))))
+
+	var base := _organic_shore_pts(center + Vector2(0, 6), r * 1.15, 0.7, 14, rng, seed, stretch, ang)
+	_add_filled_poly(base, Color(0.12, 0.28, 0.16, 0.5), Z_HILL)
+	var mid := _organic_shore_pts(center, r * 0.85, 0.68, 12, rng, seed + 2, stretch, ang)
+	_add_filled_poly(mid, Color(0.16, 0.36, 0.2, 0.48), Z_HILL + 1)
+	var crown := _organic_shore_pts(center + Vector2(0, -r * 0.1), r * 0.48, 0.65, 10, rng, seed + 4, stretch * 0.9, ang)
+	_add_filled_poly(crown, Color(0.24, 0.46, 0.26, 0.4), Z_HILL + 2)
+	# Soft shade on "south" flank
+	var shade := _organic_shore_pts(center + Vector2(0, r * 0.2), r * 0.75, 0.45, 10, rng, seed + 5, stretch, ang)
+	_add_filled_poly(shade, Color(0.06, 0.1, 0.08, 0.18), Z_HILL)
+
+	var count := int(clampf(r / 32.0, 2.0, 7.0))
 	for i in count:
-		var ang := rng.randf() * TAU
-		var rr := r * sqrt(rng.randf()) * 0.65
-		var p := center + Vector2(cos(ang), sin(ang) * 0.7) * rr + Vector2(0, -r * 0.1)
+		var a := rng.randf() * TAU
+		var rr := r * sqrt(rng.randf()) * 0.55
+		var p := center + Vector2(cos(a), sin(a) * 0.7) * rr
 		if PathNetwork and PathNetwork.dist_to_path(p) < PATH_CLEAR:
 			continue
 		var tex: Texture2D = pine_tree if (pine_tree and rng.randf() < 0.55) else round_tree
 		if tex:
-			_place_sprite(tex, p, rng.randf_range(2.0, 2.8), 0.95)
+			_place_sprite(tex, p, rng.randf_range(1.9, 2.7), 0.95)
 
 
-func _add_lake(center: Vector2, radius: float, rng: RandomNumberGenerator, is_pond: bool = false) -> void:
-	## Swimmable lake or pond — soft shore, deep center, lilies/reeds. Wardens can swim here.
-	var r := maxf(48.0 if is_pond else 70.0, radius)
-	var aspect := 0.62 if is_pond else 0.6
-	# Wide marshy shore
-	var marsh := _ellipse(center, r * 1.32, r * (aspect + 0.18), Color(0.12, 0.28, 0.15, 0.48), Z_WATER)
-	add_child(marsh)
-	var shore := _ellipse(center, r * 1.16, r * (aspect + 0.12), Color(0.16, 0.24, 0.14, 0.72), Z_WATER + 1)
-	add_child(shore)
-	# Sandy/mud bank
-	var bank := _ellipse(center, r * 1.06, r * (aspect + 0.05), Color(0.28, 0.24, 0.16, 0.4), Z_WATER + 2)
-	add_child(bank)
-	var wet := _ellipse(center, r * 1.0, r * aspect, Color(0.08, 0.16, 0.15, 0.55), Z_WATER + 2)
-	add_child(wet)
-	# Water body (matches PathNetwork swim ellipse ~0.92 / 0.58)
-	var water_col := Color(0.32, 0.58, 0.68, 0.72) if is_pond else Color(0.28, 0.52, 0.65, 0.75)
-	var water := _ellipse(center, r * 0.94, r * aspect, water_col, Z_WATER + 3)
-	add_child(water)
-	var deep := _ellipse(center + Vector2(r * 0.06, r * 0.04), r * 0.55, r * aspect * 0.58, Color(0.22, 0.38, 0.58, 0.65), Z_WATER + 4)
-	add_child(deep)
-	var shallows := _ellipse(center + Vector2(-r * 0.18, -r * 0.1), r * 0.38, r * aspect * 0.35, Color(0.48, 0.75, 0.78, 0.32), Z_WATER + 4)
-	add_child(shallows)
-	# Soft pearl-cyan rim light
-	var rim := _ellipse(center, r * 0.96, r * aspect * 1.02, Color(0.55, 0.88, 0.95, 0.12), Z_WATER + 3)
-	add_child(rim)
-	# Specular glints
-	var glint_n := 5 if is_pond else 10
-	for i in glint_n:
-		var g := _ellipse(
-			center + Vector2(rng.randf_range(-r * 0.45, r * 0.45), rng.randf_range(-r * aspect * 0.5, r * aspect * 0.5)),
-			rng.randf_range(6, 18), rng.randf_range(2.5, 7),
-			Color(0.55, 0.9, 1.0, 0.18 + rng.randf() * 0.1), Z_WATER + 5
-		)
+func _add_natural_water(f: Dictionary, rng: RandomNumberGenerator) -> void:
+	## Organic multi-lobe lake/pond — irregular shore, marsh, sand, deeps (not a circle).
+	var center: Vector2 = f.get("pos", Vector2.ZERO)
+	var r: float = maxf(50.0, float(f.get("radius", 120.0)))
+	var is_pond: bool = str(f.get("kind", "lake")) == "pond"
+	var seed: int = int(f.get("seed", 0))
+	var lobes: Array = f.get("lobes", [])
+	var stretch := Vector2(1.2, 0.7)
+	if not lobes.is_empty():
+		var max_rx := 0.9
+		var max_ry := 0.55
+		for lobe in lobes:
+			max_rx = maxf(max_rx, float(lobe.get("rx", 1.0)))
+			max_ry = maxf(max_ry, float(lobe.get("ry", 0.55)))
+		stretch = Vector2(max_rx * 1.35, max_ry * 1.5)
+
+	# Marsh / wetland fringe
+	var marsh := _organic_shore_pts(center, r * 1.35, 0.75, 22, rng, seed, stretch, 0.0)
+	_add_filled_poly(marsh, Color(0.14, 0.3, 0.16, 0.45), Z_WATER)
+	# Mud / sand bank
+	var bank := _organic_shore_pts(center, r * 1.18, 0.72, 20, rng, seed + 1, stretch, 0.12)
+	_add_filled_poly(bank, Color(0.36, 0.32, 0.22, 0.42), Z_WATER + 1)
+	var wet := _organic_shore_pts(center, r * 1.08, 0.7, 18, rng, seed + 2, stretch, -0.08)
+	_add_filled_poly(wet, Color(0.12, 0.2, 0.18, 0.5), Z_WATER + 2)
+
+	# Main water surface (organic)
+	var water_col := Color(0.3, 0.55, 0.65, 0.78) if is_pond else Color(0.26, 0.5, 0.62, 0.8)
+	var water := _organic_shore_pts(center, r * 0.98, 0.68, 20, rng, seed + 3, stretch, 0.05)
+	_add_filled_poly(water, water_col, Z_WATER + 3)
+
+	# Depth from multi-lobe centers
+	if lobes.is_empty():
+		lobes = [{"o": Vector2.ZERO, "rx": 0.7, "ry": 0.5}]
+	for i in lobes.size():
+		var lobe: Dictionary = lobes[i]
+		var o: Vector2 = lobe.get("o", Vector2.ZERO)
+		var lrx: float = float(lobe.get("rx", 0.7)) * r
+		var lry: float = float(lobe.get("ry", 0.5)) * r
+		var deep := _organic_shore_pts(center + o, maxf(lrx, lry) * 0.7, lry / maxf(0.2, lrx), 12, rng, seed + 10 + i, Vector2(1.0, 1.0), rng.randf() * 0.5)
+		_add_filled_poly(deep, Color(0.16, 0.32, 0.5, 0.55), Z_WATER + 4)
+
+	# Shallow bay highlight
+	var bay_o := Vector2(r * 0.2, -r * 0.08)
+	var shallow := _organic_shore_pts(center + bay_o, r * 0.38, 0.65, 10, rng, seed + 20, Vector2(1.3, 0.7), 0.3)
+	_add_filled_poly(shallow, Color(0.42, 0.68, 0.72, 0.28), Z_WATER + 4)
+
+	# Specular flecks inside water (few)
+	for i in (3 if is_pond else 6):
+		var gp := _sample_inside_organic(center, r * 0.7, stretch, rng)
+		var g := _ellipse(gp, rng.randf_range(5, 14), rng.randf_range(2, 6), Color(0.6, 0.9, 1.0, 0.16), Z_WATER + 5)
 		add_child(g)
-	# Ethereal mist over water
-	var mist := _ellipse(center + Vector2(0, -6), r * 0.75, r * aspect * 0.7, Color(0.45, 0.4, 0.75, 0.14), Z_WATER + 6)
-	add_child(mist)
-	# Sparse shore reeds only — materials carry the rest
-	var edge_n := 4 if is_pond else 6
-	for i in edge_n:
-		var ang := TAU * float(i) / float(edge_n) + rng.randf() * 0.2
-		var p := center + Vector2(cos(ang), sin(ang) * aspect) * r * rng.randf_range(0.95, 1.12)
-		if PathNetwork and PathNetwork.dist_to_path(p) < PATH_CLEAR * 0.7:
+
+	# Soft mist over larger lakes only
+	if not is_pond:
+		var mist := _organic_shore_pts(center + Vector2(0, -8), r * 0.7, 0.6, 12, rng, seed + 30, stretch * 0.9, 0.0)
+		_add_filled_poly(mist, Color(0.4, 0.38, 0.55, 0.1), Z_WATER + 6)
+
+	# Shore reeds along irregular perimeter
+	var shore_pts := _organic_shore_pts(center, r * 1.02, 0.7, 16, rng, seed + 4, stretch, 0.0)
+	var step := 2 if is_pond else 1
+	for i in range(0, shore_pts.size(), step + 1):
+		var p: Vector2 = shore_pts[i]
+		if PathNetwork and PathNetwork.dist_to_path(p) < PATH_CLEAR * 0.65:
+			continue
+		if rng.randf() < 0.45:
 			continue
 		_add_reed_cluster(p, rng)
-	# One lily pad on larger lakes only
-	if not is_pond and rng.randf() < 0.6:
-		var lp := center + Vector2(rng.randf_range(-r * 0.25, r * 0.25), rng.randf_range(-r * 0.15, r * 0.15))
-		_add_lily_pad(lp, rng.randf_range(0.8, 1.1), rng)
+
+	if not is_pond and rng.randf() < 0.55:
+		var lp := _sample_inside_organic(center, r * 0.45, stretch, rng)
+		_add_lily_pad(lp, rng.randf_range(0.75, 1.1), rng)
+
+
+func _organic_shore_pts(
+	center: Vector2,
+	radius: float,
+	aspect: float,
+	n: int,
+	rng: RandomNumberGenerator,
+	seed: int,
+	stretch: Vector2 = Vector2.ONE,
+	angle: float = 0.0
+) -> PackedVector2Array:
+	## Irregular shoreline — bays, peninsulas, no perfect circle.
+	var pts := PackedVector2Array()
+	var ca := cos(angle)
+	var sa := sin(angle)
+	var sx := maxf(0.45, stretch.x)
+	var sy := maxf(0.45, stretch.y)
+	for i in n:
+		var a := TAU * float(i) / float(n)
+		# Multi-frequency warping for natural coast
+		var warp := 1.0
+		warp += 0.22 * sin(a * 2.0 + float(seed) * 0.17)
+		warp += 0.16 * cos(a * 3.0 - float(seed) * 0.11)
+		warp += 0.12 * sin(a * 5.0 + float(seed) * 0.07)
+		warp += 0.08 * cos(a * 7.0 + float(seed) * 0.03)
+		# Occasional inlet / bay
+		if sin(a * 3.0 + float(seed)) > 0.72:
+			warp *= 0.72
+		# Occasional peninsula
+		if cos(a * 2.0 - float(seed) * 0.2) > 0.78:
+			warp *= 1.22
+		warp *= 0.92 + 0.12 * rng.randf()
+		var rr := radius * clampf(warp, 0.55, 1.45)
+		var lx := cos(a) * rr * sx
+		var ly := sin(a) * rr * aspect * sy
+		pts.append(center + Vector2(lx * ca - ly * sa, lx * sa + ly * ca))
+	return pts
+
+
+func _organic_poly(
+	center: Vector2,
+	radius: float,
+	aspect: float,
+	n: int,
+	rng: RandomNumberGenerator,
+	col: Color,
+	z: int
+) -> Polygon2D:
+	var pts := _organic_shore_pts(center, radius, aspect, n, rng, rng.randi(), Vector2.ONE, rng.randf() * 0.4)
+	return _make_poly(pts, col, z)
+
+
+func _add_filled_poly(pts: PackedVector2Array, col: Color, z: int) -> void:
+	if pts.size() < 3:
+		return
+	add_child(_make_poly(pts, col, z))
+
+
+func _make_poly(pts: PackedVector2Array, col: Color, z: int) -> Polygon2D:
+	var p := Polygon2D.new()
+	p.polygon = pts
+	p.color = col
+	p.z_index = z
+	return p
+
+
+func _sample_inside_organic(center: Vector2, radius: float, stretch: Vector2, rng: RandomNumberGenerator) -> Vector2:
+	var a := rng.randf() * TAU
+	var t := sqrt(rng.randf()) * 0.75
+	return center + Vector2(cos(a) * radius * stretch.x, sin(a) * radius * stretch.y * 0.7) * t
 
 
 func _add_lily_pad(pos: Vector2, scale: float, rng: RandomNumberGenerator) -> void:

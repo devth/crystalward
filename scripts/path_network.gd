@@ -57,81 +57,132 @@ func rebuild(lane_set: String = "single") -> void:
 
 
 func _place_shared_features() -> void:
-	## Landmarks sit in the *interior* of the grand loop so the road skirts them.
+	## Natural landforms: ridges, irregular hills, multi-lobe lakes (not random circles).
 	if active_lane_set in ["single", "simple"]:
-		_feature("south_peak", Vector2(80, 1450), "mountain", 170.0, 1.1)
-		_feature("se_hill", Vector2(620, 1100), "hill", 140.0, 0.55)
-		_feature("east_peak", Vector2(780, 200), "mountain", 150.0, 0.95)
-		_feature("ne_hill", Vector2(520, -480), "hill", 130.0, 0.5)
-		_feature("north_ridge", Vector2(-40, -620), "mountain", 160.0, 1.0)
-		_feature("nw_hill", Vector2(-620, -360), "hill", 135.0, 0.52)
-		_feature("west_peak", Vector2(-820, 180), "mountain", 155.0, 0.95)
-		_feature("sw_hill", Vector2(-560, 900), "hill", 140.0, 0.55)
-		# Large swimmable lakes
-		_feature("lake_east", Vector2(420, 420), "lake", 185.0, -0.65)
-		_feature("lake_west", Vector2(-500, 340), "lake", 170.0, -0.6)
-		_feature("lake_south", Vector2(-60, 1000), "lake", 145.0, -0.5)
-		_feature("lake_north", Vector2(200, -420), "lake", 130.0, -0.45)
-		# Smaller ponds (shortcuts / flavor)
-		_feature("pond_glade", Vector2(-180, 180), "pond", 70.0, -0.3)
-		_feature("pond_se", Vector2(560, 820), "pond", 65.0, -0.28)
-		_feature("pond_sw", Vector2(-380, 720), "pond", 60.0, -0.28)
-		_feature("pond_ne", Vector2(340, -200), "pond", 55.0, -0.25)
-		_feature("pond_mid", Vector2(80, 580), "pond", 50.0, -0.25)
-		_feature("mid_hill", Vector2(120, 200), "hill", 100.0, 0.4)
-		_feature("inner_grove", Vector2(-220, -80), "forest", 130.0, 0.2)
-		_feature("east_wood", Vector2(520, -80), "forest", 120.0, 0.2)
-		_feature("south_wood", Vector2(-280, 1280), "forest", 130.0, 0.18)
-		_feature("crystal_spur", Vector2(160, -180), "crystal_grove", 90.0, 0.25)
-		_feature("fairy_east", Vector2(300, 700), "fairy_ring", 80.0, 0.1)
-		_feature("fairy_west", Vector2(-360, 600), "fairy_ring", 75.0, 0.1)
-		_feature("far_crystals", Vector2(200, 1900), "crystal_grove", 95.0, 0.22)
+		# Mountain ridges (elongated via "ridge" stretch in ground visual)
+		_feature("south_ridge", Vector2(40, 1480), "mountain", 190.0, 1.15, {"stretch": Vector2(1.6, 0.7), "angle": 0.35})
+		_feature("east_massif", Vector2(820, 180), "mountain", 175.0, 1.05, {"stretch": Vector2(1.2, 1.4), "angle": -0.4})
+		_feature("north_ridge", Vector2(-40, -640), "mountain", 180.0, 1.1, {"stretch": Vector2(1.8, 0.65), "angle": 0.1})
+		_feature("west_massif", Vector2(-860, 160), "mountain", 170.0, 1.0, {"stretch": Vector2(1.15, 1.35), "angle": 0.5})
+		# Rolling hills / knolls
+		_feature("se_hills", Vector2(580, 1050), "hill", 160.0, 0.58, {"stretch": Vector2(1.5, 0.85), "angle": 0.6})
+		_feature("ne_knoll", Vector2(480, -460), "hill", 145.0, 0.5, {"stretch": Vector2(1.3, 0.9), "angle": -0.3})
+		_feature("nw_knoll", Vector2(-600, -340), "hill", 150.0, 0.52, {"stretch": Vector2(1.4, 0.8), "angle": 0.2})
+		_feature("sw_rise", Vector2(-540, 880), "hill", 155.0, 0.55, {"stretch": Vector2(1.35, 0.95), "angle": -0.5})
+		_feature("mid_knoll", Vector2(140, 220), "hill", 110.0, 0.4, {"stretch": Vector2(1.2, 1.0), "angle": 0.15})
+		# Natural water systems — elongated basins, multi-lobe (seed drives shore shape)
+		_water("lake_amber", Vector2(440, 400), "lake", 200.0, -0.7, 11, [
+			{"o": Vector2(0, 0), "rx": 1.0, "ry": 0.55},
+			{"o": Vector2(90, -40), "rx": 0.55, "ry": 0.45},
+			{"o": Vector2(-70, 50), "rx": 0.5, "ry": 0.4},
+		])
+		_water("lake_west", Vector2(-520, 320), "lake", 190.0, -0.65, 22, [
+			{"o": Vector2(0, 0), "rx": 0.85, "ry": 0.7},
+			{"o": Vector2(-80, 60), "rx": 0.55, "ry": 0.5},
+			{"o": Vector2(50, -70), "rx": 0.45, "ry": 0.35},
+		])
+		_water("lake_south", Vector2(-40, 1020), "lake", 175.0, -0.55, 33, [
+			{"o": Vector2(0, 0), "rx": 1.15, "ry": 0.45},
+			{"o": Vector2(100, 20), "rx": 0.5, "ry": 0.4},
+			{"o": Vector2(-90, -10), "rx": 0.48, "ry": 0.38},
+		])
+		_water("lake_north", Vector2(180, -440), "lake", 155.0, -0.5, 44, [
+			{"o": Vector2(0, 0), "rx": 0.95, "ry": 0.6},
+			{"o": Vector2(70, 40), "rx": 0.5, "ry": 0.42},
+		])
+		# Oxbow / wetland pond systems
+		_water("pond_glade", Vector2(-200, 160), "pond", 85.0, -0.32, 55, [
+			{"o": Vector2(0, 0), "rx": 0.9, "ry": 0.65},
+			{"o": Vector2(35, -20), "rx": 0.45, "ry": 0.4},
+		])
+		_water("pond_se", Vector2(540, 800), "pond", 95.0, -0.3, 66, [
+			{"o": Vector2(0, 0), "rx": 1.1, "ry": 0.5},
+			{"o": Vector2(-40, 25), "rx": 0.5, "ry": 0.45},
+		])
+		_water("pond_sw", Vector2(-400, 700), "pond", 80.0, -0.28, 77, [
+			{"o": Vector2(0, 0), "rx": 0.85, "ry": 0.7},
+		])
+		_water("pond_stream", Vector2(60, 560), "pond", 90.0, -0.3, 88, [
+			{"o": Vector2(0, 0), "rx": 1.2, "ry": 0.4},
+			{"o": Vector2(55, 15), "rx": 0.55, "ry": 0.35},
+			{"o": Vector2(-50, -10), "rx": 0.45, "ry": 0.38},
+		])
+		# Sparse woods / crystal
+		_feature("inner_grove", Vector2(-240, -100), "forest", 140.0, 0.18)
+		_feature("east_wood", Vector2(540, -60), "forest", 130.0, 0.18)
+		_feature("south_wood", Vector2(-260, 1300), "forest", 140.0, 0.16)
+		_feature("crystal_spur", Vector2(180, -200), "crystal_grove", 85.0, 0.22)
+		_feature("far_crystals", Vector2(200, 1920), "crystal_grove", 90.0, 0.2)
 		return
-	# Multi-path maps — rich basin with water
-	_feature("north_peak", Vector2(-80, -820), "mountain", 180.0, 1.1)
-	_feature("south_ridge", Vector2(100, 980), "mountain", 160.0, 1.0)
-	_feature("west_mountain", Vector2(-880, 120), "mountain", 150.0, 0.95)
-	_feature("east_peak", Vector2(900, -80), "mountain", 145.0, 0.9)
-	_feature("west_hill", Vector2(-720, 40), "hill", 165.0, 0.6)
-	_feature("east_hill", Vector2(760, -40), "hill", 155.0, 0.55)
-	_feature("sw_hill", Vector2(-480, 720), "hill", 130.0, 0.5)
-	_feature("ne_hill", Vector2(500, -520), "hill", 120.0, 0.48)
-	_feature("lake_west", Vector2(-540, 400), "lake", 170.0, -0.65)
-	_feature("lake_east", Vector2(560, -340), "lake", 160.0, -0.6)
-	_feature("lake_south", Vector2(40, 620), "lake", 140.0, -0.5)
-	_feature("lake_north", Vector2(80, -500), "lake", 125.0, -0.45)
-	_feature("pond_mid", Vector2(0, 200), "pond", 70.0, -0.3)
-	_feature("pond_ne", Vector2(380, -120), "pond", 60.0, -0.28)
-	_feature("pond_sw", Vector2(-300, 500), "pond", 55.0, -0.25)
-	_feature("nw_wood", Vector2(-540, -440), "forest", 150.0, 0.22)
-	_feature("ne_wood", Vector2(580, -420), "forest", 140.0, 0.22)
-	_feature("sw_wood", Vector2(-500, 640), "forest", 150.0, 0.22)
-	_feature("se_wood", Vector2(540, 620), "forest", 140.0, 0.22)
-	_feature("mid_hill", Vector2(220, 220), "hill", 110.0, 0.45)
-	_feature("crystal_spur", Vector2(-200, -220), "crystal_grove", 95.0, 0.28)
-	_feature("fairy_glade", Vector2(280, 380), "fairy_ring", 80.0, 0.1)
+	# Multi-path maps
+	_feature("north_peak", Vector2(-80, -820), "mountain", 190.0, 1.15, {"stretch": Vector2(1.5, 0.75), "angle": 0.2})
+	_feature("south_ridge", Vector2(100, 980), "mountain", 175.0, 1.05, {"stretch": Vector2(1.6, 0.7), "angle": -0.25})
+	_feature("west_mountain", Vector2(-880, 120), "mountain", 165.0, 1.0, {"stretch": Vector2(1.1, 1.4), "angle": 0.4})
+	_feature("east_peak", Vector2(900, -80), "mountain", 160.0, 0.95, {"stretch": Vector2(1.25, 1.2), "angle": -0.35})
+	_feature("west_hill", Vector2(-720, 40), "hill", 170.0, 0.6, {"stretch": Vector2(1.4, 0.9), "angle": 0.3})
+	_feature("east_hill", Vector2(760, -40), "hill", 160.0, 0.55, {"stretch": Vector2(1.35, 0.95), "angle": -0.2})
+	_feature("sw_hill", Vector2(-480, 720), "hill", 145.0, 0.5, {"stretch": Vector2(1.3, 1.0), "angle": 0.5})
+	_feature("ne_hill", Vector2(500, -520), "hill", 135.0, 0.48, {"stretch": Vector2(1.25, 0.9), "angle": -0.4})
+	_water("lake_west", Vector2(-540, 400), "lake", 185.0, -0.7, 101, [
+		{"o": Vector2(0, 0), "rx": 0.9, "ry": 0.65},
+		{"o": Vector2(-70, 50), "rx": 0.55, "ry": 0.5},
+	])
+	_water("lake_east", Vector2(560, -340), "lake", 175.0, -0.65, 112, [
+		{"o": Vector2(0, 0), "rx": 1.05, "ry": 0.55},
+		{"o": Vector2(60, -30), "rx": 0.5, "ry": 0.45},
+	])
+	_water("lake_south", Vector2(40, 620), "lake", 160.0, -0.55, 123, [
+		{"o": Vector2(0, 0), "rx": 1.2, "ry": 0.48},
+		{"o": Vector2(80, 20), "rx": 0.5, "ry": 0.4},
+	])
+	_water("pond_mid", Vector2(20, 200), "pond", 90.0, -0.32, 134, [
+		{"o": Vector2(0, 0), "rx": 0.95, "ry": 0.7},
+		{"o": Vector2(30, -25), "rx": 0.45, "ry": 0.4},
+	])
+	_feature("nw_wood", Vector2(-540, -440), "forest", 150.0, 0.2)
+	_feature("ne_wood", Vector2(580, -420), "forest", 140.0, 0.2)
+	_feature("sw_wood", Vector2(-500, 640), "forest", 150.0, 0.2)
+	_feature("se_wood", Vector2(540, 620), "forest", 140.0, 0.2)
+	_feature("crystal_spur", Vector2(-200, -220), "crystal_grove", 95.0, 0.25)
 
 
-func _feature(id: String, pos: Vector2, kind: String, radius: float, elev: float = 0.0) -> void:
-	features.append({"id": id, "pos": pos, "kind": kind, "radius": radius, "elev": elev})
+func _feature(id: String, pos: Vector2, kind: String, radius: float, elev: float = 0.0, extra: Dictionary = {}) -> void:
+	var f := {"id": id, "pos": pos, "kind": kind, "radius": radius, "elev": elev}
+	for k in extra:
+		f[k] = extra[k]
+	features.append(f)
+
+
+func _water(id: String, pos: Vector2, kind: String, radius: float, elev: float, seed: int, lobes: Array) -> void:
+	## Multi-lobe water body for natural irregular shape + swim collision.
+	_feature(id, pos, kind, radius, elev, {"seed": seed, "lobes": lobes})
 
 
 func _rebuild_water_bodies() -> void:
-	## Match visual lake ellipses (slightly smaller than marsh so shore stays walkable).
+	## Multi-lobe ellipses matching organic lake visuals (for swimming).
 	water_bodies.clear()
 	for f in features:
 		var kind: String = str(f.get("kind", ""))
 		if kind not in ["lake", "pond"]:
 			continue
+		var center: Vector2 = f.get("pos", Vector2.ZERO)
 		var r: float = float(f.get("radius", 100.0))
-		var rx := r * (0.92 if kind == "lake" else 0.88)
-		var ry := r * (0.58 if kind == "lake" else 0.55)
+		var lobes: Array = f.get("lobes", [])
+		var lobe_data: Array = []
+		if lobes.is_empty():
+			lobe_data.append({"pos": center, "rx": r * 0.9, "ry": r * 0.55})
+		else:
+			for lobe in lobes:
+				var o: Vector2 = lobe.get("o", Vector2.ZERO) if lobe is Dictionary else Vector2.ZERO
+				var lrx: float = float(lobe.get("rx", 1.0)) * r * 0.88
+				var lry: float = float(lobe.get("ry", 0.6)) * r * 0.88
+				lobe_data.append({"pos": center + o, "rx": lrx, "ry": lry})
 		water_bodies.append({
-			"pos": f.get("pos", Vector2.ZERO),
-			"rx": rx,
-			"ry": ry,
+			"pos": center,
 			"kind": kind,
 			"radius": r,
+			"lobes": lobe_data,
+			"seed": int(f.get("seed", 0)),
 		})
 
 
@@ -140,27 +191,29 @@ func in_water(world_pos: Vector2) -> bool:
 
 
 func water_depth_at(world_pos: Vector2) -> float:
-	## 0 = dry, 1 = deep center of a water body (ellipse falloff).
+	## 0 = dry, 1 = deep — max over multi-lobe falloff.
 	var best := 0.0
 	for w in water_bodies:
-		var c: Vector2 = w.get("pos", Vector2.ZERO)
-		var rx: float = maxf(8.0, float(w.get("rx", 40.0)))
-		var ry: float = maxf(8.0, float(w.get("ry", 28.0)))
-		var local := world_pos - c
-		var nx := local.x / rx
-		var ny := local.y / ry
-		var d2 := nx * nx + ny * ny
-		if d2 >= 1.0:
+		var lobes: Array = w.get("lobes", [])
+		if lobes.is_empty():
 			continue
-		# Smooth depth: 0 at shore → 1 at center
-		var depth := 1.0 - d2
-		depth = depth * depth * (3.0 - 2.0 * depth)
-		best = maxf(best, depth)
+		for lobe in lobes:
+			var c: Vector2 = lobe.get("pos", Vector2.ZERO)
+			var rx: float = maxf(8.0, float(lobe.get("rx", 40.0)))
+			var ry: float = maxf(8.0, float(lobe.get("ry", 28.0)))
+			var local := world_pos - c
+			var nx := local.x / rx
+			var ny := local.y / ry
+			var d2 := nx * nx + ny * ny
+			if d2 >= 1.0:
+				continue
+			var depth := 1.0 - d2
+			depth = depth * depth * (3.0 - 2.0 * depth)
+			best = maxf(best, depth)
 	return best
 
 
 func nearest_water(world_pos: Vector2) -> Dictionary:
-	## { pos, dist, depth, kind } of closest water body (empty if none).
 	var best := {}
 	var best_d := INF
 	for w in water_bodies:
@@ -173,26 +226,37 @@ func nearest_water(world_pos: Vector2) -> Dictionary:
 				"dist": d,
 				"depth": water_depth_at(world_pos),
 				"kind": str(w.get("kind", "lake")),
-				"rx": float(w.get("rx", 40.0)),
-				"ry": float(w.get("ry", 28.0)),
+				"radius": float(w.get("radius", 100.0)),
 			}
 	return best
 
 
 func elevation_at(world_pos: Vector2) -> float:
-	## Pseudo-height -1..1+ from landmarks (lakes negative, peaks positive).
+	## Pseudo-height from landforms + rolling undulation.
 	var h := 0.0
 	for f in features:
 		var c: Vector2 = f.get("pos", Vector2.ZERO)
 		var r: float = float(f.get("radius", 100.0))
 		var peak: float = float(f.get("elev", 0.0))
-		var d := world_pos.distance_to(c)
-		var fall := r * 2.2
+		var stretch: Vector2 = f.get("stretch", Vector2.ONE) as Vector2
+		var ang: float = float(f.get("angle", 0.0))
+		# Elliptical distance for ridges
+		var local := world_pos - c
+		var ca := cos(ang)
+		var sa := sin(ang)
+		var lx := local.x * ca + local.y * sa
+		var ly := -local.x * sa + local.y * ca
+		var sx := maxf(0.5, stretch.x)
+		var sy := maxf(0.5, stretch.y)
+		var d := Vector2(lx / sx, ly / sy).length()
+		var fall := r * 2.15
 		if d < fall and peak != 0.0:
 			var t := 1.0 - d / fall
 			h += peak * t * t * (3.0 - 2.0 * t)
-	h += 0.12 * sin(world_pos.x * 0.0038) * cos(world_pos.y * 0.0032)
-	h += 0.06 * sin(world_pos.x * 0.007 + world_pos.y * 0.005)
+	# Rolling terrain
+	h += 0.14 * sin(world_pos.x * 0.0035) * cos(world_pos.y * 0.003)
+	h += 0.08 * sin(world_pos.x * 0.0065 + world_pos.y * 0.0045)
+	h += 0.05 * cos(world_pos.x * 0.009 - world_pos.y * 0.007)
 	return h
 
 
