@@ -76,8 +76,12 @@ func reset() -> void:
 	enemies_leaked = 0
 	enemies_killed = 0
 	essence_earned = 0
-	wardens.clear()
+	# Fairies are match-scoped. Wardens are scene players — do not wipe them.
+	# (Players _ready before Main, so clearing here orphaned the camera follow list.)
 	fairies.clear()
+	for i in range(wardens.size() - 1, -1, -1):
+		if not is_instance_valid(wardens[i]) or not wardens[i].is_inside_tree():
+			wardens.remove_at(i)
 	crystal_hp_changed.emit(crystal_hp, crystal_max_hp)
 	wave_changed.emit(current_wave, waves_to_win)
 	stars_changed.emit(stars)

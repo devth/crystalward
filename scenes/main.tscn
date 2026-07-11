@@ -104,10 +104,10 @@ position = Vector2(0, 40)
 zoom = Vector2(0.72, 0.72)
 script = ExtResource("3")
 crystal_path = NodePath("../Crystal")
-follow_speed = 5.0
-crystal_pull = 0.08
-max_distance_from_crystal = 1400.0
+follow_speed = 8.0
+look_ahead = 100.0
 world_bound = 1800.0
+base_zoom = 0.72
 
 [node name="HUD" type="CanvasLayer" parent="."]
 layer = 10

@@ -1,17 +1,19 @@
 extends Camera2D
-## Centroid follow of wardens; roam-friendly; dynamic zoom; juice offset safe.
+## Free-explore camera: pans with wardens across the map.
+## No crystal leash — you walk, the camera follows.
 
-@export var follow_speed: float = 5.5
+@export var follow_speed: float = 7.5
 @export var crystal_path: NodePath
-@export var crystal_pull: float = 0.06
-@export var max_distance_from_crystal: float = 1500.0
 @export var world_bound: float = 1800.0
-@export var zoom_min: float = 0.55
-@export var zoom_max: float = 0.85
-@export var base_zoom: float = 0.7
+@export var look_ahead: float = 90.0  ## pan slightly in move direction
+@export var zoom_min: float = 0.52
+@export var zoom_max: float = 0.9
+@export var base_zoom: float = 0.72
 
 var _crystal: Node2D
-var _zoom_target: float = 0.7
+var _zoom_target: float = 0.72
+var _smoothed_target: Vector2 = Vector2.ZERO
+var _has_target: bool = false
 
 
 func _ready() -> void:
@@ -25,41 +27,66 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	var wardens := GameState.wardens
+	var wardens := _follow_targets()
 	var target := global_position
 	var spread := 0.0
+	var lead := Vector2.ZERO
 
 	if wardens.is_empty():
 		if _crystal:
 			target = _crystal.global_position
 	else:
 		var sum := Vector2.ZERO
+		var vel_sum := Vector2.ZERO
 		var n := 0
 		for w in wardens:
-			if is_instance_valid(w):
-				sum += w.global_position
-				n += 1
-		if n > 0:
-			target = sum / float(n)
-		# Spread for zoom
+			sum += w.global_position
+			n += 1
+			if w is CharacterBody2D:
+				vel_sum += (w as CharacterBody2D).velocity
+		target = sum / float(n)
+		# Look ahead in travel direction so exploring feels open
+		if vel_sum.length() > 40.0:
+			lead = vel_sum.normalized() * look_ahead
+		target += lead
 		for w in wardens:
-			if is_instance_valid(w):
-				spread = maxf(spread, w.global_position.distance_to(target))
-		if _crystal:
-			target = target.lerp(_crystal.global_position, crystal_pull)
-			var to_c := target - _crystal.global_position
-			if to_c.length() > max_distance_from_crystal:
-				target = _crystal.global_position + to_c.normalized() * max_distance_from_crystal
+			spread = maxf(spread, w.global_position.distance_to(sum / float(n)))
 
-	# Enemy activity pulls zoom out slightly
+	# Dynamic zoom: pull out when players split or map is busy
 	var enemy_n := 0
 	if get_tree():
 		enemy_n = get_tree().get_nodes_in_group("enemies").size()
-	var zoom_from_spread := base_zoom - clampf(spread / 900.0, 0.0, 0.2)
-	var zoom_from_enemies := clampf(enemy_n * 0.004, 0.0, 0.12)
+	var zoom_from_spread := base_zoom - clampf(spread / 800.0, 0.0, 0.22)
+	var zoom_from_enemies := clampf(enemy_n * 0.003, 0.0, 0.1)
 	_zoom_target = clampf(zoom_from_spread - zoom_from_enemies, zoom_min, zoom_max)
-	var z := lerpf(zoom.x, _zoom_target, 1.0 - exp(-3.0 * delta))
+	var z := lerpf(zoom.x, _zoom_target, 1.0 - exp(-3.2 * delta))
 	zoom = Vector2(z, z)
 
-	target = GameState.clamp_world_position(target, world_bound)
-	global_position = global_position.lerp(target, 1.0 - exp(-follow_speed * delta))
+	# Soft world clamp so we can explore to the map edge without showing void forever
+	var margin := 220.0 / maxf(0.35, zoom.x)
+	var bound := world_bound - margin * 0.25
+	target = GameState.clamp_world_position(target, bound) if GameState else target
+
+	if not _has_target:
+		_smoothed_target = target
+		global_position = target
+		_has_target = true
+	else:
+		# Smooth pan that keeps up while exploring
+		var t := 1.0 - exp(-follow_speed * delta)
+		_smoothed_target = _smoothed_target.lerp(target, t)
+		global_position = _smoothed_target
+
+
+func _follow_targets() -> Array[Node2D]:
+	var out: Array[Node2D] = []
+	if GameState:
+		for w in GameState.wardens:
+			if is_instance_valid(w) and w.is_inside_tree():
+				out.append(w)
+	# Fallback: group scan if registry was wiped mid-match
+	if out.is_empty() and get_tree():
+		for n in get_tree().get_nodes_in_group("wardens"):
+			if n is Node2D and is_instance_valid(n):
+				out.append(n as Node2D)
+	return out
