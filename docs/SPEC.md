@@ -27,9 +27,10 @@
 | Pull from | Leave behind |
 |---|---|
 | *The Dark Crystal* — sacred crystal, puppet-creature weirdness, prophecy, tactile materials | Pure synthwave / CRT neon metal |
-| *Legend* (1985) — soft dark fairy tale, forest vs eternal night, beauty + horror | Grimdark gore-first |
+| *Legend* (1985) — soft dark fairy tale, forest botanical beauty, beauty + soft dark | Grimdark gore-first |
 | Action RTS (*StarCraft*) — constant decisions, hotkeys, multitasking, no idle downtime | Casual “stand and dance towers up” pacing |
 | PixelJunk Monsters — shared-screen co-op, walk-the-map builders, defend a home | Low APM, long idle build rituals |
+| *Kingdom Rush* — fixed build pads, kill bounties, call-early waves, lives, stars, range rings, upgrade/sell, floating gold/dmg | Pure pure-click god-game with no hero on the field |
 
 **Art direction (target):** warm amber crystal light vs cold blue/violet night; moss, bone, bark, cloth, crystal; slight practical/puppet *feel* even in digital art. Silhouette-readable units.
 
@@ -232,6 +233,7 @@ Prior round closed. Next decisions when we hit them:
 | 2026-07-10 | Node contest: **shared progress** |
 | 2026-07-10 | Git default branch: **master** |
 | 2026-07-11 | Tower design doc: [`TOWERS.md`](TOWERS.md) (8 types, auras, matchups) |
+| 2026-07-11 | Kingdom Rush inspiration: lives, kill gold, call-early, upgrade/sell, range rings, stars, floating text |
 | 2026-07-10 | Path-following enemies via `PathNetwork` (12 lanes → Lightwell) |
 | 2026-07-10 | Campaign length: **8 surges**; elites mid-run; juice + procedural SFX + minimap polish |
 

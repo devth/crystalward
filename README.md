@@ -39,14 +39,14 @@ In-game: **Esc / Start** opens the full controls panel and pauses. Press again t
 
 Switch Pro / Joy-Cons: device 0 → P1, device 1 → P2 (A gather, B attack, X build — layout may vary by OS mapping).
 
-### Loop
+### Loop (Kingdom Rush × co-op heroes)
 
-- Shared **Essence** bank. Hold gather on cyan wells along the glowing paths.
-- Stand on pads → **Q** to queue a tower (**25 Essence**, builds while you leave).
-- **Nightspawn march authored path lanes** (not straight lines) toward the Lightwell.
-- Towers auto-fire; melee for APM spikes. Elites from surge 2+.
-- Survive **8 named surges** or crystal HP hits 0. **R** restarts.
-- Minimap (top-right). Esc = pause + full controls.
+- Shared **Essence** (💰). Kills pay bounty; gather wells along paths for more.
+- **Stone build pads** → **Q** build / upgrade (Lv1–3). Near pad **E** sells (60% refund) if not gathering.
+- **T / LB** = **Call Wave early** for bonus gold (prep phase only).
+- Nightspawn march **path lanes**; leaks cost **Lives** (♥). Stars 1–3 on victory.
+- Towers auto-fire (prefer enemies closest to crystal); floating dmg/+gold text.
+- Survive **8 waves**. **R** restart. Esc pause. Minimap top-right.
 
 ## Spec
 

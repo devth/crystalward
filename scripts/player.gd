@@ -185,12 +185,23 @@ func _physics_process(delta: float) -> void:
 			var gem: Polygon2D = $Visual/StaffGem
 			gem.modulate = Color(1, 1, 1, 0.75 + 0.25 * sin(_bob_t * 1.3))
 
-	if _action_pressed("gather"):
-		_try_gather(delta)
+	if _action_just_pressed("gather"):
+		# Gather wins over sell when an essence node is in range (no accidental sells).
+		if not _near_gather.is_empty():
+			_try_gather(delta)
+		else:
+			# KR sell: tap E on a built pad only when not gathering.
+			_try_sell_nearby()
+	elif _action_pressed("gather"):
+		# Hold-to-gather only — never sell on hold (avoids sell spam / gather conflict).
+		if not _near_gather.is_empty():
+			_try_gather(delta)
 	if _action_just_pressed("build"):
 		_try_build()
 	if _action_just_pressed("attack"):
 		_try_attack()
+	if Input.is_action_just_pressed("call_wave"):
+		_try_call_wave()
 
 
 func _read_move() -> Vector2:
@@ -215,13 +226,30 @@ func _try_gather(delta: float) -> void:
 			return
 
 
+func _try_sell_nearby() -> void:
+	for n in _near_build:
+		if n == null or not is_instance_valid(n):
+			continue
+		# Prefer explicit API (State.BUILT == 2, but don't hardcode enum ints).
+		if n.has_method("can_sell") and not n.can_sell():
+			continue
+		if n.has_method("try_sell") and n.try_sell():
+			return
+
+
 func _try_build() -> void:
 	for n in _near_build:
 		if n and n.has_method("try_queue_build"):
 			if n.try_queue_build():
-				if Sfx:
-					Sfx.build()
 				return
+
+
+func _try_call_wave() -> void:
+	var wm := get_tree().get_first_node_in_group("wave_manager")
+	if wm == null:
+		wm = get_tree().current_scene.get_node_or_null("WaveManager") if get_tree().current_scene else null
+	if wm and wm.has_method("call_early_wave"):
+		wm.call("call_early_wave")
 
 
 func _try_attack() -> void:

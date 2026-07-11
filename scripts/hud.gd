@@ -43,12 +43,15 @@ func _ready() -> void:
 	GameState.message.connect(_on_message)
 	end_panel.visible = false
 	pause_layer.visible = false
+	if GameState.has_signal("wave_phase_changed"):
+		GameState.wave_phase_changed.connect(_on_wave_phase)
 	_on_essence(GameState.essence)
 	_on_dust(GameState.crystal_dust)
 	_on_crystal(GameState.crystal_hp, GameState.crystal_max_hp)
 	_on_wave(GameState.current_wave, GameState.waves_to_win)
-	hint_label.text = "Esc / Start — Pause & Controls · Paths glow — nightspawn march them"
+	hint_label.text = "T / LB Call Wave · Q build/upgrade · E gather/sell · Esc pause"
 	_ensure_minimap()
+	_ensure_call_wave_ui()
 
 
 func _ensure_minimap() -> void:
@@ -104,20 +107,62 @@ func _resume_if_needed() -> void:
 		pause_layer.visible = false
 
 
+func _ensure_call_wave_ui() -> void:
+	if has_node("Root/CallWaveBtn"):
+		return
+	var btn := Button.new()
+	btn.name = "CallWaveBtn"
+	btn.text = "⚔ CALL WAVE  (T)"
+	btn.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	btn.offset_left = -120.0
+	btn.offset_top = -72.0
+	btn.offset_right = 120.0
+	btn.offset_bottom = -36.0
+	btn.add_theme_font_size_override("font_size", 16)
+	btn.pressed.connect(_on_call_wave_pressed)
+	$Root.add_child(btn)
+
+
+func _on_call_wave_pressed() -> void:
+	var wm := get_tree().get_first_node_in_group("wave_manager")
+	if wm and wm.has_method("call_early_wave"):
+		wm.call("call_early_wave")
+
+
+func _on_wave_phase(phase: String, seconds_left: float) -> void:
+	if not has_node("Root/CallWaveBtn"):
+		return
+	var btn: Button = $Root/CallWaveBtn
+	if phase == "prep":
+		btn.visible = true
+		btn.text = "⚔ CALL WAVE +gold  (%.0fs)" % seconds_left
+		btn.disabled = false
+	else:
+		btn.text = "⚔ WAVE INCOMING"
+		btn.disabled = true
+
+
 func _on_essence(v: int) -> void:
-	essence_label.text = "Essence  %d" % v
+	essence_label.text = "💰 %d" % v
 
 
 func _on_dust(v: int) -> void:
-	dust_label.text = "Dust  %d" % v
+	dust_label.text = "✦ %d" % v
 
 
 func _on_crystal(cur: int, mx: int) -> void:
-	crystal_label.text = "Crystal  %d/%d" % [cur, mx]
+	# KR-style lives
+	var hearts := ""
+	for i in mini(cur, 20):
+		hearts += "♥"
+	if cur > 20:
+		hearts += "+%d" % (cur - 20)
+	crystal_label.text = "Lives %s" % (hearts if cur > 0 else "☠")
+	crystal_label.add_theme_color_override("font_color", Color(0.95, 0.35, 0.4) if cur <= 5 else Color(0.95, 0.55, 0.6))
 
 
 func _on_wave(w: int, total: int) -> void:
-	wave_label.text = "Surge  %d/%d" % [w, total]
+	wave_label.text = "Wave  %d/%d" % [w, total]
 
 
 func _on_message(text: String) -> void:
@@ -133,5 +178,16 @@ func _on_message(text: String) -> void:
 func _on_game_over(won: bool) -> void:
 	_resume_if_needed()
 	end_panel.visible = true
-	end_label.text = "VICTORY\nThe Crystal endures" if won else "DEFEAT\nThe light is gone"
-	end_label.modulate = Color(0.85, 0.75, 1.0) if won else Color(0.95, 0.4, 0.45)
+	if won:
+		var star_s := ""
+		for i in GameState.stars:
+			star_s += "★"
+		while star_s.length() < 3:
+			star_s += "☆"
+		end_label.text = "VICTORY\n%s\nThe Crystal endures\n%d killed · %d leaked" % [
+			star_s, GameState.enemies_killed, GameState.enemies_leaked
+		]
+		end_label.modulate = Color(1.0, 0.9, 0.45)
+	else:
+		end_label.text = "DEFEAT\nThe light is gone\nWave %d" % GameState.current_wave
+		end_label.modulate = Color(0.95, 0.4, 0.45)
