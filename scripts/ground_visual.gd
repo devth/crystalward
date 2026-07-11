@@ -52,17 +52,18 @@ func _build() -> void:
 	ring3.z_index = -36
 	add_child(ring3)
 
-	# Long path arteries radiating from crystal (N/S/E/W + diagonals)
-	var arm := 1100.0
-	_add_path_strip(Vector2(0, -arm), Vector2(0, arm * 0.95), 72)
-	_add_path_strip(Vector2(-arm, 30), Vector2(arm, 30), 64)
-	_add_path_strip(Vector2(-arm * 0.72, -arm * 0.55), Vector2(arm * 0.72, arm * 0.55), 48)
-	_add_path_strip(Vector2(arm * 0.72, -arm * 0.5), Vector2(-arm * 0.72, arm * 0.55), 48)
-	# Secondary shorter veins
-	_add_path_strip(Vector2(-420, -380), Vector2(380, 420), 32)
-	_add_path_strip(Vector2(450, -300), Vector2(-400, 360), 32)
-	_add_path_strip(Vector2(-700, 200), Vector2(200, -700), 28)
-	_add_path_strip(Vector2(700, 180), Vector2(-180, -680), 28)
+	# Authoritative monster lanes from PathNetwork (glowing roads)
+	if PathNetwork:
+		for lane in PathNetwork.lanes:
+			var pts: PackedVector2Array = lane
+			for i in range(pts.size() - 1):
+				var width := 70.0 if i == 0 else 58.0
+				if i >= pts.size() - 2:
+					width = 48.0
+				_add_path_strip(pts[i], pts[i + 1], width)
+			# Path end markers (corruption portals)
+			if pts.size() > 0:
+				_add_spawn_portal(pts[0])
 
 	# Standing stones near well + mid-range
 	var stones: Array = [
@@ -278,33 +279,68 @@ func _add_path_strip(from: Vector2, to: Vector2, width: float) -> void:
 		return
 	var n := dir.normalized()
 	var perp := Vector2(-n.y, n.x) * (width * 0.5)
+	var glow := Polygon2D.new()
+	glow.polygon = PackedVector2Array([
+		from + perp * 1.35, from - perp * 1.35, to - perp * 1.35, to + perp * 1.35
+	])
+	glow.color = Color(0.45, 0.25, 0.7, 0.12)
+	glow.z_index = -39
+	add_child(glow)
+
 	var poly := Polygon2D.new()
 	poly.polygon = PackedVector2Array([
 		from + perp, from - perp, to - perp, to + perp
 	])
-	poly.color = Color(0.2, 0.12, 0.26, 0.75)
+	poly.color = Color(0.16, 0.1, 0.22, 0.88)
 	poly.z_index = -38
 	add_child(poly)
 
 	var edge := Line2D.new()
-	edge.width = 2.0
-	edge.default_color = Color(0.55, 0.35, 0.75, 0.25)
-	edge.points = PackedVector2Array([from + perp * 0.85, to + perp * 0.85])
+	edge.width = 2.5
+	edge.default_color = Color(0.65, 0.4, 0.9, 0.4)
+	edge.points = PackedVector2Array([from + perp * 0.92, to + perp * 0.92])
 	edge.z_index = -37
 	add_child(edge)
 	var edge2 := Line2D.new()
-	edge2.width = 2.0
-	edge2.default_color = Color(0.3, 0.55, 0.45, 0.2)
-	edge2.points = PackedVector2Array([from - perp * 0.85, to - perp * 0.85])
+	edge2.width = 2.5
+	edge2.default_color = Color(0.3, 0.65, 0.5, 0.32)
+	edge2.points = PackedVector2Array([from - perp * 0.92, to - perp * 0.92])
 	edge2.z_index = -37
 	add_child(edge2)
 
 	var vein := Line2D.new()
-	vein.width = 3.0
-	vein.default_color = Color(0.7, 0.5, 0.9, 0.12)
+	vein.width = 4.0
+	vein.default_color = Color(0.75, 0.55, 1.0, 0.22)
+	vein.begin_cap_mode = Line2D.LINE_CAP_ROUND
+	vein.end_cap_mode = Line2D.LINE_CAP_ROUND
 	vein.points = PackedVector2Array([from, to])
 	vein.z_index = -36
 	add_child(vein)
+
+	var steps := maxi(2, int(len / 90.0))
+	for s in steps:
+		var t := float(s) / float(steps)
+		var p: Vector2 = from.lerp(to, t)
+		var tick := Polygon2D.new()
+		tick.polygon = PackedVector2Array([
+			p + n * 6.0, p + perp * 0.12, p - n * 4.0, p - perp * 0.12
+		])
+		tick.color = Color(0.55, 0.2, 0.45, 0.22)
+		tick.z_index = -35
+		add_child(tick)
+
+
+func _add_spawn_portal(pos: Vector2) -> void:
+	var root := Node2D.new()
+	root.position = pos
+	root.z_index = int(pos.y)
+	add_child(root)
+	var ring := FX.make_ellipse_poly(36, 22, 28, Color(0.55, 0.15, 0.4, 0.35))
+	root.add_child(ring)
+	var core := FX.make_ellipse_poly(16, 10, 18, Color(0.85, 0.25, 0.45, 0.45))
+	root.add_child(core)
+	if FX:
+		FX.spark_particles(root, Color(0.8, 0.3, 0.55, 0.7), 10, "magic")
 
 
 func _add_standing_stone(pos: Vector2, scale: float) -> void:

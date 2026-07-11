@@ -1,7 +1,7 @@
 # Crystalward — Living Design Spec
 
 > **Status:** draft / living  
-> **Last updated:** 2026-07-11  
+> **Last updated:** 2026-07-10  
 > **How to use:** This is the product source of truth. Update it when we make decisions; do not let code drift from it without a note here.
 
 ---
@@ -123,7 +123,8 @@ Players should almost always be choosing among:
 
 ## 7. Combat & units (draft)
 
-- **Nightspawn** follow paths / aggro rules toward the Lightwell; variety by armor, speed, swarm, siege, flyer (keep flyer count low for readability).
+- **Nightspawn** follow **authored path lanes** (`PathNetwork` autoload) from outer portals into the Lightwell — multi-segment polylines with lateral road slack, not pure free-path chase.
+- Variety later: armor, speed, swarm, siege, flyer (keep flyer count low for readability). **Elites** spawn mid-campaign (larger, tougher, bonus Essence/dust).
 - **Wardens** are fragile-to-medium heroes: useful in a fight, not a full substitute for towers.
 - **Towers** do the bulk of wave DPS; players multiply value via placement, upgrades, and focus-fire micro.
 - **Bosses / lieutenants:** telegraphed specials, multi-phase attention checks (APM spikes).
@@ -132,12 +133,12 @@ Players should almost always be choosing among:
 
 ## 8. Win / lose
 
-| Outcome | Condition (draft) |
+| Outcome | Condition (v0 prototype) |
 |---|---|
-| **Victory** | Survive the stage’s surges / reach dawn / complete the conjunction ritual |
+| **Victory** | Survive **8 surges** (dawn) with crystal integrity > 0 |
 | **Defeat** | Crystal integrity reaches 0 (or Lightwell destroyed) |
 
-Lives / integrity should be **shared** and highly visible (screen edge glow, crystal UI).
+Lives / integrity should be **shared** and highly visible (screen edge glow, crystal UI, juice flash/shake on crystal hits).
 
 ---
 
@@ -166,11 +167,13 @@ Lives / integrity should be **shared** and highly visible (screen edge glow, cry
 ### v0 — vertical slice (in repo — playable)
 
 - Godot 4 project at repo root (`project.godot`, `scenes/main.tscn`)
-- 1 map, crystal HP, essence nodes, queueable towers, 1 enemy type
+- Large ritual forest map: glowing **path network** (12 lanes), zone labels, path-aligned essence wells + tower sites
+- Crystal HP, queueable towers, path-following nightspawn (+ elites from surge 2+)
 - 2 local players (keyboard + gamepad device 0/1)
 - Shared Essence bank; Crystal dust drops (rare)
-- 5 surges win / crystal 0 lose; **R** restart
-- Placeholders art (polygons) — tune after playtest
+- **8 surges** win / crystal 0 lose; **R** restart; Esc/Start pause + controls
+- **Polish systems:** `PathNetwork`, `Juice` (shake/flash/hitstop), `Sfx` (procedural WAV), minimap, Kenney particles/UI, pixel creature skins
+- Atmosphere: moss shader ground, mist, path glow, ambient motes
 
 ### v1 — real session
 
@@ -204,8 +207,8 @@ Prior round closed. Next decisions when we hit them:
 | # | Question | Status |
 |---|---|---|
 | — | Exact gamepad/keyboard bindings | Open — prototype |
-| — | Win condition numbers (surge count, crystal HP) | Open |
-| — | First map layout / path topology | Open |
+| — | Win condition numbers (surge count, crystal HP) | **Closed for v0** — 8 surges, 120 crystal HP |
+| — | First map layout / path topology | **Closed for v0** — 12 authored lanes via `PathNetwork` |
 | — | Tower kit detail | See [`TOWERS.md`](TOWERS.md); implement T1+ over time |
 | — | Enemy kit / tags implementation | Open — tags defined in TOWERS.md |
 
@@ -229,6 +232,8 @@ Prior round closed. Next decisions when we hit them:
 | 2026-07-10 | Node contest: **shared progress** |
 | 2026-07-10 | Git default branch: **master** |
 | 2026-07-11 | Tower design doc: [`TOWERS.md`](TOWERS.md) (8 types, auras, matchups) |
+| 2026-07-10 | Path-following enemies via `PathNetwork` (12 lanes → Lightwell) |
+| 2026-07-10 | Campaign length: **8 surges**; elites mid-run; juice + procedural SFX + minimap polish |
 
 ---
 

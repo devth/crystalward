@@ -104,6 +104,10 @@ func contribute_gather(delta: float) -> void:
 func _complete_gather() -> void:
 	GameState.add_essence(GameState.ESSENCE_PER_GATHER)
 	GameState.message.emit("+%d Essence" % GameState.ESSENCE_PER_GATHER)
+	if Sfx:
+		Sfx.gather()
+	if FX:
+		FX.burst_particles(self, global_position, Color(0.5, 0.95, 1.0, 0.9), 10, "glow", 0.4)
 	_depleted = true
 	_respawn_left = respawn_time
 	if _visual:

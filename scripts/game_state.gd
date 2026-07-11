@@ -13,10 +13,10 @@ const TOWER_QUEUE_TIME := 2.0
 const ESSENCE_PER_GATHER := 5
 const GATHER_PROGRESS_RATE := 1.2  ## progress units per second per warden
 const GATHER_NEED := 1.0
-const STARTING_ESSENCE := 40
+const STARTING_ESSENCE := 55
 const STARTING_DUST := 0
-const CRYSTAL_MAX_HP := 100
-const WAVES_TO_WIN := 5
+const CRYSTAL_MAX_HP := 120
+const WAVES_TO_WIN := 8
 
 ## Soft playable bounds (half-extent). Players and camera clamp inside this rect.
 const WORLD_BOUND := 1800.0
@@ -121,5 +121,15 @@ func _end_game(victory: bool) -> void:
 	game_over.emit(victory)
 	if victory:
 		message.emit("Dawn breaks — the Crystal endures!")
+		if Sfx:
+			Sfx.win()
+		if Juice:
+			Juice.flash(Color(0.85, 0.75, 1.0, 0.45), 0.4)
+			Juice.shake(12.0)
 	else:
 		message.emit("The Crystal is shattered...")
+		if Sfx:
+			Sfx.lose()
+		if Juice:
+			Juice.flash(Color(0.6, 0.05, 0.15, 0.5), 0.5)
+			Juice.shake(16.0)

@@ -1,10 +1,10 @@
 extends Node
-## Spawns nightspawn surges toward the crystal.
+## Spawns nightspawn along PathNetwork lanes in surges.
 
 @export var enemy_scene: PackedScene
 @export var spawn_point_paths: Array[NodePath] = []
-@export var calm_between_waves: float = 6.0
-@export var first_wave_delay: float = 3.0
+@export var calm_between_waves: float = 7.0
+@export var first_wave_delay: float = 5.0
 
 enum Phase { WAIT_FIRST, SPAWNING, IN_WAVE, CALM, DONE }
 
@@ -13,31 +13,18 @@ var _phase: Phase = Phase.WAIT_FIRST
 var _timer: float = 0.0
 var _to_spawn: int = 0
 var _spawn_cd: float = 0.0
-var _spawn_points: Array[Marker2D] = []
+var _elites_left: int = 0
 
 
 func _ready() -> void:
-	refresh_spawn_points()
 	_timer = first_wave_delay
 	_phase = Phase.WAIT_FIRST
+	GameState.message.emit("Wardens — gather Essence. The soft dark gathers…")
 
 
-## Collect markers from export paths plus all Marker2D under ../Spawns (large map).
 func refresh_spawn_points() -> void:
-	_spawn_points.clear()
-	var seen: Dictionary = {}
-	for p in spawn_point_paths:
-		var n := get_node_or_null(p)
-		if n is Marker2D and not seen.has(n):
-			_spawn_points.append(n)
-			seen[n] = true
-	var spawns_root := get_node_or_null("../Spawns")
-	if spawns_root:
-		for c in spawns_root.get_children():
-			if c is Marker2D and not seen.has(c):
-				_spawn_points.append(c)
-				seen[c] = true
-	print("WaveManager spawn points: ", _spawn_points.size())
+	# Lanes are authoritative now; markers optional fallback.
+	pass
 
 
 func _process(delta: float) -> void:
@@ -52,9 +39,13 @@ func _process(delta: float) -> void:
 		Phase.SPAWNING:
 			_spawn_cd -= delta
 			if _spawn_cd <= 0.0 and _to_spawn > 0:
-				_spawn_one()
+				var elite := false
+				if _elites_left > 0 and (_to_spawn == 1 or randf() < 0.12):
+					elite = true
+					_elites_left -= 1
+				_spawn_one(elite)
 				_to_spawn -= 1
-				_spawn_cd = 0.32
+				_spawn_cd = maxf(0.16, 0.36 - _wave * 0.02)
 			if _to_spawn <= 0:
 				_phase = Phase.IN_WAVE
 		Phase.IN_WAVE:
@@ -67,7 +58,7 @@ func _process(delta: float) -> void:
 				else:
 					_phase = Phase.CALM
 					_timer = calm_between_waves
-					GameState.message.emit("Surge cleared — next in %ds" % int(calm_between_waves))
+					GameState.message.emit("Surge cleared — fortify. Next in %ds" % int(calm_between_waves))
 		Phase.CALM:
 			_timer -= delta
 			if _timer <= 0.0:
@@ -82,26 +73,44 @@ func _begin_wave() -> void:
 		_phase = Phase.DONE
 		return
 	GameState.set_wave(_wave)
-	GameState.message.emit("Surge %d approaches!" % _wave)
-	# Slightly more enemies on the bigger map
-	_to_spawn = 6 + _wave * 4
+	var names := [
+		"Thrall Tide", "Iron Procession", "Wild Hunt", "Soft Dark",
+		"Winged Blight", "Lieutenant's Host", "Conjunction Eve", "Dawn's Last Stand"
+	]
+	var label: String = names[mini(_wave - 1, names.size() - 1)]
+	GameState.message.emit("Surge %d — %s" % [_wave, label])
+	if Sfx:
+		Sfx.wave_start()
+	if Juice:
+		Juice.flash(Color(0.4, 0.2, 0.55, 0.25), 0.2)
+		Juice.shake(4.0)
+
+	_to_spawn = 8 + _wave * 5
+	_elites_left = 1 if _wave >= 2 else 0
+	if _wave >= 4:
+		_elites_left = 2
+	if _wave >= 6:
+		_elites_left = 3
 	_spawn_cd = 0.0
 	_phase = Phase.SPAWNING
 
 
-func _spawn_one() -> void:
+func _spawn_one(elite: bool = false) -> void:
 	if enemy_scene == null:
 		return
-	if _spawn_points.is_empty():
-		refresh_spawn_points()
-	if _spawn_points.is_empty():
-		return
-	var marker: Marker2D = _spawn_points[randi() % _spawn_points.size()]
+	var lane: PackedVector2Array = PathNetwork.random_lane() if PathNetwork else PackedVector2Array()
 	var e: Node2D = enemy_scene.instantiate() as Node2D
 	if e == null:
 		return
-	# Scale difficulty before enter tree so enemy._ready() picks up max_hp.
-	e.set("max_hp", 30 + _wave * 8)
-	e.set("move_speed", 55.0 + _wave * 6.0)
+	e.set("max_hp", 28 + _wave * 10)
+	e.set("move_speed", 52.0 + _wave * 5.5)
+	e.set("crystal_damage", 6 + _wave)
+	if e.has_method("assign_lane") and lane.size() > 0:
+		# assign before ready by setting property then calling after add
+		pass
 	get_parent().add_child(e)
-	e.global_position = marker.global_position + Vector2(randf_range(-36, 36), randf_range(-36, 36))
+	if e.has_method("assign_lane") and lane.size() > 0:
+		e.call("assign_lane", lane)
+	if elite and e.has_method("make_elite"):
+		e.call("make_elite")
+		GameState.message.emit("An Elite walks the path…")

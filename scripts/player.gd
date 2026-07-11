@@ -3,10 +3,12 @@ class_name Warden
 ## Player warden — move, gather, queue build, attack. Dark Crystal–esque sprite body.
 
 @export var player_index: int = 0
-@export var move_speed: float = 220.0
-@export var attack_damage: int = 18
-@export var attack_cooldown: float = 0.28
-@export var attack_range: float = 48.0
+@export var move_speed: float = 250.0
+@export var move_accel: float = 1800.0
+@export var move_friction: float = 2200.0
+@export var attack_damage: int = 20
+@export var attack_cooldown: float = 0.26
+@export var attack_range: float = 52.0
 @export var body_color: Color = Color(0.55, 0.75, 0.7)
 
 var _attack_cd: float = 0.0
@@ -149,24 +151,22 @@ func _physics_process(delta: float) -> void:
 	var dir := _read_move()
 	if dir.length_squared() > 0.01:
 		_facing = dir.normalized()
-		velocity = dir.normalized() * move_speed
+		velocity = velocity.move_toward(dir.normalized() * move_speed, move_accel * delta)
 		if _visual_root:
 			_visual_root.scale.x = -1.0 if _facing.x < -0.15 else 1.0
-		# Simple walk frame flip
 		if _use_sprite and _skin_frames.size() > 1 and _body_sprite:
 			_frame_flip_t += delta
-			if _frame_flip_t >= 0.18:
+			if _frame_flip_t >= 0.16:
 				_frame_flip_t = 0.0
 				_frame_idx = (_frame_idx + 1) % _skin_frames.size()
 				_body_sprite.texture = _skin_frames[_frame_idx]
 	else:
-		velocity = Vector2.ZERO
+		velocity = velocity.move_toward(Vector2.ZERO, move_friction * delta)
 		if _use_sprite and not _skin_frames.is_empty() and _body_sprite:
 			_body_sprite.texture = _skin_frames[0]
 			_frame_idx = 0
 
 	move_and_slide()
-	# Soft world bounds — wardens stay on the ritual forest
 	global_position = GameState.clamp_world_position(global_position)
 	z_index = int(global_position.y)
 
@@ -204,6 +204,8 @@ func _try_build() -> void:
 	for n in _near_build:
 		if n and n.has_method("try_queue_build"):
 			if n.try_queue_build():
+				if Sfx:
+					Sfx.build()
 				return
 
 
@@ -212,6 +214,8 @@ func _try_attack() -> void:
 		return
 	_attack_cd = attack_cooldown
 	_flash_attack()
+	if Sfx:
+		Sfx.attack()
 	var space := get_world_2d().direct_space_state
 	var origin := global_position + _facing * 12.0
 	var query := PhysicsShapeQueryParameters2D.new()
@@ -223,10 +227,23 @@ func _try_attack() -> void:
 	query.collide_with_areas = false
 	query.collide_with_bodies = true
 	var hits := space.intersect_shape(query, 16)
+	var hit_any := false
 	for h in hits:
 		var c: Object = h.get("collider")
 		if c and c.has_method("take_damage"):
 			c.take_damage(attack_damage)
+			hit_any = true
+	if hit_any and Juice:
+		Juice.shake(3.0)
+	if FX:
+		FX.burst_particles(
+			self,
+			global_position + _facing * 20.0,
+			Color(1.0, 0.95, 0.7, 0.9),
+			6,
+			"spark",
+			0.28
+		)
 
 
 func _flash_attack() -> void:

@@ -38,12 +38,14 @@ In-game: **Esc / Start** opens the full controls panel and pauses. Press again t
 
 Switch Pro / Joy-Cons: device 0 → P1, device 1 → P2 (A gather, B attack, X build — layout may vary by OS mapping).
 
-### v0 loop
+### Loop
 
-- Shared **Essence** bank (start with 40). Hold gather on cyan nodes.
-- Stand on green pads → **Q** to queue a tower (**25 Essence**, builds in 2s while you leave).
-- Nightspawn surges target the **Crystal**. Towers auto-fire; you can melee too.
-- Survive **5 surges** or crystal HP hits 0. **R** restarts.
+- Shared **Essence** bank. Hold gather on cyan wells along the glowing paths.
+- Stand on pads → **Q** to queue a tower (**25 Essence**, builds while you leave).
+- **Nightspawn march authored path lanes** (not straight lines) toward the Lightwell.
+- Towers auto-fire; melee for APM spikes. Elites from surge 2+.
+- Survive **8 named surges** or crystal HP hits 0. **R** restarts.
+- Minimap (top-right). Esc = pause + full controls.
 
 ## Spec
 

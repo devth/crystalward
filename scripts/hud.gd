@@ -39,7 +39,26 @@ func _ready() -> void:
 	_on_dust(GameState.crystal_dust)
 	_on_crystal(GameState.crystal_hp, GameState.crystal_max_hp)
 	_on_wave(GameState.current_wave, GameState.waves_to_win)
-	hint_label.text = "Esc / Start — Pause & Controls"
+	hint_label.text = "Esc / Start — Pause & Controls · Paths glow — nightspawn march them"
+	_ensure_minimap()
+
+
+func _ensure_minimap() -> void:
+	if has_node("Root/MinimapHost"):
+		return
+	var host := Control.new()
+	host.name = "MinimapHost"
+	host.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	host.offset_left = -168.0
+	host.offset_top = 64.0
+	host.offset_right = -16.0
+	host.offset_bottom = 208.0
+	host.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	$Root.add_child(host)
+	var mm := Control.new()
+	mm.set_script(load("res://scripts/minimap.gd"))
+	mm.set_anchors_preset(Control.PRESET_FULL_RECT)
+	host.add_child(mm)
 
 
 func _unhandled_input(event: InputEvent) -> void:
