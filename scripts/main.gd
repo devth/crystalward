@@ -29,6 +29,19 @@ func _ready() -> void:
 	_build_atmosphere()
 	_zone_labels()
 	_map_banner()
+	# Ensure dirt roads redraw after lanes are final (Ground awaits one frame too).
+	call_deferred("_ensure_ground_paths")
+
+
+func _ensure_ground_paths() -> void:
+	if PathNetwork and PathNetwork.lane_count() == 0:
+		var m: Dictionary = Campaign.get_map(Campaign.selected_map_id) if Campaign else {}
+		PathNetwork.rebuild(str(m.get("lane_set", "simple")))
+	var ground := get_node_or_null("Ground")
+	if ground and ground.has_method("_build") and PathNetwork and PathNetwork.lane_count() > 0:
+		# If Ground built before lanes, paths_rebuilt already handles it; if paths empty on Ground, force.
+		# Light nudge: re-emit so Ground refreshes roads.
+		PathNetwork.paths_rebuilt.emit()
 
 
 func _apply_campaign_map() -> void:

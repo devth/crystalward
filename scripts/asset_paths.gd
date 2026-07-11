@@ -139,7 +139,7 @@ func atlas_region(path: String, region: Rect2) -> Texture2D:
 	var at := AtlasTexture.new()
 	at.atlas = base
 	at.region = region
-	at.filter_clip = true
+	at.filter_clip = false
 	_cache[key] = at
 	return at
 
