@@ -32,8 +32,12 @@ func rebuild(lane_set: String = "full") -> void:
 	features.clear()
 	_place_shared_features()
 	match lane_set:
-		"simple", "meander":
-			_add_meander()  # even "simple" maps get a rich path network
+		"single", "simple":
+			_add_single()  # beginner: one road to the Lightwell
+		"dual":
+			_add_dual()
+		"meander":
+			_add_meander()
 		"cross":
 			_add_cross()
 		"diagonal":
@@ -47,6 +51,14 @@ func rebuild(lane_set: String = "full") -> void:
 
 func _place_shared_features() -> void:
 	# Forests and peaks — roads snake around these islands.
+	# Sparse on single-path maps so attention stays on the approach.
+	if active_lane_set in ["single", "simple"]:
+		_feature("flank_wood_e", Vector2(320, 280), "forest", 140.0)
+		_feature("flank_wood_w", Vector2(-340, 420), "forest", 130.0)
+		_feature("mid_knoll", Vector2(160, 620), "mountain", 100.0)
+		_feature("far_ridge", Vector2(-80, 980), "mountain", 120.0)
+		_feature("well_grove", Vector2(-280, -120), "forest", 100.0)
+		return
 	_feature("north_peak", Vector2(-80, -680), "mountain", 150.0)
 	_feature("south_ridge", Vector2(100, 720), "mountain", 140.0)
 	_feature("west_wood", Vector2(-680, -80), "forest", 180.0)
@@ -63,6 +75,45 @@ func _place_shared_features() -> void:
 
 func _feature(id: String, pos: Vector2, kind: String, radius: float) -> void:
 	features.append({"id": id, "pos": pos, "kind": kind, "radius": radius})
+
+
+func _add_single() -> void:
+	## Beginner: one long curving path from the south to the Lightwell.
+	## Clear chokepoints for tower pads; woods/peaks sit beside the road, not many fronts.
+	_add_curved_lane([
+		Vector2(40, 1350),       # spawn portal (south)
+		Vector2(-180, 1120),
+		Vector2(120, 920),
+		Vector2(280, 720),       # east of mid knoll
+		Vector2(60, 560),
+		Vector2(-200, 420),      # west swing past bog wood
+		Vector2(-80, 280),
+		Vector2(100, 180),
+		Vector2(20, 90),
+		CRYSTAL,
+	], 14)
+
+
+func _add_dual() -> void:
+	## Second map feel: two approaches so you learn to split attention.
+	_add_curved_lane([
+		Vector2(40, 1350),
+		Vector2(-160, 1080),
+		Vector2(140, 860),
+		Vector2(40, 560),
+		Vector2(-40, 280),
+		Vector2(10, 100),
+		CRYSTAL,
+	], 12)
+	_add_curved_lane([
+		Vector2(1280, 80),
+		Vector2(980, -120),
+		Vector2(720, 100),
+		Vector2(480, -40),
+		Vector2(260, 80),
+		Vector2(120, 50),
+		CRYSTAL,
+	], 12)
 
 
 func _add_meander() -> void:
@@ -147,13 +198,8 @@ func _add_meander() -> void:
 	], 12)
 
 
-func _add_simple() -> void:
-	# Alias kept for older call sites
-	_add_meander()
-
-
 func _add_cross() -> void:
-	_add_meander()
+	_add_dual()
 	# Extra diagonal braids between groves
 	_add_curved_lane([
 		Vector2(1200, -1200), Vector2(900, -980), Vector2(640, -700),

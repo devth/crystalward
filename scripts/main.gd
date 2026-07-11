@@ -108,31 +108,34 @@ func _expand_map_content() -> void:
 			node.add_to_group("essence_nodes")
 			ei += 1
 
-	# Tower sites along paths + plaza ring (sparse — readable map)
+	# Tower sites along paths + plaza ring
 	if _site_scene and PathNetwork:
+		var single_lane := PathNetwork.lane_count() <= 1
 		var lane_i := 0
 		for lane in PathNetwork.lanes:
 			var pts: PackedVector2Array = lane
-			for wi in range(1, pts.size() - 1):
-				# Every other waypoint, and alternate sides per lane to cut density ~4×
-				if wi % 2 == 0:
-					continue
+			# Single-path beginner: denser pads on both sides so the line is easy to fortify
+			var step := 1 if single_lane else 2
+			for wi in range(1, pts.size() - 1, step):
 				var n := PathNetwork.path_normal_at(pts, wi)
-				var side: float = 1.0 if (lane_i + wi) % 2 == 0 else -1.0
-				var pos: Vector2 = pts[wi] + n * (100.0 * side)
-				if pos.length() < 160.0:
-					continue
-				if _too_close_to_existing_sites(pos, 140.0):
-					continue
-				var site: Node2D = _site_scene.instantiate() as Node2D
-				_world.add_child(site)
-				site.global_position = pos
+				var sides: Array = [-1.0, 1.0] if single_lane else [1.0 if (lane_i + wi) % 2 == 0 else -1.0]
+				for side in sides:
+					var pos: Vector2 = pts[wi] + n * (95.0 * float(side))
+					if pos.length() < 140.0:
+						continue
+					var min_d := 100.0 if single_lane else 140.0
+					if _too_close_to_existing_sites(pos, min_d):
+						continue
+					var site: Node2D = _site_scene.instantiate() as Node2D
+					_world.add_child(site)
+					site.global_position = pos
 			lane_i += 1
 
-		# Inner plaza defenses (4 pads, not 6)
-		for i in 4:
-			var ang := TAU * float(i) / 4.0 + 0.4
-			var pos := Vector2(cos(ang), sin(ang) * 0.85) * 210.0 + Vector2(0, 40)
+		# Inner plaza defenses (fewer on single-lane so focus stays on the road)
+		var plaza_n := 2 if single_lane else 4
+		for i in plaza_n:
+			var ang := TAU * float(i) / float(plaza_n) + 0.4
+			var pos := Vector2(cos(ang), sin(ang) * 0.85) * 200.0 + Vector2(0, 40)
 			if _too_close_to_existing_sites(pos, 110.0):
 				continue
 			var site2: Node2D = _site_scene.instantiate() as Node2D
