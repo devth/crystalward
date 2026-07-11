@@ -222,17 +222,19 @@ Nested demo Godot project / duplicates stripped; textures only + license.
 
 ---
 
-## Music (CC0)
+## Music (original / CC0)
 
-| File | Role | Author | License | Source |
+Original procedural ambient beds synthesized for Crystalward — dark, ethereal soft-fantasy (drones, crystalline bells, slow LFO pads). Not derived from third-party audio files.
+
+| File | Role | Author | License | Notes |
 |---|---|---|---|---|
-| `music/title.ogg` | Title screen | yd | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | https://opengameart.org/content/lonelyhood (*Lonelyhood*) |
-| `music/map_select.ogg` | Campaign map select | Sir Gawain (pack) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | https://opengameart.org/content/cc0-fantasy-music-sounds (*Town Theme*) |
-| `music/battle.ogg` | In-battle bed | Sir Gawain (pack) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | https://opengameart.org/content/cc0-fantasy-music-sounds (*Battle Theme*) |
-| `music/victory.ogg` | Victory stinger / bed | Sir Gawain (pack) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | https://opengameart.org/content/cc0-fantasy-music-sounds (*The Field Of Dreams*) |
+| `music/title.ogg` | Title screen (~48s loop) | Crystalward project | Original work | Deep A1-ish sacred drone + high crystal bells |
+| `music/map_select.ogg` | Campaign map select (~40s) | Crystalward project | Original work | Soft exploration pad, minor-mode intervals |
+| `music/battle.ogg` | In-battle bed (~56s) | Crystalward project | Original work | Low ominous swell, tension partials, no rock/percussion |
+| `music/victory.ogg` | Victory bed (~36s) | Crystalward project | Original work | Lifted soft major-ish glow, still ethereal |
 
 **Vendor path:** `music/`  
-**How used:** Autoload `Music` (`scripts/music.gd`) loads these Ogg Vorbis loops when present; otherwise falls back to a soft procedural chord bed.
+**How used:** Autoload `Music` (`scripts/music.gd`) loads these Ogg Vorbis loops when present; otherwise falls back to a layered procedural ethereal bed (same aesthetic).
 
 ---
 
