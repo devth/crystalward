@@ -10,8 +10,18 @@ const FLOOR_EXTENT := 2200.0
 func _ready() -> void:
 	for c in get_children():
 		c.queue_free()
+	# Wait so Main can rebuild PathNetwork for the selected campaign map first.
 	await get_tree().process_frame
 	_build()
+	if PathNetwork and not PathNetwork.paths_rebuilt.is_connected(_on_paths_rebuilt):
+		PathNetwork.paths_rebuilt.connect(_on_paths_rebuilt)
+
+
+func _on_paths_rebuilt() -> void:
+	# Rebuild dirt roads so visual lanes always match monster lanes.
+	for c in get_children():
+		c.queue_free()
+	call_deferred("_build")
 
 
 func _build() -> void:

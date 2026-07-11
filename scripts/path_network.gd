@@ -111,6 +111,67 @@ func lane_count() -> int:
 	return lanes.size()
 
 
+func lane_length(lane: PackedVector2Array) -> float:
+	var total := 0.0
+	for i in range(lane.size() - 1):
+		total += lane[i].distance_to(lane[i + 1])
+	return total
+
+
+## Sample a point along a lane polyline. Returns { pos, tangent, normal, dist, length, at_end }.
+func sample_lane(lane: PackedVector2Array, dist: float) -> Dictionary:
+	var empty := {
+		"pos": CRYSTAL,
+		"tangent": Vector2.DOWN,
+		"normal": Vector2.RIGHT,
+		"dist": 0.0,
+		"length": 0.0,
+		"at_end": true,
+	}
+	if lane.is_empty():
+		return empty
+	if lane.size() == 1:
+		empty.pos = lane[0]
+		return empty
+
+	var length := lane_length(lane)
+	var d := clampf(dist, 0.0, maxf(0.0, length))
+	var walked := 0.0
+	for i in range(lane.size() - 1):
+		var a: Vector2 = lane[i]
+		var b: Vector2 = lane[i + 1]
+		var seg := a.distance_to(b)
+		if seg < 0.001:
+			continue
+		if walked + seg >= d:
+			var t := (d - walked) / seg
+			var tangent: Vector2 = (b - a) / seg
+			var normal := Vector2(-tangent.y, tangent.x)
+			return {
+				"pos": a.lerp(b, t),
+				"tangent": tangent,
+				"normal": normal,
+				"dist": d,
+				"length": length,
+				"at_end": d >= length - 1.0,
+			}
+		walked += seg
+
+	var last: Vector2 = lane[lane.size() - 1]
+	var prev: Vector2 = lane[lane.size() - 2]
+	var tan2: Vector2 = (last - prev).normalized()
+	if tan2.length_squared() < 0.001:
+		tan2 = Vector2.DOWN
+	return {
+		"pos": last,
+		"tangent": tan2,
+		"normal": Vector2(-tan2.y, tan2.x),
+		"dist": length,
+		"length": length,
+		"at_end": true,
+	}
+
+
 func nearest_on_network(world_pos: Vector2) -> Vector2:
 	var best := world_pos
 	var best_d := INF

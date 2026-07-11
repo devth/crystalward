@@ -52,8 +52,10 @@ var _sky_bonus_jumps: int = 0
 func _ready() -> void:
 	add_to_group("wardens")
 	GameState.register_warden(self)
-	collision_layer = 2
-	collision_mask = 1
+	# Top-down free roam: walk roads *and* open land. Nothing solid blocks wardens.
+	motion_mode = MOTION_MODE_FLOATING
+	collision_layer = 2  # player — Area2D interactables detect us
+	collision_mask = 0   # no physics walls; land is open
 	if has_node("Body"):
 		$Body.visible = false
 	if has_node("AttackFlash"):
@@ -209,6 +211,7 @@ func _physics_process(delta: float) -> void:
 			_body_sprite.texture = _skin_frames[0]
 			_frame_idx = 0
 
+	# Free roam on paths and open land (no path snap, no solid world colliders).
 	move_and_slide()
 	global_position = GameState.clamp_world_position(global_position)
 	z_index = int(global_position.y - _height * 0.15)

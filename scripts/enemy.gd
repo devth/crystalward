@@ -1,13 +1,13 @@
 extends CharacterBody2D
 class_name Nightspawn
-## Nightspawn — follows authored path lanes to the Lightwell.
+## Nightspawn — locked to authored path lanes toward the Lightwell.
+## Players roam free; monsters stay on the road.
 
 @export var max_hp: int = 40
 @export var move_speed: float = 70.0
 @export var crystal_damage: int = 8
 @export var dust_drop_chance: float = 0.15
-@export var path_slack: float = 18.0  ## lateral wander on the road
-@export var waypoint_reach: float = 28.0
+@export var path_slack: float = 14.0  ## lateral wander *on* the road (pixels)
 
 var hp: int
 var _crystal: Node2D
@@ -23,7 +23,8 @@ var _frame_idx: int = 0
 var _frame_t: float = 0.0
 
 var _lane: PackedVector2Array = PackedVector2Array()
-var _wp_index: int = 0
+var _path_dist: float = 0.0
+var _lane_len: float = 0.0
 var _lateral: float = 0.0
 var _is_elite: bool = false
 var _face_sign: float = 1.0
@@ -31,6 +32,7 @@ var _slow: float = 0.0
 var _slow_t: float = 0.0
 var _mark_mult: float = 1.0
 var _mark_t: float = 0.0
+var _move_dir: Vector2 = Vector2.DOWN
 
 @onready var _bar: ProgressBar = $HpBar
 
@@ -38,8 +40,10 @@ var _mark_t: float = 0.0
 func _ready() -> void:
 	hp = max_hp
 	add_to_group("enemies")
-	collision_layer = 4
-	collision_mask = 1
+	# Top-down free motion; no physics blocking — path is authority.
+	motion_mode = MOTION_MODE_FLOATING
+	collision_layer = 4  # enemy
+	collision_mask = 0   # nothing blocks pathing
 	if has_node("Body"):
 		$Body.visible = false
 	if has_node("Eye"):
@@ -63,11 +67,17 @@ func _ready() -> void:
 
 func assign_lane(lane: PackedVector2Array) -> void:
 	_lane = lane
-	_wp_index = 0
-	if _lane.size() > 0:
-		# Start near first waypoint with lateral offset
-		var n := PathNetwork.path_normal_at(_lane, 0) if PathNetwork else Vector2.RIGHT
-		global_position = _lane[0] + n * _lateral + Vector2(randf_range(-12, 12), randf_range(-12, 12))
+	_path_dist = 0.0
+	_lane_len = PathNetwork.lane_length(_lane) if PathNetwork else 0.0
+	if _lane.is_empty():
+		return
+	if PathNetwork == null:
+		global_position = _lane[0]
+		return
+	var sample: Dictionary = PathNetwork.sample_lane(_lane, 0.0)
+	var n: Vector2 = sample.get("normal", Vector2.RIGHT)
+	global_position = sample.get("pos", _lane[0]) + n * _lateral
+	_move_dir = sample.get("tangent", Vector2.DOWN)
 
 
 func make_elite() -> void:
@@ -77,7 +87,6 @@ func make_elite() -> void:
 	move_speed *= 0.85
 	crystal_damage = int(crystal_damage * 1.8)
 	scale = Vector2(1.35, 1.35)
-	# Elite tint + thicker outline (visuals already built in _ready before this runs)
 	if _body_sprite:
 		_skin_modulate = _skin_modulate.lightened(0.15)
 		_skin_modulate.r = minf(1.0, _skin_modulate.r + 0.2)
@@ -134,7 +143,6 @@ func _apply_outline() -> void:
 		return
 	var w := 1.35 if _is_elite else 1.25
 	VisualStyle.apply_sprite_outline(_body_sprite, w)
-	# Retry next frame if material didn't stick (edge case on some render paths)
 	if _body_sprite.material == null:
 		VisualStyle.call_deferred("apply_sprite_outline", _body_sprite, w)
 
@@ -146,39 +154,8 @@ func _physics_process(delta: float) -> void:
 		velocity = Vector2.ZERO
 		return
 
-	var target := _current_path_target()
 	if _crystal == null or not is_instance_valid(_crystal):
 		_crystal = get_tree().get_first_node_in_group("crystal") as Node2D
-
-	# Final approach / damage crystal
-	if _crystal and global_position.distance_to(_crystal.global_position) < 30.0:
-		GameState.damage_crystal(crystal_damage)
-		if Sfx:
-			Sfx.crystal_hurt()
-		if Juice:
-			Juice.shake(10.0)
-			Juice.flash(Color(0.9, 0.2, 0.35, 0.4), 0.15)
-		_spawn_death_poof()
-		queue_free()
-		return
-
-	var to := target - global_position
-	if to.length() < waypoint_reach:
-		_wp_index = mini(_wp_index + 1, maxi(0, _lane.size() - 1))
-		target = _current_path_target()
-		to = target - global_position
-
-	# Soft separation from nearby enemies
-	var sep := Vector2.ZERO
-	for e in get_tree().get_nodes_in_group("enemies"):
-		if e == self or not (e is Node2D):
-			continue
-		var d: Vector2 = global_position - e.global_position
-		var dist := d.length()
-		if dist > 0.1 and dist < 36.0:
-			sep += d.normalized() * (1.0 - dist / 36.0)
-	if sep.length() > 0.01:
-		to += sep.normalized() * 40.0
 
 	if _slow_t > 0.0:
 		_slow_t -= delta
@@ -190,19 +167,91 @@ func _physics_process(delta: float) -> void:
 			_mark_mult = 1.0
 
 	var spd := move_speed * (1.0 - clampf(_slow, 0.0, 0.7))
+
+	# Lateral separation only — stay on the road, don't shove off-path
+	_apply_lateral_separation(delta)
+
+	if _lane.is_empty() or PathNetwork == null:
+		_fallback_to_crystal(spd)
+		_finish_frame()
+		return
+
+	# Advance along the authored polyline
+	_path_dist += spd * delta
+	var sample: Dictionary = PathNetwork.sample_lane(_lane, _path_dist)
+	var center: Vector2 = sample.get("pos", global_position)
+	var normal: Vector2 = sample.get("normal", Vector2.RIGHT)
+	var tangent: Vector2 = sample.get("tangent", Vector2.DOWN)
+	var at_end: bool = bool(sample.get("at_end", false))
+	_lane_len = float(sample.get("length", _lane_len))
+
+	# Ease lateral toward center near the Lightwell so leaks feel clean
+	var end_t := 0.0
+	if _lane_len > 1.0:
+		end_t = clampf(_path_dist / _lane_len, 0.0, 1.0)
+	var lat := _lateral * (1.0 - end_t * 0.9)
+	var on_path: Vector2 = center + normal * lat
+
+	# Lock to path (authoritative). Velocity is for animation / any readers.
+	global_position = on_path
+	velocity = tangent * spd
+	_move_dir = tangent
+
+	# Leak when path ends or we touch the crystal
+	var crystal_pos: Vector2 = _crystal.global_position if _crystal else PathNetwork.CRYSTAL
+	if at_end or global_position.distance_to(crystal_pos) < 34.0:
+		_leak()
+		return
+
+	_finish_frame()
+
+
+func _apply_lateral_separation(_delta: float) -> void:
+	var push := 0.0
+	for e in get_tree().get_nodes_in_group("enemies"):
+		if e == self or not (e is Node2D):
+			continue
+		var d: Vector2 = global_position - e.global_position
+		var dist := d.length()
+		if dist > 0.1 and dist < 32.0:
+			# Prefer left/right along screen x as a stable lateral cue
+			var side := signf(d.x) if absf(d.x) > 0.5 else (1.0 if d.y >= 0.0 else -1.0)
+			push += side * (1.0 - dist / 32.0) * 10.0
+	_lateral = clampf(_lateral + push * 0.08, -path_slack * 1.35, path_slack * 1.35)
+
+
+func _fallback_to_crystal(spd: float) -> void:
+	var target: Vector2 = _crystal.global_position if _crystal else (PathNetwork.CRYSTAL if PathNetwork else Vector2.ZERO)
+	var to := target - global_position
+	if to.length() < 30.0:
+		_leak()
+		return
 	if to.length() > 1.0:
 		velocity = to.normalized() * spd
+		global_position += velocity * get_physics_process_delta_time()
+		_move_dir = velocity.normalized()
 	else:
 		velocity = Vector2.ZERO
-	move_and_slide()
-	z_index = int(global_position.y)
 
-	# Animate — single scale write (face sign only; never fight sprite flip_h)
+
+func _leak() -> void:
+	GameState.damage_crystal(crystal_damage)
+	if Sfx:
+		Sfx.crystal_hurt()
+	if Juice:
+		Juice.shake(10.0)
+		Juice.flash(Color(0.9, 0.2, 0.35, 0.4), 0.15)
+	_spawn_death_poof()
+	queue_free()
+
+
+func _finish_frame() -> void:
+	z_index = int(global_position.y)
 	if _visual:
 		_visual.position.y = sin(_anim_t * 10.0) * 1.5
-		if to.x < -2.0:
+		if _move_dir.x < -0.15:
 			_face_sign = -1.0
-		elif to.x > 2.0:
+		elif _move_dir.x > 0.15:
 			_face_sign = 1.0
 		_visual.scale = Vector2(_face_sign, 1.0)
 	if _use_sprite and _body_sprite and _skin_frames.size() > 1 and _frame_t > 0.18:
@@ -210,20 +259,6 @@ func _physics_process(delta: float) -> void:
 		_frame_idx = (_frame_idx + 1) % _skin_frames.size()
 		if _skin_frames[_frame_idx]:
 			_body_sprite.texture = _skin_frames[_frame_idx]
-
-
-func _current_path_target() -> Vector2:
-	if _lane.is_empty():
-		if _crystal:
-			return _crystal.global_position
-		return global_position
-	var i := clampi(_wp_index, 0, _lane.size() - 1)
-	var base: Vector2 = _lane[i]
-	var n := PathNetwork.path_normal_at(_lane, i) if PathNetwork else Vector2.RIGHT
-	# Ease lateral toward 0 near the end
-	var end_t := float(i) / float(maxi(1, _lane.size() - 1))
-	var lat := _lateral * (1.0 - end_t * 0.85)
-	return base + n * lat
 
 
 func apply_slow(amount: float, duration: float) -> void:
@@ -262,7 +297,6 @@ func take_damage(amount: int) -> void:
 
 
 func _die() -> void:
-	# Loot drops on ground — fairies auto-loot, players walk over
 	GameState.reward_kill(_is_elite, global_position)
 	if _is_elite and Juice:
 		Juice.shake(8.0)

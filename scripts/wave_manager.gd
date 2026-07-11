@@ -150,6 +150,8 @@ func _begin_wave() -> void:
 func _spawn_one(elite: bool = false) -> void:
 	if enemy_scene == null:
 		return
+	if PathNetwork and PathNetwork.lane_count() == 0:
+		PathNetwork.rebuild(PathNetwork.active_lane_set)
 	var lane: PackedVector2Array = PathNetwork.random_lane() if PathNetwork else PackedVector2Array()
 	var e: Node2D = enemy_scene.instantiate() as Node2D
 	if e == null:
@@ -157,7 +159,11 @@ func _spawn_one(elite: bool = false) -> void:
 	e.set("max_hp", 28 + _wave * 10)
 	e.set("move_speed", 52.0 + _wave * 5.5)
 	e.set("crystal_damage", 8)  # lives-style leak
-	get_parent().add_child(e)
+	# Parent under World for y-sort with players; path coords are world-space.
+	var host: Node = get_parent().get_node_or_null("World")
+	if host == null:
+		host = get_parent()
+	host.add_child(e)
 	if e.has_method("assign_lane") and lane.size() > 0:
 		e.call("assign_lane", lane)
 	if elite and e.has_method("make_elite"):
