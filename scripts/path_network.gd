@@ -232,15 +232,26 @@ func nearest_water(world_pos: Vector2) -> Dictionary:
 
 
 func elevation_at(world_pos: Vector2) -> float:
-	## Pseudo-height from landforms + rolling undulation.
+	## Continuous heightfield (roughly -1.2..1.4): multi-scale terrain + landform peaks/basins.
 	var h := 0.0
+	# Large-scale ranges / valleys
+	h += 0.38 * sin(world_pos.x * 0.0018) * cos(world_pos.y * 0.0015)
+	h += 0.28 * sin(world_pos.x * 0.0011 + world_pos.y * 0.0014)
+	# Medium rolling hills
+	h += 0.22 * sin(world_pos.x * 0.0036) * cos(world_pos.y * 0.0031)
+	h += 0.16 * cos(world_pos.x * 0.0048 - world_pos.y * 0.0038)
+	# Fine knolls / dimples
+	h += 0.10 * sin(world_pos.x * 0.0085 + world_pos.y * 0.0062)
+	h += 0.07 * cos(world_pos.x * 0.011 - world_pos.y * 0.009)
+	# Authored landforms (mountains, hills, lakes)
 	for f in features:
 		var c: Vector2 = f.get("pos", Vector2.ZERO)
 		var r: float = float(f.get("radius", 100.0))
 		var peak: float = float(f.get("elev", 0.0))
+		if peak == 0.0:
+			continue
 		var stretch: Vector2 = f.get("stretch", Vector2.ONE) as Vector2
 		var ang: float = float(f.get("angle", 0.0))
-		# Elliptical distance for ridges
 		var local := world_pos - c
 		var ca := cos(ang)
 		var sa := sin(ang)
@@ -249,15 +260,27 @@ func elevation_at(world_pos: Vector2) -> float:
 		var sx := maxf(0.5, stretch.x)
 		var sy := maxf(0.5, stretch.y)
 		var d := Vector2(lx / sx, ly / sy).length()
-		var fall := r * 2.15
-		if d < fall and peak != 0.0:
+		var fall := r * 2.4
+		if d < fall:
 			var t := 1.0 - d / fall
-			h += peak * t * t * (3.0 - 2.0 * t)
-	# Rolling terrain
-	h += 0.14 * sin(world_pos.x * 0.0035) * cos(world_pos.y * 0.003)
-	h += 0.08 * sin(world_pos.x * 0.0065 + world_pos.y * 0.0045)
-	h += 0.05 * cos(world_pos.x * 0.009 - world_pos.y * 0.007)
-	return h
+			# Mountains peak sharp; lakes are broad bowls
+			if peak > 0.0:
+				h += peak * t * t * t * (1.0 + 0.35 * t)
+			else:
+				h += peak * t * t * (3.0 - 2.0 * t)
+	# Multi-lobe water slightly deepens bowls further
+	var wd := water_depth_at(world_pos)
+	if wd > 0.0:
+		h -= wd * 0.35
+	return clampf(h, -1.35, 1.55)
+
+
+func elevation_gradient(world_pos: Vector2, eps: float = 28.0) -> Vector2:
+	## Approximate slope direction (points uphill).
+	var e0 := elevation_at(world_pos)
+	var ex := elevation_at(world_pos + Vector2(eps, 0))
+	var ey := elevation_at(world_pos + Vector2(0, eps))
+	return Vector2(ex - e0, ey - e0) / eps
 
 
 func _clear_features_from_paths() -> void:

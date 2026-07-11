@@ -46,15 +46,15 @@ func _on_paths_rebuilt() -> void:
 
 func _build() -> void:
 	_build_floor()
-	_build_elevation_base()  # soft material washes (grass/dirt/rock)
+	_build_altitude_field()  # continuous height bands + slope shade
+	_build_elevation_base()  # material washes following elevation
 	_build_plaza()
 	_build_paths()
 	_build_mist_fields()
-	_build_terrain_features()  # mountains, hills, lakes (not prop confetti)
+	_build_terrain_features()  # mountains, hills, lakes
 	_build_landmarks()
-	_scatter_forest_props()  # sparse canopy only
-	_build_botanicals()      # light meadow accents
-	# No heavy atmosphere particle cloud — keep scene readable
+	_scatter_forest_props()
+	_build_botanicals()
 
 
 func _build_floor() -> void:
@@ -79,51 +79,170 @@ func _build_floor() -> void:
 	add_child(floor_poly)
 
 
+func _build_altitude_field() -> void:
+	## Dense heightfield: stacked contour layers + slope shade so altitude reads clearly.
+	if PathNetwork == null:
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7711
+	var cell := 95.0
+	var half_x := 14
+	var half_y := 12
+	# Sample elev grid once
+	var grid: Dictionary = {}  # "ix,iy" -> elev
+	for ix in range(-half_x, half_x + 1):
+		for iy in range(-half_y, half_y + 1):
+			var pos := Vector2(float(ix) * cell, float(iy) * cell * 0.92)
+			grid["%d,%d" % [ix, iy]] = PathNetwork.elevation_at(pos)
+
+	# Contour-ish blobs at each cell based on height band
+	for ix in range(-half_x, half_x + 1):
+		for iy in range(-half_y, half_y + 1):
+			var pos := Vector2(
+				float(ix) * cell + rng.randf_range(-18, 18),
+				float(iy) * cell * 0.92 + rng.randf_range(-14, 14)
+			)
+			if pos.length() < 160.0:
+				continue
+			if PathNetwork.dist_to_path(pos) < PATH_CLEAR * 0.55:
+				continue
+			var elev: float = grid.get("%d,%d" % [ix, iy], 0.0)
+			var grad := PathNetwork.elevation_gradient(pos)
+			var slope := grad.length()
+
+			# Height band color (low → wet/dark, mid → grass, high → rock/lit)
+			var col: Color
+			var a: float
+			var r := 52.0 + absf(elev) * 48.0 + slope * 40.0
+			if elev > 0.55:
+				col = Color(0.38, 0.38, 0.42, 1.0)  # high rock
+				a = 0.16 + elev * 0.14
+				r *= 1.1
+			elif elev > 0.28:
+				col = Color(0.28, 0.46, 0.28, 1.0)  # upper meadow
+				a = 0.14 + elev * 0.12
+			elif elev > 0.05:
+				col = Color(0.22, 0.4, 0.24, 1.0)  # mid grass
+				a = 0.1 + elev * 0.1
+			elif elev > -0.2:
+				col = Color(0.18, 0.32, 0.22, 1.0)  # low grass
+				a = 0.08 + absf(elev) * 0.06
+			elif elev > -0.5:
+				col = Color(0.16, 0.26, 0.28, 1.0)  # damp hollow
+				a = 0.12 + absf(elev) * 0.1
+			else:
+				col = Color(0.14, 0.22, 0.3, 1.0)  # deep basin
+				a = 0.14 + absf(elev) * 0.1
+
+			col.a = clampf(a, 0.06, 0.32)
+			# Stack 1–3 soft layers so height “builds” visually
+			var layers := 1
+			if elev > 0.35 or elev < -0.35:
+				layers = 2
+			if elev > 0.7 or elev < -0.65:
+				layers = 3
+			for li in layers:
+				var lr := r * (1.0 - float(li) * 0.18)
+				var loft := -float(li) * (6.0 + maxf(0.0, elev) * 8.0)  # higher layers sit "up"
+				var layer_pos := pos + Vector2(0, loft * 0.15)
+				var poly := _organic_poly(layer_pos, lr, 0.62 + elev * 0.05, 11, rng, col, Z_HILL + li)
+				# Slight tint shift per layer (crest brighter)
+				if elev > 0.0:
+					poly.color = poly.color.lightened(0.04 * float(li))
+					poly.color.a = col.a * (0.85 + li * 0.08)
+				else:
+					poly.color = poly.color.darkened(0.03 * float(li))
+				add_child(poly)
+
+			# Slope shade: darken downhill side, lighten uphill for 3D read
+			if slope > 0.004:
+				var downhill := -grad.normalized()
+				var shade_pos := pos + downhill * (28.0 + slope * 200.0)
+				var shade_a := clampf(0.06 + slope * 8.0, 0.06, 0.2)
+				var shade := _organic_poly(
+					shade_pos, r * 0.7, 0.55, 9, rng,
+					Color(0.05, 0.07, 0.08, shade_a), Z_HILL
+				)
+				add_child(shade)
+				# Lit face uphill
+				var uphill := grad.normalized()
+				var lit_pos := pos + uphill * 18.0
+				var lit := _organic_poly(
+					lit_pos, r * 0.45, 0.5, 8, rng,
+					Color(0.45, 0.55, 0.38, clampf(0.04 + slope * 4.0, 0.04, 0.12)), Z_HILL + 1
+				)
+				add_child(lit)
+
+			# Soft cliff mark on very steep slopes
+			if slope > 0.012 and elev > 0.2:
+				var face_dir := -grad.normalized()
+				var cliff := Polygon2D.new()
+				var base := pos + face_dir * 10.0
+				var side := Vector2(-face_dir.y, face_dir.x) * (18.0 + elev * 12.0)
+				var up := Vector2(0, -22.0 - elev * 18.0)
+				cliff.polygon = PackedVector2Array([
+					base - side, base + side, base + side * 0.4 + up, base - side * 0.4 + up
+				])
+				cliff.color = Color(0.3, 0.3, 0.34, 0.35 + elev * 0.15)
+				cliff.z_index = Z_HILL + 2
+				add_child(cliff)
+
+	# Contour rings around major high/low landmarks for readable topo
+	for f in PathNetwork.features:
+		var kind: String = str(f.get("kind", ""))
+		if kind not in ["mountain", "hill", "lake", "pond"]:
+			continue
+		var c: Vector2 = f.get("pos", Vector2.ZERO)
+		var rad: float = float(f.get("radius", 100.0))
+		var elev_f: float = float(f.get("elev", 0.0))
+		var stretch: Vector2 = f.get("stretch", Vector2(1.2, 0.9)) as Vector2
+		var fang: float = float(f.get("angle", 0.0))
+		var ring_n := 4 if absf(elev_f) > 0.7 else 3
+		for ri in ring_n:
+			var t := 0.35 + float(ri) * 0.22
+			var pts := _organic_shore_pts(c, rad * t, 0.7, 16, rng, 100 + ri, stretch, fang)
+			var ring_col: Color
+			if elev_f > 0.0:
+				ring_col = Color(0.3, 0.48, 0.3, 0.07 + elev_f * 0.04)
+			else:
+				ring_col = Color(0.2, 0.32, 0.38, 0.08 + absf(elev_f) * 0.05)
+			_add_filled_poly(pts, ring_col, Z_HILL)
+
+
 func _build_elevation_base() -> void:
-	## Terrain material washes — grass/rock/sand transitions that follow elevation.
+	## Extra material patches keyed to altitude (sand near water, rock on high ground).
 	if PathNetwork == null:
 		return
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 4242
-	for ix in range(-10, 11):
-		for iy in range(-8, 11):
-			if (ix + iy * 2) % 3 == 0:
+	for ix in range(-11, 12):
+		for iy in range(-9, 12):
+			if (ix + iy * 3) % 4 == 0:
 				continue
 			var pos := Vector2(
-				float(ix) * 200.0 + rng.randf_range(-50, 50),
-				float(iy) * 185.0 + rng.randf_range(-40, 40)
+				float(ix) * 175.0 + rng.randf_range(-40, 40),
+				float(iy) * 160.0 + rng.randf_range(-30, 30)
 			)
-			if pos.length() < 200.0:
+			if pos.length() < 180.0:
 				continue
-			if PathNetwork.dist_to_path(pos) < PATH_CLEAR * 0.85:
+			if PathNetwork.dist_to_path(pos) < PATH_CLEAR * 0.8:
 				continue
 			var elev := PathNetwork.elevation_at(pos)
-			if absf(elev) < 0.12:
+			if absf(elev) < 0.15:
 				continue
-			var r := 40.0 + absf(elev) * 80.0
-			var ang := rng.randf() * TAU
-			if elev > 0.25:
-				# Rocky high ground
-				var rock := _organic_poly(pos, r * 0.9, 0.7, 10, rng, Color(0.32, 0.32, 0.36, 0.12 + elev * 0.1), Z_HILL)
+			var r := 36.0 + absf(elev) * 70.0
+			if elev > 0.4:
+				var rock := _organic_poly(pos, r * 0.85, 0.68, 10, rng, Color(0.34, 0.34, 0.38, 0.14 + elev * 0.1), Z_HILL + 1)
 				add_child(rock)
-				rock.rotation = ang * 0.15
-			elif elev > 0.0:
-				var hill := _organic_poly(pos, r, 0.65, 12, rng, Color(0.22, 0.4, 0.24, 0.1 + elev * 0.1), Z_HILL)
-				add_child(hill)
-			elif elev < -0.2:
-				# Wet basin / mud near water
-				var wet := _organic_poly(pos, r * 1.1, 0.7, 14, rng, Color(0.2, 0.28, 0.26, 0.12 + absf(elev) * 0.1), Z_HILL)
+			elif elev < -0.25:
+				var wet := _organic_poly(pos, r * 1.05, 0.72, 12, rng, Color(0.18, 0.28, 0.26, 0.12 + absf(elev) * 0.1), Z_HILL)
 				add_child(wet)
-			else:
-				var hollow := _organic_poly(pos, r, 0.6, 11, rng, Color(0.18, 0.26, 0.24, 0.1), Z_HILL)
-				add_child(hollow)
-	# Sand/shore washes around water features
 	for f in PathNetwork.features:
 		if str(f.get("kind", "")) not in ["lake", "pond"]:
 			continue
 		var c: Vector2 = f.get("pos", Vector2.ZERO)
 		var rad: float = float(f.get("radius", 100.0))
-		var sand := _organic_poly(c, rad * 1.25, 0.7, 16, rng, Color(0.42, 0.38, 0.28, 0.18), Z_HILL)
+		var sand := _organic_poly(c, rad * 1.28, 0.72, 16, rng, Color(0.44, 0.4, 0.3, 0.2), Z_HILL)
 		add_child(sand)
 
 
@@ -660,7 +779,7 @@ func _scatter_forest_props() -> void:
 	elif tree_tex:
 		tree_sprites.append(tree_tex)
 
-	for i in 36:
+	for i in 40:
 		var pos := _rand_map_pos(rng, 380, 2200)
 		if pos.length() < 340.0:
 			continue
@@ -669,9 +788,12 @@ func _scatter_forest_props() -> void:
 		if tree_sprites.is_empty():
 			break
 		var elev := PathNetwork.elevation_at(pos) if PathNetwork else 0.0
-		if elev < -0.15 and rng.randf() < 0.7:
-			continue
-		var sc := rng.randf_range(2.2, 3.2)
+		if elev < -0.2 and rng.randf() < 0.75:
+			continue  # valleys sparse
+		if elev > 0.85 and rng.randf() < 0.4:
+			continue  # high rock sparse
+		# Taller trees on mid-high slopes
+		var sc := rng.randf_range(2.0, 2.9) * (1.0 + clampf(elev, 0.0, 0.8) * 0.35)
 		_place_sprite(tree_sprites[i % tree_sprites.size()], pos, sc, 0.96)
 
 	if bush_tex:

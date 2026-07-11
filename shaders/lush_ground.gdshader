@@ -53,21 +53,22 @@ void fragment() {
 	vec2 warp = vec2(fbm(uv * 0.4 + 1.5), fbm(uv * 0.4 - 3.0));
 	vec2 uww = uv + warp * 1.1;
 
-	float elev = fbm(uww * 0.15) * 0.7 + fbm(uww * 0.45) * 0.3;
+	// Multi-scale altitude field (matches world height feel)
+	float elev = fbm(uww * 0.08) * 0.45 + fbm(uww * 0.18) * 0.35 + fbm(uww * 0.5) * 0.2;
 	float n = fbm(uww);
 	float n2 = fbm(uww * 2.0 + 2.5);
 	float n3 = fbm(uww * 0.35 - 1.2);
 	float fine = fbm(uww * 5.5);
 	float grain = fbm(uww * 11.0);
 
-	// Material masks (soft, continuous)
-	float rock_m = smoothstep(0.62, 0.88, elev) * smoothstep(0.35, 0.75, n2);
-	float sand_m = smoothstep(0.28, 0.48, n3) * (1.0 - rock_m) * smoothstep(0.2, 0.55, elev) * 0.55;
-	float dirt_m = smoothstep(0.28, 0.55, elev) * (1.0 - rock_m) * (1.0 - sand_m) * (0.45 + 0.4 * n3);
-	float wet_m = smoothstep(0.42, 0.18, elev) * (1.0 - rock_m) * 0.55; // low = damp
+	// Material masks by altitude
+	float rock_m = smoothstep(0.55, 0.85, elev) * smoothstep(0.3, 0.75, n2);
+	float sand_m = smoothstep(0.28, 0.48, n3) * (1.0 - rock_m) * smoothstep(0.15, 0.5, elev) * 0.45;
+	float dirt_m = smoothstep(0.25, 0.55, elev) * (1.0 - rock_m) * (1.0 - sand_m) * (0.4 + 0.4 * n3);
+	float wet_m = smoothstep(0.48, 0.15, elev) * (1.0 - rock_m) * 0.65; // valleys
 	float grass_m = clamp(1.0 - dirt_m - rock_m - sand_m * 0.7, 0.0, 1.0);
-	grass_m = clamp(grass_m + 0.08, 0.0, 1.0);
-	dirt_m *= 0.9;
+	grass_m = clamp(grass_m + 0.1, 0.0, 1.0);
+	dirt_m *= 0.88;
 
 	// Grass: soft vertical blade grain
 	vec3 grass = mix(col_grass_deep.rgb, col_grass.rgb, smoothstep(0.15, 0.7, n));
@@ -96,14 +97,19 @@ void fragment() {
 	vec3 col = grass * grass_m + dirt * dirt_m + rock * rock_m + sand * sand_m;
 	col = mix(col, wet, wet_m * (1.0 - rock_m));
 
-	// Gentle elevation lighting (keep midtones open)
-	col *= 0.82 + elev * 0.35;
-	float gx = fbm(uww + vec2(0.06, 0.0)) - fbm(uww - vec2(0.06, 0.0));
-	float gy = fbm(uww + vec2(0.0, 0.06)) - fbm(uww - vec2(0.0, 0.06));
-	col *= clamp(0.7 + gx * 1.2 - gy * 0.6, 0.7, 1.15);
+	// Strong altitude lighting: valleys darker, ridges brighter
+	col *= 0.62 + elev * 0.7;
+	// Slope shade from height gradient
+	float gx = fbm(uww + vec2(0.07, 0.0)) - fbm(uww - vec2(0.07, 0.0));
+	float gy = fbm(uww + vec2(0.0, 0.07)) - fbm(uww - vec2(0.0, 0.07));
+	float slope = clamp(0.55 + gx * 1.8 - gy * 1.0, 0.55, 1.28);
+	col *= slope;
+	// Soft contour-ish bands (subtle, not stripes)
+	float bands = sin(elev * 18.0 + n * 2.0) * 0.5 + 0.5;
+	col = mix(col, col * 0.92, bands * 0.08 * smoothstep(0.2, 0.8, abs(elev)));
 
-	// Soft shadow pools only
-	col = mix(col, col_shadow.rgb, smoothstep(0.65, 1.0, n3) * 0.14);
+	// Soft shadow pools in low land
+	col = mix(col, col_shadow.rgb, smoothstep(0.55, 1.0, n3) * (0.12 + wet_m * 0.1));
 
 	// Tiny natural grit — not crystal confetti
 	col += (hash(floor(UV * 120.0)) - 0.5) * 0.02;
