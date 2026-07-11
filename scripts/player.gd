@@ -498,7 +498,7 @@ func _on_landed(hard: bool, from_air_jump: bool) -> void:
 
 func _spawn_pollen_cloud() -> void:
 	if FX:
-		FX.burst_particles(get_parent(), global_position, Color(0.85, 0.7, 1.0, 0.7), 16, "star", 0.45)
+		FX.burst_particles(get_parent(), global_position, Color(0.55, 0.82, 0.95, 0.7), 16, "star", 0.45)
 	for e in get_tree().get_nodes_in_group("enemies"):
 		if e is Node2D and global_position.distance_to(e.global_position) < 90.0:
 			if e.has_method("apply_slow"):

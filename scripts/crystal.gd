@@ -25,8 +25,8 @@ func _ready() -> void:
 	_hp_bar.position = Vector2(-52, 62)
 	_hp_bar.size = Vector2(104, 12)
 
-	FX.spark_particles(self, Color(0.75, 0.55, 1.0, 0.85), 22, "glow")
-	var dust := FX.spark_particles(self, Color(0.45, 0.85, 0.7, 0.7), 12, "star")
+	FX.spark_particles(self, Color(0.45, 0.78, 0.95, 0.85), 22, "glow")
+	var dust := FX.spark_particles(self, Color(0.55, 0.8, 0.55, 0.7), 12, "star")
 	dust.position = Vector2(0, -20)
 
 
@@ -72,7 +72,7 @@ func _build_visuals() -> void:
 		Vector2(6, 36), Vector2(-8, 34), Vector2(-22, 18), Vector2(-30, -6),
 		Vector2(-20, -34)
 	])
-	_core.color = Color(0.85, 0.72, 1.0, 0.98)
+	_core.color = Color(0.55, 0.82, 0.95, 0.98)
 	add_child(_core)
 	# Bold outline rings for silhouette (PJ readability)
 	var outline := _core.duplicate() as Polygon2D
@@ -93,18 +93,18 @@ func _build_visuals() -> void:
 	facet_r.polygon = PackedVector2Array([
 		Vector2(0, -56), Vector2(18, -36), Vector2(22, 0), Vector2(0, 10)
 	])
-	facet_r.color = Color(0.85, 0.7, 1.0, 0.4)
+	facet_r.color = Color(0.45, 0.75, 0.9, 0.4)
 	add_child(facet_r)
 
 	var facet_top := Polygon2D.new()
 	facet_top.polygon = PackedVector2Array([
 		Vector2(0, -56), Vector2(10, -40), Vector2(0, -28), Vector2(-10, -40)
 	])
-	facet_top.color = Color(0.95, 0.92, 1.0, 0.7)
+	facet_top.color = Color(0.85, 0.92, 0.98, 0.7)
 	add_child(facet_top)
 
 	# Inner light
-	var heart := FX.make_ellipse_poly(8, 14, 16, Color(0.95, 0.9, 1.0, 0.85))
+	var heart := FX.make_ellipse_poly(8, 14, 16, Color(0.75, 0.9, 1.0, 0.85))
 	heart.position = Vector2(0, -8)
 	add_child(heart)
 	_glow_layers.append(heart)
@@ -114,7 +114,7 @@ func _build_visuals() -> void:
 	_shaft.polygon = PackedVector2Array([
 		Vector2(-6, -70), Vector2(6, -70), Vector2(14, 40), Vector2(-14, 40)
 	])
-	_shaft.color = Color(0.7, 0.55, 1.0, 0.12)
+	_shaft.color = Color(0.45, 0.7, 0.85, 0.12)
 	_shaft.z_index = -1
 	add_child(_shaft)
 	_glow_layers.append(_shaft)
@@ -128,7 +128,7 @@ func _build_visuals() -> void:
 		shard.polygon = PackedVector2Array([
 			Vector2(0, -7), Vector2(4, 0), Vector2(0, 5), Vector2(-4, 0)
 		])
-		shard.color = Color(0.65, 0.85, 0.75, 0.55) if i % 2 == 0 else Color(0.8, 0.6, 1.0, 0.5)
+		shard.color = Color(0.55, 0.78, 0.65, 0.55) if i % 2 == 0 else Color(0.5, 0.72, 0.88, 0.5)
 		shard.set_meta("orbit", ang)
 		shard.set_meta("dist", dist)
 		shard.name = "Shard%d" % i

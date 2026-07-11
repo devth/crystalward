@@ -22,13 +22,13 @@ var _bob: float = 0.0
 var _visual: Node2D
 var _wing_l: Polygon2D
 var _wing_r: Polygon2D
-var _tint: Color = Color(0.85, 0.75, 1.0)
+var _tint: Color = Color(0.55, 0.78, 0.65)
 
 
 func _ready() -> void:
 	add_to_group("helper_fairies")
 	_bob = randf() * TAU
-	_tint = Color(0.7, 0.95, 0.9) if owner_index == 0 else Color(0.95, 0.7, 0.95)
+	_tint = Color(0.45, 0.78, 0.62) if owner_index == 0 else Color(0.85, 0.55, 0.28)
 	_build_visuals()
 	if GameState:
 		GameState.register_fairy(self)

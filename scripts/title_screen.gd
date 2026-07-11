@@ -49,8 +49,8 @@ func _build_ui() -> void:
 	title.text = "CRYSTALWARD"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 56)
-	title.add_theme_color_override("font_color", Color(0.95, 0.9, 1.0))
-	title.add_theme_color_override("font_outline_color", Color(0.08, 0.04, 0.12, 0.98))
+	title.add_theme_color_override("font_color", Color(0.92, 0.88, 0.78))
+	title.add_theme_color_override("font_outline_color", Color(0.04, 0.03, 0.04, 0.98))
 	title.add_theme_constant_override("outline_size", 10)
 	center.add_child(title)
 
@@ -58,17 +58,17 @@ func _build_ui() -> void:
 	sub.text = "Defend the Lightwell"
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	sub.add_theme_font_size_override("font_size", 20)
-	sub.add_theme_color_override("font_color", Color(0.7, 0.95, 0.8))
-	sub.add_theme_color_override("font_outline_color", Color(0.05, 0.08, 0.06, 0.9))
+	sub.add_theme_color_override("font_color", Color(0.55, 0.78, 0.62))
+	sub.add_theme_color_override("font_outline_color", Color(0.04, 0.05, 0.04, 0.9))
 	sub.add_theme_constant_override("outline_size", 4)
 	center.add_child(sub)
 
 	var flavor := Label.new()
-	flavor.text = "A forest of thorns, mist, and crystal light.\nCo-op tower defense for 1–2 wardens."
+	flavor.text = "Thorns, mist, and cold crystal light.\nLocal co-op tower defense — 1–2 wardens."
 	flavor.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	flavor.add_theme_font_size_override("font_size", 14)
-	flavor.add_theme_color_override("font_color", Color(0.9, 0.88, 0.95, 0.92))
-	flavor.add_theme_color_override("font_outline_color", Color(0.05, 0.04, 0.1, 0.85))
+	flavor.add_theme_color_override("font_color", Color(0.82, 0.8, 0.74, 0.92))
+	flavor.add_theme_color_override("font_outline_color", Color(0.04, 0.03, 0.04, 0.85))
 	flavor.add_theme_constant_override("outline_size", 3)
 	center.add_child(flavor)
 
@@ -84,14 +84,14 @@ func _build_ui() -> void:
 	tips.text = "Switch Pro / Joy-Cons via Bluetooth · Esc pause in-game"
 	tips.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	tips.add_theme_font_size_override("font_size", 12)
-	tips.add_theme_color_override("font_color", Color(0.75, 0.72, 0.85, 0.85))
+	tips.add_theme_color_override("font_color", Color(0.65, 0.62, 0.55, 0.85))
 	tips.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
 	tips.add_theme_constant_override("outline_size", 2)
 	center.add_child(tips)
 
-	# Floating pollen / fairy dust over art
+	# Ember dust over art (no purple sparkle)
 	if FX:
-		var p := FX.spark_particles(self, Color(0.95, 0.85, 0.55, 0.55), 28, "star")
+		var p := FX.spark_particles(self, Color(0.85, 0.65, 0.3, 0.45), 18, "star")
 		p.position = Vector2(640, 400)
 		var pm := p.process_material as ParticleProcessMaterial
 		if pm:
@@ -100,13 +100,6 @@ func _build_ui() -> void:
 			pm.gravity = Vector3(0, -6, 0)
 			pm.initial_velocity_min = 4.0
 			pm.initial_velocity_max = 18.0
-		var p2 := FX.spark_particles(self, Color(0.75, 0.55, 1.0, 0.4), 18, "glow")
-		p2.position = Vector2(640, 280)
-		var pm2 := p2.process_material as ParticleProcessMaterial
-		if pm2:
-			pm2.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
-			pm2.emission_sphere_radius = 220.0
-			pm2.gravity = Vector3(0, -3, 0)
 
 
 func _load_title_bg() -> Texture2D:
@@ -129,19 +122,19 @@ func _btn(text: String, cb: Callable) -> Button:
 	b.text = text
 	b.custom_minimum_size = Vector2(300, 48)
 	b.add_theme_font_size_override("font_size", 18)
-	# Soft panel look
+	# Iron panel
 	var n := StyleBoxFlat.new()
-	n.bg_color = Color(0.12, 0.1, 0.18, 0.82)
-	n.set_corner_radius_all(10)
-	n.border_color = Color(0.75, 0.65, 0.95, 0.55)
+	n.bg_color = Color(0.08, 0.08, 0.1, 0.88)
+	n.set_corner_radius_all(6)
+	n.border_color = Color(0.55, 0.48, 0.32, 0.7)
 	n.set_border_width_all(2)
 	n.content_margin_left = 12
 	n.content_margin_right = 12
 	n.content_margin_top = 8
 	n.content_margin_bottom = 8
 	var h := n.duplicate() as StyleBoxFlat
-	h.bg_color = Color(0.22, 0.18, 0.32, 0.9)
-	h.border_color = Color(0.9, 0.8, 1.0, 0.75)
+	h.bg_color = Color(0.14, 0.13, 0.12, 0.94)
+	h.border_color = Color(0.85, 0.7, 0.35, 0.85)
 	b.add_theme_stylebox_override("normal", n)
 	b.add_theme_stylebox_override("hover", h)
 	b.add_theme_stylebox_override("pressed", h)
