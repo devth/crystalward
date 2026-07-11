@@ -40,7 +40,8 @@ Switch Pro / Joy-Cons: device 0 → P1, device 1 → P2 (A gather, B attack, X b
 
 ## Spec
 
-Living design doc: [`docs/SPEC.md`](docs/SPEC.md)
+- Living design: [`docs/SPEC.md`](docs/SPEC.md)
+- Towers, upgrades, synergies, matchups: [`docs/TOWERS.md`](docs/TOWERS.md)
 
 ## Agent notes
 

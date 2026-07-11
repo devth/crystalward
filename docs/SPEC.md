@@ -113,7 +113,7 @@ Players should almost always be choosing among:
 
 - **Wallet:** **one shared bank** for all players. Crystal integrity is always shared. Spend feedback should show *who* spent what so silent bank-draining is visible.
 - **Sources:** map nodes, enemy drops, optional crystal “tithe” risk/reward (tune later).
-- **Towers / defenses:** primarily **claimed world objects** (thorns, stones, ruins, root-gates) plus a small set of placeables if needed for readability.
+- **Towers / defenses:** primarily **claimed world objects** (thorns, stones, ruins, root-gates) plus a small set of placeables if needed for readability. Full roster, synergies, and matchups: [`TOWERS.md`](TOWERS.md).
 - **Build timing:** **queue** — start a build/upgrade, leave while it finishes (RTS multitask). No long stand-and-dance channels.
 - **Node contest:** **shared progress** — multiple wardens contribute to the same gather/build bar; no hard grief steals.
 - **Tech:** upgrades on structures + global or semi-global unlocks that all players can trigger.
@@ -206,7 +206,8 @@ Prior round closed. Next decisions when we hit them:
 | — | Exact gamepad/keyboard bindings | Open — prototype |
 | — | Win condition numbers (surge count, crystal HP) | Open |
 | — | First map layout / path topology | Open |
-| — | Tower & enemy kit for v0 slice | Open |
+| — | Tower kit detail | See [`TOWERS.md`](TOWERS.md); implement T1+ over time |
+| — | Enemy kit / tags implementation | Open — tags defined in TOWERS.md |
 
 ---
 
@@ -227,6 +228,7 @@ Prior round closed. Next decisions when we hit them:
 | 2026-07-10 | Camera: **centroid follow** + pings/minimap |
 | 2026-07-10 | Node contest: **shared progress** |
 | 2026-07-10 | Git default branch: **master** |
+| 2026-07-11 | Tower design doc: [`TOWERS.md`](TOWERS.md) (8 types, auras, matchups) |
 
 ---
 
