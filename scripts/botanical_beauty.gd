@@ -38,8 +38,8 @@ func paint(parent: Node2D) -> void:
 			var kind: String = str(f.get("kind", ""))
 			var c: Vector2 = f.get("pos", Vector2.ZERO)
 			var rad: float = float(f.get("radius", 100.0))
-			if kind == "lake":
-				_meadow_ring(parent, c, rad * 0.85, rad * 1.35, 16, rng)
+			if kind in ["lake", "pond"]:
+				_meadow_ring(parent, c, rad * 0.85, rad * 1.4, 12 if kind == "pond" else 16, rng)
 			elif kind in ["hill", "forest"]:
 				_botanical_cluster(parent, c + Vector2(rng.randf_range(-40, 40), rng.randf_range(-30, 30)), rng)
 	# Fairy rings — soft dark magic across the basin

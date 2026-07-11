@@ -44,7 +44,18 @@ var _shadow: Polygon2D = null
 var _aura_poly: Polygon2D = null
 var _ground_y_bob: float = 0.0
 
+## Swimming in lakes / ponds (PathNetwork water bodies)
+var _swimming: bool = false
+var _water_depth: float = 0.0
+var _was_swimming: bool = false
+var _swim_ripple: Polygon2D = null
+var _water_clip: Polygon2D = null
+var _splash_cd: float = 0.0
+
 const BASE_GRAVITY := 1100.0
+const SWIM_SPEED_MULT := 0.58
+const SWIM_ACCEL_MULT := 0.7
+const SWIM_FRICTION_MULT := 0.55
 
 ## Temporary burst powerups (activate in dire situations)
 var _sprint_t: float = 0.0
@@ -257,13 +268,19 @@ func is_airborne() -> bool:
 	return _height > 2.0
 
 
+func is_swimming() -> bool:
+	return _swimming
+
+
 func _physics_process(delta: float) -> void:
 	if GameState.is_game_over:
 		velocity = Vector2.ZERO
 		return
 
 	_attack_cd = maxf(0.0, _attack_cd - delta)
+	_splash_cd = maxf(0.0, _splash_cd - delta)
 	_tick_bursts(delta)
+	_update_water_state(delta)
 	_bob_t += delta * (8.0 if velocity.length() > 10.0 else 3.0)
 	_update_jump(delta)
 	_update_power_auras(delta)
@@ -271,18 +288,23 @@ func _physics_process(delta: float) -> void:
 	var dir := _read_move()
 	var air_control := 0.85 if is_airborne() else 1.0
 	var speed_mult := BurstPowerups.SPRINT_MULT if _sprint_t > 0.0 else 1.0
+	if _swimming and not is_airborne():
+		speed_mult *= lerpf(SWIM_SPEED_MULT, 0.72, 1.0 - _water_depth)
+		air_control *= SWIM_ACCEL_MULT
+	var fric := move_friction * (SWIM_FRICTION_MULT if _swimming and not is_airborne() else 1.0)
+	var accel := move_accel * air_control
 	if dir.length_squared() > 0.01:
 		_facing = dir.normalized()
 		if absf(_facing.x) > 0.15:
 			_face_sign = -1.0 if _facing.x < 0.0 else 1.0
 		velocity = velocity.move_toward(
 			dir.normalized() * move_speed * air_control * speed_mult,
-			move_accel * air_control * delta
+			accel * delta
 		)
 	else:
-		velocity = velocity.move_toward(Vector2.ZERO, move_friction * delta)
+		velocity = velocity.move_toward(Vector2.ZERO, fric * delta)
 
-	# Free roam on paths and open land (no path snap, no solid world colliders).
+	# Free roam on paths, open land, and water (swimmable).
 	move_and_slide()
 	global_position = GameState.clamp_world_position(global_position)
 	# Always above ground props — Main must NOT y_sort the whole map layer
@@ -292,17 +314,25 @@ func _physics_process(delta: float) -> void:
 		z_index = clampi(50 + int(global_position.y) + 2000, 50, 4000)
 
 	_update_sprite_anim(delta)
+	_update_swim_visuals(delta)
 
 	if _visual_root:
-		_visual_root.position.y = -_height
+		var swim_bob := 0.0
+		if _swimming and not is_airborne():
+			swim_bob = 3.0 + sin(_bob_t * 3.2) * 2.2 + _water_depth * 4.0
+		_visual_root.position.y = -_height + swim_bob
 		var squash := 1.0
 		if is_airborne():
 			squash = 1.0 - clampf(_height_vel / 700.0, -0.12, 0.1)
+		elif _swimming:
+			squash = 0.92 + 0.04 * sin(_bob_t * 4.0)
 		_visual_root.scale = Vector2(_face_sign * squash, 1.0 / maxf(0.75, squash))
 		if _shadow:
 			var s := clampf(1.0 - _height / 120.0, 0.35, 1.0)
+			if _swimming:
+				s *= 0.45
 			_shadow.scale = Vector2(s * absf(_face_sign), s)
-			_shadow.modulate.a = 0.28 + 0.4 * s
+			_shadow.modulate.a = (0.28 + 0.4 * s) * (0.35 if _swimming else 1.0)
 		# Pulse aura + orbit crystal shards
 		if _aura_poly:
 			var pulse := 0.9 + 0.12 * sin(_bob_t * 1.6)
@@ -536,6 +566,106 @@ func get_burst_status() -> Dictionary:
 	}
 
 
+func _update_water_state(_delta: float) -> void:
+	_water_depth = 0.0
+	if PathNetwork and PathNetwork.has_method("water_depth_at"):
+		_water_depth = float(PathNetwork.water_depth_at(global_position))
+	# Airborne over water doesn't count as swimming until you splash down
+	_swimming = _water_depth > 0.08 and _height < 18.0
+	if _swimming and not _was_swimming:
+		_on_enter_water()
+	elif not _swimming and _was_swimming:
+		_on_exit_water()
+	_was_swimming = _swimming
+
+
+func _on_enter_water() -> void:
+	# Cancel residual fall into a soft water settle
+	if _height_vel < 0.0:
+		_height_vel *= 0.2
+	_height = minf(_height, 6.0)
+	_spawn_water_splash(1.0)
+	if Juice:
+		Juice.flash(Color(0.35, 0.65, 0.9, 0.12), 0.1)
+
+
+func _on_exit_water() -> void:
+	_spawn_water_splash(0.55)
+	if _body_sprite:
+		_body_sprite.modulate = _skin_modulate
+	if _water_clip and is_instance_valid(_water_clip):
+		_water_clip.visible = false
+	if _swim_ripple and is_instance_valid(_swim_ripple):
+		_swim_ripple.visible = false
+
+
+func _spawn_water_splash(strength: float = 1.0) -> void:
+	if _splash_cd > 0.0:
+		return
+	_splash_cd = 0.18
+	if FX:
+		FX.burst_particles(
+			get_parent() if get_parent() else self,
+			global_position,
+			Color(0.55, 0.85, 1.0, 0.75),
+			int(10.0 * strength),
+			"glow",
+			0.35
+		)
+		FX.burst_particles(
+			get_parent() if get_parent() else self,
+			global_position,
+			Color(0.7, 0.9, 1.0, 0.55),
+			int(6.0 * strength),
+			"spark",
+			0.28
+		)
+	# Expanding ripple ring
+	var ring := FX.make_ellipse_poly(12, 7, 18, Color(0.5, 0.85, 1.0, 0.45)) if FX else null
+	if ring:
+		ring.position = Vector2.ZERO
+		ring.z_index = 8
+		add_child(ring)
+		var tw := create_tween()
+		tw.tween_property(ring, "scale", Vector2(2.8 * strength, 1.8 * strength), 0.35)
+		tw.parallel().tween_property(ring, "modulate:a", 0.0, 0.35)
+		tw.tween_callback(ring.queue_free)
+
+
+func _update_swim_visuals(delta: float) -> void:
+	if not _swimming:
+		if _body_sprite and _body_sprite.modulate != _skin_modulate:
+			_body_sprite.modulate = _body_sprite.modulate.lerp(_skin_modulate, clampf(delta * 8.0, 0.0, 1.0))
+		return
+	# Cool water tint while submerged
+	if _body_sprite:
+		var wet := _skin_modulate.lerp(Color(0.45, 0.75, 0.95), 0.28 + _water_depth * 0.2)
+		_body_sprite.modulate = _body_sprite.modulate.lerp(wet, clampf(delta * 6.0, 0.0, 1.0))
+	# Ripple under warden
+	if _swim_ripple == null or not is_instance_valid(_swim_ripple):
+		_swim_ripple = FX.make_ellipse_poly(16, 9, 18, Color(0.5, 0.85, 1.0, 0.3)) if FX else Polygon2D.new()
+		if _swim_ripple.get_parent() == null:
+			_swim_ripple.z_index = 6
+			add_child(_swim_ripple)
+	_swim_ripple.visible = true
+	var move_n := clampf(velocity.length() / 120.0, 0.35, 1.4)
+	_swim_ripple.scale = Vector2(0.9 + move_n * 0.35, 0.7 + move_n * 0.2) * (0.95 + 0.08 * sin(_bob_t * 5.0))
+	_swim_ripple.modulate.a = 0.2 + 0.15 * move_n + 0.08 * sin(_bob_t * 4.0)
+	# Soft water surface plane at waist
+	if _water_clip == null or not is_instance_valid(_water_clip):
+		_water_clip = FX.make_ellipse_poly(18, 8, 16, Color(0.25, 0.55, 0.7, 0.35)) if FX else Polygon2D.new()
+		if _water_clip.get_parent() == null:
+			_water_clip.z_index = 12
+			add_child(_water_clip)
+	_water_clip.visible = true
+	_water_clip.position = Vector2(0, 6 + sin(_bob_t * 3.0) * 1.5)
+	_water_clip.scale = Vector2(1.0 + _water_depth * 0.2, 0.85)
+	_water_clip.modulate.a = 0.22 + _water_depth * 0.2
+	# Moving splash trail
+	if velocity.length() > 40.0 and _splash_cd <= 0.0 and randf() < 0.12:
+		_spawn_water_splash(0.35)
+
+
 func _try_jump() -> void:
 	var max_j := _max_jumps_now()
 	if _jumps_left <= 0:
@@ -545,6 +675,10 @@ func _try_jump() -> void:
 	var jv := Powers.jump_velocity() if Powers else 380.0
 	if _sky_t > 0.0:
 		jv *= BurstPowerups.SKY_JUMP_MULT
+	# Leap from water surface
+	if _swimming and not is_double:
+		jv *= 0.88
+		_spawn_water_splash(0.85)
 	_height_vel = jv
 	if is_double:
 		_height_vel *= 0.92
@@ -558,6 +692,10 @@ func _update_jump(delta: float) -> void:
 	# _height_vel: positive = rising, negative = falling
 	var g_scale := Powers.gravity_scale() if Powers else 1.0
 	var g := BASE_GRAVITY * g_scale
+	# Water cushions falls
+	if _swimming and _height_vel < 0.0:
+		g *= 0.45
+		_height_vel = maxf(_height_vel, -160.0)
 	if _height > 0.0 or _height_vel != 0.0:
 		_height_vel -= g * delta
 		_height += _height_vel * delta
@@ -578,6 +716,9 @@ func _update_jump(delta: float) -> void:
 
 
 func _on_landed(hard: bool, from_air_jump: bool) -> void:
+	if _swimming or (PathNetwork and PathNetwork.has_method("in_water") and PathNetwork.in_water(global_position)):
+		_spawn_water_splash(1.15 if hard else 0.7)
+		return
 	if FX:
 		FX.burst_particles(get_parent(), global_position, Color(0.6, 0.8, 0.5, 0.5), 6, "puff", 0.2)
 	if Powers and Powers.has("pollen_burst"):

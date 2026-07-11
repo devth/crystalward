@@ -121,7 +121,7 @@ func _build_elevation_base() -> void:
 	# Explicit contour rings around major landmarks
 	for f in PathNetwork.features:
 		var kind: String = str(f.get("kind", ""))
-		if kind not in ["mountain", "hill", "lake"]:
+		if kind not in ["mountain", "hill", "lake", "pond"]:
 			continue
 		var c: Vector2 = f.get("pos", Vector2.ZERO)
 		var rad: float = float(f.get("radius", 100.0))
@@ -223,7 +223,9 @@ func _build_terrain_features() -> void:
 			"hill":
 				_add_hill(pos, radius, rng, round_tree, pine_tree)
 			"lake":
-				_add_lake(pos, radius, rng)
+				_add_lake(pos, radius, rng, false)
+			"pond":
+				_add_lake(pos, radius, rng, true)
 			"fairy_ring":
 				_add_fairy_ring(pos, radius, rng)
 			"crystal_grove", "crystals":
@@ -318,50 +320,104 @@ func _add_hill(
 	_add_thicket(center + Vector2(rng.randf_range(-20, 20), rng.randf_range(-8, 12)), rng.randf_range(-0.2, 0.2))
 
 
-func _add_lake(center: Vector2, radius: float, rng: RandomNumberGenerator) -> void:
-	## Still water with shore moss and reed flecks — road skirts the shore.
-	var r := maxf(70.0, radius)
-	# Wide marshy shore for lush wet-land feel
-	var marsh := _ellipse(center, r * 1.28, r * 0.82, Color(0.12, 0.26, 0.14, 0.45), Z_WATER)
+func _add_lake(center: Vector2, radius: float, rng: RandomNumberGenerator, is_pond: bool = false) -> void:
+	## Swimmable lake or pond — soft shore, deep center, lilies/reeds. Wardens can swim here.
+	var r := maxf(48.0 if is_pond else 70.0, radius)
+	var aspect := 0.62 if is_pond else 0.6
+	# Wide marshy shore
+	var marsh := _ellipse(center, r * 1.32, r * (aspect + 0.18), Color(0.12, 0.28, 0.15, 0.48), Z_WATER)
 	add_child(marsh)
-	var shore := _ellipse(center, r * 1.14, r * 0.74, Color(0.14, 0.22, 0.14, 0.7), Z_WATER + 1)
+	var shore := _ellipse(center, r * 1.16, r * (aspect + 0.12), Color(0.16, 0.24, 0.14, 0.72), Z_WATER + 1)
 	add_child(shore)
-	var wet := _ellipse(center, r * 1.04, r * 0.66, Color(0.09, 0.16, 0.14, 0.55), Z_WATER + 2)
+	# Sandy/mud bank
+	var bank := _ellipse(center, r * 1.06, r * (aspect + 0.05), Color(0.28, 0.24, 0.16, 0.4), Z_WATER + 2)
+	add_child(bank)
+	var wet := _ellipse(center, r * 1.0, r * aspect, Color(0.08, 0.16, 0.15, 0.55), Z_WATER + 2)
 	add_child(wet)
-	# Water body
-	var water := _ellipse(center, r * 0.94, r * 0.6, Color(0.1, 0.3, 0.42, 0.82), Z_WATER + 3)
+	# Water body (matches PathNetwork swim ellipse ~0.92 / 0.58)
+	var water_col := Color(0.12, 0.38, 0.48, 0.78) if is_pond else Color(0.1, 0.32, 0.45, 0.82)
+	var water := _ellipse(center, r * 0.94, r * aspect, water_col, Z_WATER + 3)
 	add_child(water)
-	var deep := _ellipse(center + Vector2(10, 5), r * 0.58, r * 0.36, Color(0.06, 0.16, 0.32, 0.7), Z_WATER + 4)
+	var deep := _ellipse(center + Vector2(r * 0.06, r * 0.04), r * 0.55, r * aspect * 0.58, Color(0.05, 0.14, 0.3, 0.72), Z_WATER + 4)
 	add_child(deep)
-	var shallows := _ellipse(center + Vector2(-r * 0.15, -r * 0.08), r * 0.35, r * 0.2, Color(0.2, 0.45, 0.48, 0.35), Z_WATER + 4)
+	var shallows := _ellipse(center + Vector2(-r * 0.18, -r * 0.1), r * 0.38, r * aspect * 0.35, Color(0.22, 0.5, 0.52, 0.32), Z_WATER + 4)
 	add_child(shallows)
+	# Soft cyan rim light
+	var rim := _ellipse(center, r * 0.96, r * aspect * 1.02, Color(0.35, 0.75, 0.85, 0.1), Z_WATER + 3)
+	add_child(rim)
 	# Specular glints
-	for i in 8:
+	var glint_n := 5 if is_pond else 10
+	for i in glint_n:
 		var g := _ellipse(
-			center + Vector2(rng.randf_range(-r * 0.45, r * 0.45), rng.randf_range(-r * 0.28, r * 0.28)),
-			rng.randf_range(8, 20), rng.randf_range(3, 8),
-			Color(0.55, 0.88, 0.98, 0.22), Z_WATER + 5
+			center + Vector2(rng.randf_range(-r * 0.45, r * 0.45), rng.randf_range(-r * aspect * 0.5, r * aspect * 0.5)),
+			rng.randf_range(6, 18), rng.randf_range(2.5, 7),
+			Color(0.55, 0.9, 1.0, 0.18 + rng.randf() * 0.1), Z_WATER + 5
 		)
 		add_child(g)
 	# Ethereal mist over water
-	var mist := _ellipse(center + Vector2(0, -8), r * 0.78, r * 0.45, Color(0.48, 0.38, 0.72, 0.16), Z_WATER + 6)
+	var mist := _ellipse(center + Vector2(0, -6), r * 0.75, r * aspect * 0.7, Color(0.45, 0.4, 0.75, 0.14), Z_WATER + 6)
 	add_child(mist)
-	# Shore crystals / reeds / grass
-	for i in 10:
-		var ang := TAU * float(i) / 10.0 + rng.randf() * 0.18
-		var p := center + Vector2(cos(ang), sin(ang) * 0.65) * r * rng.randf_range(0.9, 1.15)
+	# Lily pads (ponds + lakes)
+	var lily_n := 3 if is_pond else 6
+	for i in lily_n:
+		var ang := rng.randf() * TAU
+		var rr := r * rng.randf_range(0.15, 0.72)
+		var lp := center + Vector2(cos(ang), sin(ang) * aspect) * rr
+		if PathNetwork and PathNetwork.dist_to_path(lp) < PATH_CLEAR * 0.6:
+			continue
+		_add_lily_pad(lp, rng.randf_range(0.7, 1.2), rng)
+	# Shore reeds / crystals
+	var edge_n := 7 if is_pond else 12
+	for i in edge_n:
+		var ang := TAU * float(i) / float(edge_n) + rng.randf() * 0.15
+		var p := center + Vector2(cos(ang), sin(ang) * aspect) * r * rng.randf_range(0.92, 1.18)
 		if PathNetwork and PathNetwork.dist_to_path(p) < PATH_CLEAR * 0.7:
 			continue
-		if rng.randf() < 0.35:
+		if not is_pond and rng.randf() < 0.28:
 			_add_ethereal_crystal(p, rng.randf_range(0.45, 0.8), Color(0.5, 0.85, 0.95, 0.7), rng)
 		else:
-			var reed := Line2D.new()
-			reed.width = 2.2
-			reed.default_color = Color(0.22, 0.48, 0.28, 0.9)
-			reed.points = PackedVector2Array([Vector2(0, 4), Vector2(rng.randf_range(-4, 4), -16 - rng.randf() * 14)])
-			reed.position = p
-			reed.z_index = Z_DECOR
-			add_child(reed)
+			_add_reed_cluster(p, rng)
+	# Soft water sparkles
+	if FX and not is_pond:
+		var spark := FX.spark_particles(self, Color(0.6, 0.9, 1.0, 0.35), 8, "glow")
+		spark.position = center
+		spark.z_index = Z_WATER + 7
+		spark.amount = 8
+		spark.lifetime = 3.5
+		var pm := spark.process_material as ParticleProcessMaterial
+		if pm:
+			pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+			pm.emission_sphere_radius = r * 0.55
+			pm.gravity = Vector3(0, -2, 0)
+			pm.initial_velocity_min = 1.0
+			pm.initial_velocity_max = 6.0
+
+
+func _add_lily_pad(pos: Vector2, scale: float, rng: RandomNumberGenerator) -> void:
+	var pad := _ellipse(pos, 10.0 * scale, 7.0 * scale, Color(0.18, 0.48, 0.28, 0.85), Z_WATER + 5)
+	add_child(pad)
+	var notch := _ellipse(pos + Vector2(scale * 3, -scale * 2), 3.5 * scale, 2.5 * scale, Color(0.1, 0.28, 0.18, 0.5), Z_WATER + 5)
+	add_child(notch)
+	if rng.randf() < 0.45:
+		var bloom := _ellipse(pos + Vector2(0, -2), 3.5 * scale, 3.0 * scale, Color(0.95, 0.75, 0.85, 0.8), Z_WATER + 6)
+		add_child(bloom)
+		var center := _ellipse(pos + Vector2(0, -2), 1.5 * scale, 1.3 * scale, Color(0.95, 0.9, 0.4, 0.85), Z_WATER + 6)
+		add_child(center)
+
+
+func _add_reed_cluster(pos: Vector2, rng: RandomNumberGenerator) -> void:
+	for j in (2 + rng.randi() % 3):
+		var reed := Line2D.new()
+		reed.width = 2.0
+		reed.default_color = Color(0.2, 0.48, 0.28, 0.88)
+		var lean := rng.randf_range(-5, 5)
+		reed.points = PackedVector2Array([
+			Vector2(j * 3.0 - 3.0, 4),
+			Vector2(j * 3.0 - 3.0 + lean, -12 - rng.randf() * 16)
+		])
+		reed.position = pos
+		reed.z_index = Z_DECOR
+		add_child(reed)
 
 
 func _add_fairy_ring(center: Vector2, radius: float, rng: RandomNumberGenerator) -> void:

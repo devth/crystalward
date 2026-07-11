@@ -11,8 +11,10 @@ var lanes: Array = []
 var spawn_anchors: Array[Vector2] = []
 var active_lane_set: String = "single"
 ## { id, pos, kind, radius, elev }
-## kind: forest | fairy_ring | crystal_grove | mountain | hill | lake
+## kind: forest | fairy_ring | crystal_grove | mountain | hill | lake | pond
 var features: Array[Dictionary] = []
+## Swimmable water ellipses: { pos, rx, ry, kind } — rebuilt with features.
+var water_bodies: Array[Dictionary] = []
 
 
 func _ready() -> void:
@@ -32,6 +34,7 @@ func rebuild(lane_set: String = "single") -> void:
 	lanes.clear()
 	spawn_anchors.clear()
 	features.clear()
+	water_bodies.clear()
 	_place_shared_features()
 	match lane_set:
 		"single", "simple":
@@ -49,6 +52,7 @@ func rebuild(lane_set: String = "single") -> void:
 		_:
 			_add_single()
 	_clear_features_from_paths()
+	_rebuild_water_bodies()
 	paths_rebuilt.emit()
 
 
@@ -63,9 +67,17 @@ func _place_shared_features() -> void:
 		_feature("nw_hill", Vector2(-620, -360), "hill", 135.0, 0.52)
 		_feature("west_peak", Vector2(-820, 180), "mountain", 155.0, 0.95)
 		_feature("sw_hill", Vector2(-560, 900), "hill", 140.0, 0.55)
-		_feature("lake_east", Vector2(420, 420), "lake", 160.0, -0.6)
-		_feature("lake_west", Vector2(-480, 360), "lake", 140.0, -0.55)
-		_feature("lake_south", Vector2(-40, 980), "lake", 110.0, -0.4)
+		# Large swimmable lakes
+		_feature("lake_east", Vector2(420, 420), "lake", 185.0, -0.65)
+		_feature("lake_west", Vector2(-500, 340), "lake", 170.0, -0.6)
+		_feature("lake_south", Vector2(-60, 1000), "lake", 145.0, -0.5)
+		_feature("lake_north", Vector2(200, -420), "lake", 130.0, -0.45)
+		# Smaller ponds (shortcuts / flavor)
+		_feature("pond_glade", Vector2(-180, 180), "pond", 70.0, -0.3)
+		_feature("pond_se", Vector2(560, 820), "pond", 65.0, -0.28)
+		_feature("pond_sw", Vector2(-380, 720), "pond", 60.0, -0.28)
+		_feature("pond_ne", Vector2(340, -200), "pond", 55.0, -0.25)
+		_feature("pond_mid", Vector2(80, 580), "pond", 50.0, -0.25)
 		_feature("mid_hill", Vector2(120, 200), "hill", 100.0, 0.4)
 		_feature("inner_grove", Vector2(-220, -80), "forest", 130.0, 0.2)
 		_feature("east_wood", Vector2(520, -80), "forest", 120.0, 0.2)
@@ -75,7 +87,7 @@ func _place_shared_features() -> void:
 		_feature("fairy_west", Vector2(-360, 600), "fairy_ring", 75.0, 0.1)
 		_feature("far_crystals", Vector2(200, 1900), "crystal_grove", 95.0, 0.22)
 		return
-	# Multi-path maps — rich basin
+	# Multi-path maps — rich basin with water
 	_feature("north_peak", Vector2(-80, -820), "mountain", 180.0, 1.1)
 	_feature("south_ridge", Vector2(100, 980), "mountain", 160.0, 1.0)
 	_feature("west_mountain", Vector2(-880, 120), "mountain", 150.0, 0.95)
@@ -84,9 +96,13 @@ func _place_shared_features() -> void:
 	_feature("east_hill", Vector2(760, -40), "hill", 155.0, 0.55)
 	_feature("sw_hill", Vector2(-480, 720), "hill", 130.0, 0.5)
 	_feature("ne_hill", Vector2(500, -520), "hill", 120.0, 0.48)
-	_feature("lake_west", Vector2(-540, 400), "lake", 155.0, -0.6)
-	_feature("lake_east", Vector2(560, -340), "lake", 145.0, -0.55)
-	_feature("lake_south", Vector2(40, 620), "lake", 120.0, -0.45)
+	_feature("lake_west", Vector2(-540, 400), "lake", 170.0, -0.65)
+	_feature("lake_east", Vector2(560, -340), "lake", 160.0, -0.6)
+	_feature("lake_south", Vector2(40, 620), "lake", 140.0, -0.5)
+	_feature("lake_north", Vector2(80, -500), "lake", 125.0, -0.45)
+	_feature("pond_mid", Vector2(0, 200), "pond", 70.0, -0.3)
+	_feature("pond_ne", Vector2(380, -120), "pond", 60.0, -0.28)
+	_feature("pond_sw", Vector2(-300, 500), "pond", 55.0, -0.25)
 	_feature("nw_wood", Vector2(-540, -440), "forest", 150.0, 0.22)
 	_feature("ne_wood", Vector2(580, -420), "forest", 140.0, 0.22)
 	_feature("sw_wood", Vector2(-500, 640), "forest", 150.0, 0.22)
@@ -98,6 +114,69 @@ func _place_shared_features() -> void:
 
 func _feature(id: String, pos: Vector2, kind: String, radius: float, elev: float = 0.0) -> void:
 	features.append({"id": id, "pos": pos, "kind": kind, "radius": radius, "elev": elev})
+
+
+func _rebuild_water_bodies() -> void:
+	## Match visual lake ellipses (slightly smaller than marsh so shore stays walkable).
+	water_bodies.clear()
+	for f in features:
+		var kind: String = str(f.get("kind", ""))
+		if kind not in ["lake", "pond"]:
+			continue
+		var r: float = float(f.get("radius", 100.0))
+		var rx := r * (0.92 if kind == "lake" else 0.88)
+		var ry := r * (0.58 if kind == "lake" else 0.55)
+		water_bodies.append({
+			"pos": f.get("pos", Vector2.ZERO),
+			"rx": rx,
+			"ry": ry,
+			"kind": kind,
+			"radius": r,
+		})
+
+
+func in_water(world_pos: Vector2) -> bool:
+	return water_depth_at(world_pos) > 0.05
+
+
+func water_depth_at(world_pos: Vector2) -> float:
+	## 0 = dry, 1 = deep center of a water body (ellipse falloff).
+	var best := 0.0
+	for w in water_bodies:
+		var c: Vector2 = w.get("pos", Vector2.ZERO)
+		var rx: float = maxf(8.0, float(w.get("rx", 40.0)))
+		var ry: float = maxf(8.0, float(w.get("ry", 28.0)))
+		var local := world_pos - c
+		var nx := local.x / rx
+		var ny := local.y / ry
+		var d2 := nx * nx + ny * ny
+		if d2 >= 1.0:
+			continue
+		# Smooth depth: 0 at shore → 1 at center
+		var depth := 1.0 - d2
+		depth = depth * depth * (3.0 - 2.0 * depth)
+		best = maxf(best, depth)
+	return best
+
+
+func nearest_water(world_pos: Vector2) -> Dictionary:
+	## { pos, dist, depth, kind } of closest water body (empty if none).
+	var best := {}
+	var best_d := INF
+	for w in water_bodies:
+		var c: Vector2 = w.get("pos", Vector2.ZERO)
+		var d := world_pos.distance_to(c)
+		if d < best_d:
+			best_d = d
+			best = {
+				"pos": c,
+				"dist": d,
+				"depth": water_depth_at(world_pos),
+				"kind": str(w.get("kind", "lake")),
+				"rx": float(w.get("rx", 40.0)),
+				"ry": float(w.get("ry", 28.0)),
+			}
+	return best
 
 
 func elevation_at(world_pos: Vector2) -> float:
@@ -124,7 +203,9 @@ func _clear_features_from_paths() -> void:
 		var kind: String = str(f.get("kind", ""))
 		var need := PATH_CLEAR_RADIUS + (90.0 if kind == "mountain" else 55.0)
 		if kind == "lake":
-			need = PATH_CLEAR_RADIUS + 40.0
+			need = PATH_CLEAR_RADIUS + 45.0
+		elif kind == "pond":
+			need = PATH_CLEAR_RADIUS + 25.0
 		var d := dist_to_path(pos)
 		if d >= need:
 			continue
