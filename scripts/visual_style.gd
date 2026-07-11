@@ -12,6 +12,10 @@ const ESSENCE_GLOW := Color(0.45, 0.95, 0.9)
 const CRYSTAL_CORE := Color(0.85, 0.7, 1.0)
 const UI_CREAM := Color(0.98, 0.95, 0.9)
 const UI_INK := Color(0.12, 0.1, 0.16)
+# Legend (1985) botanical palette
+const LEGEND_MEADOW := Color(0.4, 0.6, 0.38)
+const LEGEND_BLOOM := Color(0.95, 0.55, 0.7)
+const LEGEND_GOLDEN_HOUR := Color(0.95, 0.88, 0.55)
 
 var _outline_shader: Shader
 var _outline_mat: ShaderMaterial

@@ -1,11 +1,12 @@
 shader_type canvas_item;
 
 // Lush readable ground — warm greens + soft purple shadow (PJ Monsters readability).
-uniform vec4 col_shadow : source_color = vec4(0.12, 0.1, 0.18, 1.0);
-uniform vec4 col_deep : source_color = vec4(0.18, 0.32, 0.22, 1.0);
-uniform vec4 col_mid : source_color = vec4(0.28, 0.48, 0.32, 1.0);
-uniform vec4 col_lit : source_color = vec4(0.42, 0.62, 0.38, 1.0);
-uniform vec4 col_flower : source_color = vec4(0.65, 0.4, 0.75, 1.0);
+// Legend-inspired: deep forest green + golden moss + soft blossom flecks
+uniform vec4 col_shadow : source_color = vec4(0.1, 0.14, 0.12, 1.0);
+uniform vec4 col_deep : source_color = vec4(0.16, 0.34, 0.22, 1.0);
+uniform vec4 col_mid : source_color = vec4(0.3, 0.52, 0.32, 1.0);
+uniform vec4 col_lit : source_color = vec4(0.48, 0.68, 0.38, 1.0);
+uniform vec4 col_flower : source_color = vec4(0.9, 0.5, 0.65, 1.0);
 uniform float scale : hint_range(1.0, 40.0) = 9.0;
 uniform float time_scale : hint_range(0.0, 1.0) = 0.05;
 

@@ -15,6 +15,7 @@ const CREATURES_DIR := "res://assets/third_party/assorted_32x32_creatures/"
 const GROTESQUE_DIR := "res://assets/third_party/grotesque_surreal_creature/"
 const CRITTERS_DIR := "res://assets/third_party/critters_32x32_cc0/"
 const HAUNTED_DIR := "res://assets/third_party/haunted_forest_trees/"
+const BOTANICAL_DIR := "res://assets/third_party/oga_plants/"
 const LIMBO_DIR := "res://assets/third_party/limbo_land_monsters/"
 const KENNEY_TDS_DIR := "res://assets/third_party/kenney_top_down_shooter/"
 
@@ -79,6 +80,8 @@ const GROTESQUE_CREATURE := GROTESQUE_DIR + "Pixel_Creature2_png.png"  # CC-BY 3
 const CRITTERS_SHEET := CRITTERS_DIR + "anymals_32_for_edit.png"
 const CRITTERS_SHEET_B := CRITTERS_DIR + "anymals_the_second_colle.png"
 const HAUNTED_TREES := HAUNTED_DIR + "spooky_trees.png"
+## CC0 plant/flower atlas (OpenGameArt “Flowers” — 78 plants)
+const BOTANICAL_PLANTS := BOTANICAL_DIR + "plants.png"
 const LIMBO_IDLE_1 := LIMBO_DIR + "idle/frame-1.png"
 const LIMBO_IDLE_2 := LIMBO_DIR + "idle/frame-2.png"
 const KENNEY_ZOMBIE_STAND := KENNEY_TDS_DIR + "PNG/Zombie 1/zoimbie1_stand.png"

@@ -155,9 +155,9 @@ func _build_atmosphere() -> void:
 		ray.position = Vector2(0, 40)
 		add_child(ray)
 
-	# Warm lush grade (PJ Monsters readability — not pure purple night)
+	# Legend botanical grade — warm green-gold forest light
 	var grade := CanvasModulate.new()
-	grade.color = Color(1.02, 0.98, 0.95)
+	grade.color = Color(1.04, 1.02, 0.96)
 	add_child(grade)
 
 	# Soft bloom / vignette post

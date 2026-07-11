@@ -3,7 +3,7 @@ extends Node2D
 ## Large ritual forest — props and landmarks across the full playable map.
 
 
-const FOREST_MODULATE := Color(0.85, 0.92, 0.78)  # lush green lift (PJ readability)
+const FOREST_MODULATE := Color(0.9, 1.0, 0.82)  # Legend golden-green lift
 const FLOOR_EXTENT := 2200.0
 
 
@@ -105,17 +105,40 @@ func _build() -> void:
 	_scatter_forest_props()
 	_scatter_dark_scenery()
 
-	var motes := FX.spark_particles(self, Color(0.65, 0.45, 0.9, 0.7), 48, "star")
+	# Legend (1985) botanical beauty — meadows, fairy rings, ferns, pollen
+	var bot := Node2D.new()
+	bot.name = "BotanicalBeauty"
+	bot.set_script(load("res://scripts/botanical_beauty.gd"))
+	add_child(bot)
+	if bot.has_method("paint"):
+		bot.call("paint", self)
+
+	var motes := FX.spark_particles(self, Color(0.95, 0.85, 0.55, 0.65), 40, "star")
 	motes.position = Vector2(0, 40)
-	motes.amount = 56
-	motes.lifetime = 3.8
+	motes.amount = 50
+	motes.lifetime = 4.0
 	var pm := motes.process_material as ParticleProcessMaterial
 	if pm:
 		pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
 		pm.emission_sphere_radius = 520.0
-		pm.initial_velocity_min = 4.0
-		pm.initial_velocity_max = 16.0
-		pm.gravity = Vector3(0, -3, 0)
+		pm.initial_velocity_min = 3.0
+		pm.initial_velocity_max = 12.0
+		pm.gravity = Vector3(0, -4, 0)
+
+	# Soft golden-green forest light shafts (Legend dappled magic)
+	for i in 6:
+		var shaft := Polygon2D.new()
+		var ang := -0.9 + float(i) * 0.35
+		shaft.polygon = PackedVector2Array([
+			Vector2(0, 30),
+			Vector2(cos(ang - 0.1) * 40, -80),
+			Vector2(cos(ang + 0.1) * 320, -420),
+			Vector2(cos(ang - 0.1) * 320, -420),
+		])
+		shaft.color = Color(0.95, 0.9, 0.55, 0.035 + float(i % 2) * 0.01)
+		shaft.z_index = -25
+		shaft.position = Vector2(0, 40)
+		add_child(shaft)
 
 	_add_mist_bank(Vector2(-520, -80), Vector2(320, 180))
 	_add_mist_bank(Vector2(480, 120), Vector2(300, 160))
@@ -123,6 +146,9 @@ func _build() -> void:
 	_add_mist_bank(Vector2(-700, 400), Vector2(280, 150))
 	_add_mist_bank(Vector2(800, -350), Vector2(260, 140))
 	_add_mist_bank(Vector2(-200, -700), Vector2(300, 120))
+	# Softer fairy mist near glade
+	_add_mist_bank(Vector2(80, -40), Vector2(200, 100))
+	_add_mist_bank(Vector2(-120, 100), Vector2(180, 90))
 
 
 func _add_landmark_cluster(center: Vector2, kind: String) -> void:

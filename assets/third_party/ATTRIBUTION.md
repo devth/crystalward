@@ -156,6 +156,18 @@ Nested demo Godot project / duplicates stripped; textures only + license.
 
 ---
 
+## Flowers (78 plants)
+
+| | |
+|---|---|
+| **Author** | SpiderDave |
+| **License** | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) |
+| **Source** | https://opengameart.org/content/flowers |
+| **Vendor path** | `oga_plants/` |
+| **How used** | Plant/flower atlas (`plants.png`, 12×24 cells) scattered as Legend meadow props via `botanical_beauty.gd` (`AssetPaths.BOTANICAL_PLANTS`). |
+
+---
+
 ## Limbo Land monster sprites
 
 | | |
