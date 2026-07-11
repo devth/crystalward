@@ -1,0 +1,42 @@
+[gd_scene load_steps=4 format=3 uid="uid://crystalward_site"]
+
+[ext_resource type="Script" path="res://scripts/tower_site.gd" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/tower.tscn" id="2"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_1"]
+radius = 40.0
+
+[node name="TowerSite" type="Area2D"]
+collision_layer = 8
+collision_mask = 2
+monitoring = true
+monitorable = true
+script = ExtResource("1")
+tower_scene = ExtResource("2")
+
+[node name="Pad" type="Polygon2D" parent="."]
+color = Color(0.25, 0.35, 0.28, 0.7)
+polygon = PackedVector2Array(0, -28, 36, 0, 0, 28, -36, 0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_1")
+
+[node name="Progress" type="ProgressBar" parent="."]
+visible = false
+offset_left = -28.0
+offset_top = -40.0
+offset_right = 28.0
+offset_bottom = -32.0
+max_value = 1.0
+show_percentage = false
+
+[node name="Label" type="Label" parent="."]
+offset_left = -40.0
+offset_top = 30.0
+offset_right = 40.0
+offset_bottom = 48.0
+theme_override_font_sizes/font_size = 11
+text = "Q build"
+horizontal_alignment = 1
+
+[node name="TowerSlot" type="Node2D" parent="."]

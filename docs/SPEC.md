@@ -1,7 +1,7 @@
 # Crystalward — Living Design Spec
 
 > **Status:** draft / living  
-> **Last updated:** 2026-07-10  
+> **Last updated:** 2026-07-11  
 > **How to use:** This is the product source of truth. Update it when we make decisions; do not let code drift from it without a note here.
 
 ---
@@ -163,13 +163,14 @@ Lives / integrity should be **shared** and highly visible (screen edge glow, cry
 
 ## 10. Scope ladder
 
-### v0 — vertical slice (prove the feel)
+### v0 — vertical slice (in repo — playable)
 
-- 1 map, 1 crystal, 2–3 enemy types, 2–3 defense types
-- 1–2 players fully supported; 3–4 controllers connect without breaking
-- Full verb set on every player
-- Wave structure + lose condition
-- Mac + Switch controllers validated
+- Godot 4 project at repo root (`project.godot`, `scenes/main.tscn`)
+- 1 map, crystal HP, essence nodes, queueable towers, 1 enemy type
+- 2 local players (keyboard + gamepad device 0/1)
+- Shared Essence bank; Crystal dust drops (rare)
+- 5 surges win / crystal 0 lose; **R** restart
+- Placeholders art (polygons) — tune after playtest
 
 ### v1 — real session
 

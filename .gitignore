@@ -4,18 +4,23 @@
 .idea/
 .vscode/
 
-# Game / engine (placeholder until stack chosen)
+# Godot 4
 .godot/
-*.import
+*.translation
 export/
-build/
-dist/
+export_presets.cfg
+*.pck
+*.exe
+*.app
+*.dmg
+*.x86_64
+*.arm64
 
 # Env / secrets
 .env
 .env.*
 *.local
 
-# Executor / agent machine-local (if any land in-repo)
+# Agent machine-local
 .ce/
 .executor/
