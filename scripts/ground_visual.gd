@@ -180,72 +180,67 @@ func _add_landmark_cluster(center: Vector2, kind: String) -> void:
 
 
 func _scatter_forest_props() -> void:
+	## These packs are WHOLE sprites (or 2 stacked trees), NOT tile grids.
+	## Blind 16×16 / 32×64 slicing produced solid green/black "barf" rectangles.
 	var tree_tex: Texture2D = AssetPaths.load_texture(AssetPaths.FOREST_TREES)
 	var stone_tex: Texture2D = AssetPaths.load_texture(AssetPaths.FOREST_STONES)
 	var bush_tex: Texture2D = AssetPaths.load_texture(AssetPaths.FOREST_BUSHES)
-	var grass_tex: Texture2D = AssetPaths.load_texture(AssetPaths.FOREST_GRASS)
-	var haunted: Texture2D = AssetPaths.load_texture(AssetPaths.HAUNTED_TREES)
-
-	if tree_tex == null:
-		tree_tex = AssetPaths.atlas_region(AssetPaths.DAWNLIKE_TREE0, Rect2(0, 0, 48, 64))
+	var dawn_tree: Texture2D = AssetPaths.load_texture(AssetPaths.DAWNLIKE_TREE0)
 
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 4242
 
-	# Forest scatter — enough atmosphere without carpeting the play space
-	if tree_tex:
-		var tree_regions := _sheet_regions(tree_tex, 32, 64)
-		for i in 90:
-			var pos := _rand_map_pos(rng, 180, 2000)
-			var reg: Rect2 = tree_regions[i % tree_regions.size()]
-			var sc := rng.randf_range(2.2, 3.8)
-			# Sparse near crystal
-			if pos.length() < 280.0 and rng.randf() < 0.75:
-				continue
-			_place_sprite(_region_or_full(tree_tex, reg), pos, sc, -1)
+	# Seasons-of-Forest trees.png is 64×128: two full trees stacked (round + pine).
+	var tree_sprites: Array[Texture2D] = []
+	if tree_tex and tree_tex.get_width() >= 32:
+		if tree_tex.get_height() >= 128 and tree_tex.get_width() >= 64:
+			tree_sprites.append(_region_or_full(tree_tex, Rect2(0, 0, 64, 64)))
+			tree_sprites.append(_region_or_full(tree_tex, Rect2(0, 64, 64, 64)))
+		else:
+			tree_sprites.append(tree_tex)
+	# DawnLike trees: real 16×16 sheet — pick a few nice cells only
+	if dawn_tree:
+		for cell in [Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 1), Vector2i(3, 2), Vector2i(0, 2)]:
+			var reg := Rect2(cell.x * 16, cell.y * 16, 16, 16)
+			var t := _region_or_full(dawn_tree, reg)
+			if t:
+				tree_sprites.append(t)
 
-	if haunted:
-		var hregs := _sheet_regions(haunted, 48, 64)
-		for i in 28:
-			var pos := _rand_map_pos(rng, 280, 1900)
-			var reg: Rect2 = hregs[i % hregs.size()]
-			_place_sprite(_region_or_full(haunted, reg), pos, rng.randf_range(2.4, 3.8), -1, 0.9)
+	for i in 70:
+		var pos := _rand_map_pos(rng, 220, 1950)
+		if pos.length() < 300.0 and rng.randf() < 0.8:
+			continue
+		if tree_sprites.is_empty():
+			break
+		var tex: Texture2D = tree_sprites[i % tree_sprites.size()]
+		# Full forest trees are larger; dawnlike cells need more scale
+		var is_dawn := tex.get_width() <= 16
+		var sc := rng.randf_range(3.2, 4.6) if is_dawn else rng.randf_range(1.8, 2.8)
+		_place_sprite(tex, pos, sc, -1, 0.95)
 
-	# Fewer, larger bushes — dense 16×16 stamps read as green squares at zoom-out
+	# Whole bush stamp only (32×32 art — never slice)
 	if bush_tex:
-		var bush_regs := _sheet_regions(bush_tex, 16, 16)
-		for i in 36:
-			var pos := _rand_map_pos(rng, 160, 1850)
-			var reg: Rect2 = bush_regs[i % bush_regs.size()]
-			_place_sprite(_region_or_full(bush_tex, reg), pos, rng.randf_range(2.8, 4.0), 0, 0.9)
+		for i in 22:
+			var pos := _rand_map_pos(rng, 200, 1800)
+			if pos.length() < 260.0:
+				continue
+			_place_sprite(bush_tex, pos, rng.randf_range(2.0, 3.0), 0, 0.92)
 
+	# Whole stone stamp only
 	if stone_tex:
-		var stone_regs := _sheet_regions(stone_tex, 16, 16)
-		for i in 40:
-			var pos := _rand_map_pos(rng, 140, 1800)
-			var reg: Rect2 = stone_regs[i % stone_regs.size()]
-			_place_sprite(_region_or_full(stone_tex, reg), pos, rng.randf_range(2.6, 4.0), 0)
+		for i in 18:
+			var pos := _rand_map_pos(rng, 200, 1750)
+			if pos.length() < 240.0:
+				continue
+			_place_sprite(stone_tex, pos, rng.randf_range(1.6, 2.4), 0, 0.9)
 
-	if grass_tex:
-		var grass_regs := _sheet_regions(grass_tex, 16, 16)
-		for i in 40:
-			var pos := _rand_map_pos(rng, 120, 1700)
-			var reg: Rect2 = grass_regs[i % grass_regs.size()]
-			_place_sprite(_region_or_full(grass_tex, reg), pos, rng.randf_range(2.0, 3.0), 0, 0.75)
+	# No grass sheet scatter, no haunted grid-slice, no black-backed scenery sheet.
+	# Those were the solid green squares and dark UI-looking blocks.
 
 
 func _scatter_dark_scenery() -> void:
-	# Scenery sheet only — inventory/item icons look like UI junk when stamped as world props.
-	var scenery: Texture2D = AssetPaths.load_texture(AssetPaths.MISC_DARK_SCENERY)
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 7771
-
-	if scenery:
-		var regs := _sheet_regions(scenery, 32, 32)
-		for i in 18:
-			var pos := _rand_map_pos(rng, 280, 1950)
-			var reg: Rect2 = regs[i % regs.size()]
-			_place_sprite(_region_or_full(scenery, reg), pos, rng.randf_range(2.2, 3.4), 0, 0.88)
+	# Intentionally empty: misc_scenery is packed on black and grid-slicing = black rectangles.
+	pass
 
 
 func _rand_map_pos(rng: RandomNumberGenerator, min_r: float, max_r: float) -> Vector2:
@@ -301,7 +296,8 @@ func _place_sprite(
 	s.modulate = Color(FOREST_MODULATE.r, FOREST_MODULATE.g, FOREST_MODULATE.b, alpha)
 	s.z_index = int(pos.y) + y_sort_bias
 	# Anchor toward feet for tall trees
-	s.offset = Vector2(0, -tex.get_height() * 0.15)
+	var th: float = float(tex.get_height()) if tex else 16.0
+	s.offset = Vector2(0, -th * 0.35)
 	add_child(s)
 	return s
 
@@ -313,19 +309,19 @@ func _add_path_strip(from: Vector2, to: Vector2, width: float) -> void:
 		return
 	var n := dir.normalized()
 	var perp := Vector2(-n.y, n.x) * (width * 0.5)
-	# Warm dirt path (PJ-style readable lanes)
+	# Warm dirt path — high contrast so lanes read on the green field
 	var poly := Polygon2D.new()
 	poly.polygon = PackedVector2Array([
-		from + perp * 1.1, from - perp * 1.1, to - perp * 1.1, to + perp * 1.1
+		from + perp * 1.15, from - perp * 1.15, to - perp * 1.15, to + perp * 1.15
 	])
-	poly.color = Color(0.42, 0.3, 0.2, 0.92)
+	poly.color = Color(0.38, 0.26, 0.16, 0.96)
 	poly.z_index = -38
 	add_child(poly)
 	var poly_in := Polygon2D.new()
 	poly_in.polygon = PackedVector2Array([
-		from + perp * 0.65, from - perp * 0.65, to - perp * 0.65, to + perp * 0.65
+		from + perp * 0.7, from - perp * 0.7, to - perp * 0.7, to + perp * 0.7
 	])
-	poly_in.color = Color(0.55, 0.4, 0.26, 0.85)
+	poly_in.color = Color(0.58, 0.42, 0.26, 0.92)
 	poly_in.z_index = -37
 	add_child(poly_in)
 

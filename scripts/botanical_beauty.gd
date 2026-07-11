@@ -16,33 +16,26 @@ func paint(parent: Node2D) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 1985  # year of Legend
 
-	# Unicorn-glade meadow around the Lightwell
-	_meadow_ring(parent, Vector2(0, 40), 120.0, 280.0, 90, rng)
-	# Path-edge wildflowers
+	# Meadow accents around the Lightwell (moderate — leave play space readable)
+	_meadow_ring(parent, Vector2(0, 40), 120.0, 280.0, 40, rng)
 	if PathNetwork:
 		for lane in PathNetwork.lanes:
 			var pts: PackedVector2Array = lane
 			for i in range(pts.size() - 1):
 				_path_edge_flowers(parent, pts[i], pts[i + 1], rng)
-	# Fairy rings (mushroom/flower circles) at mid-range
 	var rings: Array[Vector2] = [
 		Vector2(-420, -180), Vector2(480, -120), Vector2(-350, 320),
-		Vector2(400, 280), Vector2(100, -520), Vector2(-180, 560),
-		Vector2(-700, 80), Vector2(720, -40), Vector2(-100, -900),
-		Vector2(200, 880),
+		Vector2(400, 280), Vector2(-700, 80), Vector2(720, -40),
 	]
 	for c in rings:
-		_fairy_ring(parent, c, rng.randf_range(40.0, 70.0), rng)
-	# Dense botanical clusters (Legend deep-forest beauty)
-	for i in 24:
+		_fairy_ring(parent, c, rng.randf_range(36.0, 58.0), rng)
+	for i in 12:
 		var ang := rng.randf() * TAU
-		var r := rng.randf_range(350.0, 1400.0)
+		var r := rng.randf_range(400.0, 1400.0)
 		var pos := Vector2(cos(ang), sin(ang) * 0.82) * r
 		_botanical_cluster(parent, pos, rng)
-	# Climbing vines on standing stones / thickets (placed after stones exist)
 	_scatter_glow_blossoms(parent, rng)
 	_pollen_clouds(parent)
-	# Sheet flowers if we have the CC0 plants atlas
 	_scatter_plant_sheet(parent, rng)
 
 
@@ -68,17 +61,17 @@ func _path_edge_flowers(parent: Node2D, a: Vector2, b: Vector2, rng: RandomNumbe
 	if len < 40.0:
 		return
 	var n := Vector2(-dir.y, dir.x).normalized()
-	var steps := int(len / 55.0)
+	var steps := int(len / 90.0)
 	for s in steps:
 		var t := (float(s) + 0.5) / float(maxi(1, steps))
 		var base: Vector2 = a.lerp(b, t)
 		for side_f in [-1.0, 1.0]:
-			if rng.randf() < 0.35:
+			if rng.randf() < 0.55:
 				continue
 			var side: float = float(side_f)
-			var pos: Vector2 = base + n * side * rng.randf_range(38.0, 72.0)
-			if rng.randf() < 0.55:
-				_flower(parent, pos, _rand_bloom(rng), rng.randf_range(0.65, 1.2))
+			var pos: Vector2 = base + n * side * rng.randf_range(42.0, 78.0)
+			if rng.randf() < 0.45:
+				_flower(parent, pos, _rand_bloom(rng), rng.randf_range(0.65, 1.1))
 			else:
 				_grass_tuft(parent, pos, rng)
 
@@ -119,69 +112,33 @@ func _botanical_cluster(parent: Node2D, center: Vector2, rng: RandomNumberGenera
 
 
 func _scatter_glow_blossoms(parent: Node2D, rng: RandomNumberGenerator) -> void:
-	# Magical night-blooming flowers that glow (Legend soft magic)
-	for i in 40:
+	for i in 18:
 		var ang := rng.randf() * TAU
-		var r := rng.randf_range(200.0, 1200.0)
+		var r := rng.randf_range(280.0, 1200.0)
 		var pos := Vector2(cos(ang), sin(ang) * 0.8) * r
 		_glow_blossom(parent, pos, rng)
 
 
 func _pollen_clouds(parent: Node2D) -> void:
-	# Floating pollen / fairy dust — botanical air of Legend
-	var colors := [
-		Color(0.95, 0.9, 0.55, 0.55),
-		Color(0.85, 0.65, 0.95, 0.5),
-		Color(0.7, 0.95, 0.75, 0.45),
-	]
-	for i in 3:
-		var p := FX.spark_particles(parent, colors[i], 28, "star")
-		p.position = Vector2(randf_range(-200, 200), randf_range(-100, 200))
-		var pm := p.process_material as ParticleProcessMaterial
-		if pm:
-			pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
-			pm.emission_sphere_radius = 400.0
-			pm.gravity = Vector3(0, -4, 0)
-			pm.initial_velocity_min = 2.0
-			pm.initial_velocity_max = 10.0
-			pm.scale_min = 0.4
-			pm.scale_max = 1.4
-		p.lifetime = 4.5
-		p.z_index = 45
+	# One soft pollen field — not three layers of sparkle noise
+	var p := FX.spark_particles(parent, Color(0.95, 0.9, 0.55, 0.4), 14, "star")
+	p.position = Vector2(0, 40)
+	var pm := p.process_material as ParticleProcessMaterial
+	if pm:
+		pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+		pm.emission_sphere_radius = 360.0
+		pm.gravity = Vector3(0, -4, 0)
+		pm.initial_velocity_min = 2.0
+		pm.initial_velocity_max = 8.0
+		pm.scale_min = 0.4
+		pm.scale_max = 1.1
+	p.lifetime = 4.5
+	p.z_index = -5
 
 
-func _scatter_plant_sheet(parent: Node2D, rng: RandomNumberGenerator) -> void:
-	# Graceful skip when atlas missing (headless without file, or unpack incomplete).
-	if AssetPaths == null or not AssetPaths.has_file(AssetPaths.BOTANICAL_PLANTS):
-		return
-	var plants: Texture2D = AssetPaths.load_texture(AssetPaths.BOTANICAL_PLANTS)
-	if plants == null:
-		return
-	# SpiderDave “Flowers” pack: 78 plants on a 12×24 grid (936×24 sheet).
-	var cell_w := 12
-	var cell_h := 24
-	var cols := maxi(1, plants.get_width() / cell_w)
-	var rows := maxi(1, plants.get_height() / cell_h)
-	# Sparse accents only — 160 tiny stamps looked like green confetti / UI noise
-	for i in 48:
-		var pos := _rand_away_from_crystal(rng, 180.0, 1900.0)
-		var col := rng.randi() % cols
-		var row := rng.randi() % rows
-		var reg := Rect2(col * cell_w, row * cell_h, cell_w, cell_h)
-		var at := AssetPaths.atlas_region(AssetPaths.BOTANICAL_PLANTS, reg)
-		if at == null:
-			continue
-		var spr := AssetPaths.make_pixel_sprite(at, rng.randf_range(2.4, 3.6))
-		spr.modulate = Color(
-			rng.randf_range(0.85, 1.05),
-			rng.randf_range(0.95, 1.15),
-			rng.randf_range(0.75, 0.95),
-			0.92
-		)
-		spr.position = pos
-		spr.z_index = int(pos.y)
-		parent.add_child(spr)
-		_attach_sway(spr, rng.randf() * TAU)
+func _scatter_plant_sheet(_parent: Node2D, _rng: RandomNumberGenerator) -> void:
+	# Disabled: plants.png is RGB (no alpha) and reads as solid colored rectangles in-world.
+	return
 
 
 func _attach_sway(node: Node2D, phase: float) -> void:
