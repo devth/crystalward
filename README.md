@@ -15,4 +15,4 @@ Update the spec when product decisions change.
 
 ## Status
 
-Pre-prototype. Name, pillars, and co-op model locked; engine and vertical slice next.
+Pre-prototype. Pillars + tech locked (Godot 4, isometric 2.5D). Vertical slice next.

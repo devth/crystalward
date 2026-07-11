@@ -6,6 +6,16 @@
 
 ---
 
+## Tech stack (locked)
+
+| Item | Decision |
+|---|---|
+| **Engine** | **Godot 4** |
+| **Presentation** | **Isometric 2.5D** |
+| **Default branch** | `master` |
+
+---
+
 ## 1. One-liner
 
 **Crystalward** is a local co-op action tower defense game: 1–4 players walk a living dark-fantasy map, gather, build, and fight under high APM pressure to protect the Crystal / Lightwell from night surges.
@@ -92,13 +102,20 @@ Players should almost always be choosing among:
 
 ---
 
-## 6. Economy & map features (draft)
+## 6. Economy & map features
 
-> Details TBD; principles only until prototype.
+### Resources (locked)
 
-- **Resources:** at least one primary (e.g. **essence / amber**) and possibly a second rare (e.g. **shard dust**) for big tech.
-- **Sources:** map nodes, enemy drops, optional crystal “tithe” risk/reward.
+| Resource | Role |
+|---|---|
+| **Essence** | Common currency — income, basic builds, repairs |
+| **Crystal dust** | Rare currency — heavy upgrades / big tech |
+
+- **Wallet:** **one shared bank** for all players. Crystal integrity is always shared. Spend feedback should show *who* spent what so silent bank-draining is visible.
+- **Sources:** map nodes, enemy drops, optional crystal “tithe” risk/reward (tune later).
 - **Towers / defenses:** primarily **claimed world objects** (thorns, stones, ruins, root-gates) plus a small set of placeables if needed for readability.
+- **Build timing:** **queue** — start a build/upgrade, leave while it finishes (RTS multitask). No long stand-and-dance channels.
+- **Node contest:** **shared progress** — multiple wardens contribute to the same gather/build bar; no hard grief steals.
 - **Tech:** upgrades on structures + global or semi-global unlocks that all players can trigger.
 - **Expansion:** claiming farther nodes increases income and path pressure (risk/reward).
 
@@ -124,7 +141,16 @@ Lives / integrity should be **shared** and highly visible (screen edge glow, cry
 
 ---
 
-## 9. Controls (draft principles)
+## 9. Camera & controls
+
+### Camera (locked)
+
+- **Centroid follow** on a shared screen: camera tracks the center of active wardens.
+- Clamp / bias so the **Crystal / Lightwell** stays relevant (not dragged off forever by a straggler).
+- **Pings + minimap** required for callouts under multi-front pressure.
+- Solo may allow freer pan/zoom later if it doesn’t break co-op defaults.
+
+### Controls (draft principles)
 
 - **Gamepad-first** for couch co-op; keyboard+mouse must remain first-class for high-APM solo.
 - Face buttons / triggers bound to **high-frequency verbs** (build confirm, attack, gather, upgrade, ping).
@@ -172,17 +198,14 @@ Lives / integrity should be **shared** and highly visible (screen edge glow, cry
 
 ## 12. Open questions
 
-Track decisions here as we close them.
+Prior round closed. Next decisions when we hit them:
 
 | # | Question | Status |
 |---|---|---|
-| 1 | Engine (Godot 4 vs other)? | Open |
-| 2 | 2D vs 2.5D presentation? | Open |
-| 3 | Shared wallet vs per-player wallets with shared crystal? | Open — lean shared stakes |
-| 4 | Exact resource names & counts? | Open |
-| 5 | Build confirm: instant place vs short cast vs queue? | Open — lean short/queue, not long channel |
-| 6 | Camera: free per-player vs shared locked? | Open — lean shared with smart focus |
-| 7 | How hard can players contest the same node? | Open |
+| — | Exact gamepad/keyboard bindings | Open — prototype |
+| — | Win condition numbers (surge count, crystal HP) | Open |
+| — | First map layout / path topology | Open |
+| — | Tower & enemy kit for v0 slice | Open |
 
 ---
 
@@ -196,6 +219,13 @@ Track decisions here as we close them.
 | 2026-07-10 | Pacing: high APM / action-RTS emphasis over Monsters-style idle dancing |
 | 2026-07-10 | Platform target: MacBook + Nintendo Switch controllers; local 1–4 |
 | 2026-07-10 | Living spec lives in `docs/SPEC.md` |
+| 2026-07-10 | Engine: **Godot 4** |
+| 2026-07-10 | Presentation: **isometric 2.5D** |
+| 2026-07-10 | Economy: **shared bank**; resources **Essence** + **Crystal dust** |
+| 2026-07-10 | Build timing: **queue** (no long channels) |
+| 2026-07-10 | Camera: **centroid follow** + pings/minimap |
+| 2026-07-10 | Node contest: **shared progress** |
+| 2026-07-10 | Git default branch: **master** |
 
 ---
 
@@ -206,6 +236,8 @@ Track decisions here as we close them.
 | **Crystal / Lightwell** | The shared objective to protect |
 | **Warden** | A player-controlled hero |
 | **Nightspawn** | Standard enemies |
+| **Essence** | Common shared-bank currency |
+| **Crystal dust** | Rare shared-bank currency |
 | **Claim / awaken** | Turn a map feature into a defense or income node |
 | **Surge** | A wave or wave-group of nightspawn |
 | **Conjunction** | Optional climax beat / stage finale naming |
