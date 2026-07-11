@@ -162,21 +162,21 @@ func _scatter_plant_sheet(parent: Node2D, rng: RandomNumberGenerator) -> void:
 	var cell_h := 24
 	var cols := maxi(1, plants.get_width() / cell_w)
 	var rows := maxi(1, plants.get_height() / cell_h)
-	for i in 160:
-		var pos := _rand_away_from_crystal(rng, 100.0, 1900.0)
+	# Sparse accents only — 160 tiny stamps looked like green confetti / UI noise
+	for i in 48:
+		var pos := _rand_away_from_crystal(rng, 180.0, 1900.0)
 		var col := rng.randi() % cols
 		var row := rng.randi() % rows
 		var reg := Rect2(col * cell_w, row * cell_h, cell_w, cell_h)
 		var at := AssetPaths.atlas_region(AssetPaths.BOTANICAL_PLANTS, reg)
 		if at == null:
 			continue
-		var spr := AssetPaths.make_pixel_sprite(at, rng.randf_range(2.2, 3.8))
-		# Legend: lush green-gold lift, not grey
+		var spr := AssetPaths.make_pixel_sprite(at, rng.randf_range(2.4, 3.6))
 		spr.modulate = Color(
 			rng.randf_range(0.85, 1.05),
 			rng.randf_range(0.95, 1.15),
 			rng.randf_range(0.75, 0.95),
-			1.0
+			0.92
 		)
 		spr.position = pos
 		spr.z_index = int(pos.y)

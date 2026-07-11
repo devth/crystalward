@@ -61,51 +61,51 @@ func _on_game_over_music(won: bool) -> void:
 
 
 func _expand_map_content() -> void:
-	# Place essence wells near mid-path waypoints (strategic lanes)
+	# Place essence wells near mid-path (one per lane — glow is the cue, not labels)
 	if _essence_scene and PathNetwork:
 		var ei := 0
 		for lane in PathNetwork.lanes:
 			var pts: PackedVector2Array = lane
 			if pts.size() < 3:
 				continue
-			# Mid and late-mid points beside the road
-			for wi in [1, 2]:
-				if wi >= pts.size() - 1:
-					continue
-				var n := PathNetwork.path_normal_at(pts, wi)
-				var side := 1.0 if ei % 2 == 0 else -1.0
-				var pos: Vector2 = pts[wi] + n * (70.0 * side)
-				if _too_close_to_group_or_class(pos, "essence_nodes", 100.0):
-					continue
-				var node: Node2D = _essence_scene.instantiate() as Node2D
-				_world.add_child(node)
-				node.global_position = pos
-				node.add_to_group("essence_nodes")
-				ei += 1
+			var wi: int = mini(2, pts.size() - 2)
+			var n := PathNetwork.path_normal_at(pts, wi)
+			var side := 1.0 if ei % 2 == 0 else -1.0
+			var pos: Vector2 = pts[wi] + n * (70.0 * side)
+			if _too_close_to_group_or_class(pos, "essence_nodes", 140.0):
+				continue
+			var node: Node2D = _essence_scene.instantiate() as Node2D
+			_world.add_child(node)
+			node.global_position = pos
+			node.add_to_group("essence_nodes")
+			ei += 1
 
-	# Tower sites along paths + plaza ring
+	# Tower sites along paths + plaza ring (sparse — readable map)
 	if _site_scene and PathNetwork:
+		var lane_i := 0
 		for lane in PathNetwork.lanes:
 			var pts: PackedVector2Array = lane
 			for wi in range(1, pts.size() - 1):
+				# Every other waypoint, and alternate sides per lane to cut density ~4×
 				if wi % 2 == 0:
 					continue
 				var n := PathNetwork.path_normal_at(pts, wi)
-				for side in [-1.0, 1.0]:
-					var pos: Vector2 = pts[wi] + n * (95.0 * side)
-					if pos.length() < 160.0:
-						continue
-					if _too_close_to_existing_sites(pos, 85.0):
-						continue
-					var site: Node2D = _site_scene.instantiate() as Node2D
-					_world.add_child(site)
-					site.global_position = pos
+				var side: float = 1.0 if (lane_i + wi) % 2 == 0 else -1.0
+				var pos: Vector2 = pts[wi] + n * (100.0 * side)
+				if pos.length() < 160.0:
+					continue
+				if _too_close_to_existing_sites(pos, 140.0):
+					continue
+				var site: Node2D = _site_scene.instantiate() as Node2D
+				_world.add_child(site)
+				site.global_position = pos
+			lane_i += 1
 
-		# Inner plaza defenses
-		for i in 6:
-			var ang := TAU * float(i) / 6.0
-			var pos := Vector2(cos(ang), sin(ang) * 0.85) * 200.0 + Vector2(0, 40)
-			if _too_close_to_existing_sites(pos, 70.0):
+		# Inner plaza defenses (4 pads, not 6)
+		for i in 4:
+			var ang := TAU * float(i) / 4.0 + 0.4
+			var pos := Vector2(cos(ang), sin(ang) * 0.85) * 210.0 + Vector2(0, 40)
+			if _too_close_to_existing_sites(pos, 110.0):
 				continue
 			var site2: Node2D = _site_scene.instantiate() as Node2D
 			_world.add_child(site2)
@@ -126,6 +126,7 @@ func _expand_map_content() -> void:
 
 
 func _zone_labels() -> void:
+	# Very subtle zone names — never compete with gameplay UI
 	var zones := {
 		"Lightwell Plaza": Vector2(0, 100),
 		"Northern March": Vector2(0, -700),
@@ -137,9 +138,9 @@ func _zone_labels() -> void:
 		var lab := Label.new()
 		lab.text = name
 		lab.position = zones[name] + Vector2(-60, 0)
-		lab.z_index = -10
-		lab.modulate = Color(0.7, 0.65, 0.85, 0.35)
-		lab.add_theme_font_size_override("font_size", 18)
+		lab.z_index = -12
+		lab.modulate = Color(0.7, 0.65, 0.85, 0.18)
+		lab.add_theme_font_size_override("font_size", 16)
 		add_child(lab)
 
 

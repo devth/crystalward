@@ -1,5 +1,6 @@
 extends Area2D
 ## Essence fruit well — hold gather; shared progress. PJ-style glowing orbs.
+## Interaction UI only shows when a player is nearby (avoids map-wide label spam).
 
 @export var respawn_time: float = 4.0
 
@@ -11,6 +12,7 @@ var _fruit: Polygon2D
 var _leaf: Polygon2D
 var _particles: GPUParticles2D
 var _bob: float = 0.0
+var _players_near: int = 0
 
 @onready var _bar: ProgressBar = $Progress
 @onready var _label: Label = $Label
@@ -31,10 +33,12 @@ func _ready() -> void:
 	_bar.value = 0.0
 	_bar.position = Vector2(-26, -48)
 	_bar.size = Vector2(52, 9)
+	_bar.visible = false
 	_label.text = "Hold gather"
 	if VisualStyle:
 		VisualStyle.style_game_label(_label, 12, true)
 	_label.position = Vector2(-40, 26)
+	_label.visible = false
 	z_index = int(global_position.y)
 	add_to_group("essence_nodes")
 
@@ -111,9 +115,19 @@ func _process(delta: float) -> void:
 			if _particles:
 				_particles.emitting = true
 			_bar.value = 0.0
-			_bar.visible = true
-			_label.visible = true
+			_refresh_ui()
 		return
+
+
+func _refresh_ui() -> void:
+	if _depleted:
+		_bar.visible = false
+		_label.visible = false
+		return
+	var near := _players_near > 0
+	_label.visible = near
+	# Dark bar background only while actively gathering
+	_bar.visible = near and _progress > 0.01
 
 
 func is_available() -> bool:
@@ -129,6 +143,7 @@ func contribute_gather(delta: float) -> void:
 		return
 	_progress += GameState.GATHER_PROGRESS_RATE * delta
 	_bar.value = _progress
+	_refresh_ui()
 	if _fruit:
 		_fruit.modulate = Color(1.4, 1.5, 1.5)
 	if _progress >= GameState.GATHER_NEED:
@@ -148,16 +163,19 @@ func _complete_gather() -> void:
 		_visual.modulate = Color(0.45, 0.5, 0.48)
 	if _particles:
 		_particles.emitting = false
-	_bar.visible = false
-	_label.visible = false
 	_progress = 0.0
+	_refresh_ui()
 
 
 func _on_body_entered(body: Node) -> void:
 	if body.has_method("register_gather"):
 		body.register_gather(self)
+		_players_near += 1
+		_refresh_ui()
 
 
 func _on_body_exited(body: Node) -> void:
 	if body.has_method("unregister_gather"):
 		body.unregister_gather(self)
+		_players_near = maxi(0, _players_near - 1)
+		_refresh_ui()

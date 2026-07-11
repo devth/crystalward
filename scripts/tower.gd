@@ -104,6 +104,14 @@ func set_range_visible(v: bool) -> void:
 		_range_ring.visible = v
 
 
+func set_info_visible(v: bool) -> void:
+	## Name/level labels only when a player is nearby.
+	if _name_label:
+		_name_label.visible = v
+	if _level_label:
+		_level_label.visible = v
+
+
 func try_upgrade() -> bool:
 	if level >= GameState.TOWER_MAX_LEVEL:
 		GameState.message.emit("Max level")
@@ -167,6 +175,7 @@ func _build_visuals() -> void:
 	_name_label.add_theme_color_override("font_color", _def_color.lightened(0.3))
 	_name_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
 	_name_label.add_theme_constant_override("outline_size", 3)
+	_name_label.visible = false
 	_visual.add_child(_name_label)
 
 	_level_label = Label.new()
@@ -176,6 +185,7 @@ func _build_visuals() -> void:
 	_level_label.add_theme_color_override("font_color", Color(1, 0.95, 0.7))
 	_level_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
 	_level_label.add_theme_constant_override("outline_size", 3)
+	_level_label.visible = false
 	_visual.add_child(_level_label)
 
 	FX.spark_particles(_visual, Color(_def_color.r, _def_color.g, _def_color.b, 0.55), 8, "glow").position = Vector2(0, -30)

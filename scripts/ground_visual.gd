@@ -182,15 +182,15 @@ func _scatter_forest_props() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 4242
 
-	# Dense scatter across whole map; thinner near crystal
+	# Forest scatter — enough atmosphere without carpeting the play space
 	if tree_tex:
 		var tree_regions := _sheet_regions(tree_tex, 32, 64)
-		for i in 140:
-			var pos := _rand_map_pos(rng, 110, 2000)
+		for i in 90:
+			var pos := _rand_map_pos(rng, 180, 2000)
 			var reg: Rect2 = tree_regions[i % tree_regions.size()]
-			var sc := rng.randf_range(2.0, 3.8)
+			var sc := rng.randf_range(2.2, 3.8)
 			# Sparse near crystal
-			if pos.length() < 220.0 and rng.randf() < 0.7:
+			if pos.length() < 280.0 and rng.randf() < 0.75:
 				continue
 			_place_sprite(_region_or_full(tree_tex, reg), pos, sc, -1)
 
@@ -201,51 +201,41 @@ func _scatter_forest_props() -> void:
 			var reg: Rect2 = hregs[i % hregs.size()]
 			_place_sprite(_region_or_full(haunted, reg), pos, rng.randf_range(2.4, 3.8), -1, 0.9)
 
+	# Fewer, larger bushes — dense 16×16 stamps read as green squares at zoom-out
 	if bush_tex:
 		var bush_regs := _sheet_regions(bush_tex, 16, 16)
-		for i in 90:
-			var pos := _rand_map_pos(rng, 100, 1850)
+		for i in 36:
+			var pos := _rand_map_pos(rng, 160, 1850)
 			var reg: Rect2 = bush_regs[i % bush_regs.size()]
-			_place_sprite(_region_or_full(bush_tex, reg), pos, rng.randf_range(2.4, 3.6), 0)
+			_place_sprite(_region_or_full(bush_tex, reg), pos, rng.randf_range(2.8, 4.0), 0, 0.9)
 
 	if stone_tex:
 		var stone_regs := _sheet_regions(stone_tex, 16, 16)
-		for i in 60:
-			var pos := _rand_map_pos(rng, 90, 1800)
+		for i in 40:
+			var pos := _rand_map_pos(rng, 140, 1800)
 			var reg: Rect2 = stone_regs[i % stone_regs.size()]
-			_place_sprite(_region_or_full(stone_tex, reg), pos, rng.randf_range(2.4, 4.0), 0)
+			_place_sprite(_region_or_full(stone_tex, reg), pos, rng.randf_range(2.6, 4.0), 0)
 
 	if grass_tex:
 		var grass_regs := _sheet_regions(grass_tex, 16, 16)
-		for i in 100:
-			var pos := _rand_map_pos(rng, 80, 1700)
+		for i in 40:
+			var pos := _rand_map_pos(rng, 120, 1700)
 			var reg: Rect2 = grass_regs[i % grass_regs.size()]
-			_place_sprite(_region_or_full(grass_tex, reg), pos, rng.randf_range(1.8, 2.9), 0, 0.85)
+			_place_sprite(_region_or_full(grass_tex, reg), pos, rng.randf_range(2.0, 3.0), 0, 0.75)
 
 
 func _scatter_dark_scenery() -> void:
+	# Scenery sheet only — inventory/item icons look like UI junk when stamped as world props.
 	var scenery: Texture2D = AssetPaths.load_texture(AssetPaths.MISC_DARK_SCENERY)
-	var items: Texture2D = AssetPaths.load_texture(AssetPaths.DARK_FANTASY_ITEMS)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7771
 
 	if scenery:
-		# misc_scenery is a small packed sheet (~163×162) — treat as whole stamps + slices
 		var regs := _sheet_regions(scenery, 32, 32)
-		for i in 40:
-			var pos := _rand_map_pos(rng, 150, 1950)
+		for i in 18:
+			var pos := _rand_map_pos(rng, 280, 1950)
 			var reg: Rect2 = regs[i % regs.size()]
-			_place_sprite(_region_or_full(scenery, reg), pos, rng.randf_range(2.0, 3.2), 0, 0.92)
-
-	if items:
-		# Item sheet used as ritual debris / idol crumbs along mid-far ring
-		var iregs := _sheet_regions(items, 24, 24)
-		for i in 24:
-			var ang := rng.randf() * TAU
-			var dist := rng.randf_range(400.0, 1100.0)
-			var pos := Vector2(cos(ang), sin(ang) * 0.75) * dist
-			var reg: Rect2 = iregs[i % iregs.size()]
-			_place_sprite(_region_or_full(items, reg), pos, rng.randf_range(1.6, 2.6), 0, 0.8)
+			_place_sprite(_region_or_full(scenery, reg), pos, rng.randf_range(2.2, 3.4), 0, 0.88)
 
 
 func _rand_map_pos(rng: RandomNumberGenerator, min_r: float, max_r: float) -> Vector2:
@@ -433,7 +423,8 @@ func _add_thicket(pos: Vector2, rot: float) -> void:
 func _add_mist_bank(pos: Vector2, size: Vector2) -> void:
 	var poly := FX.make_ellipse_poly(size.x * 0.5, size.y * 0.5, 32, Color.WHITE)
 	poly.position = pos
-	poly.z_index = 40
+	# Behind characters/UI — was z=40 and washed over gameplay
+	poly.z_index = -25
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://shaders/mist_field.gdshader") as Shader
 	poly.material = mat

@@ -1,5 +1,6 @@
 extends Area2D
 ## Build pad: cycle tower type, build, upgrade, sell (KR + multi-type).
+## Labels / type swatches only when a player is near — keeps the map readable.
 
 enum State { EMPTY, QUEUED, BUILT }
 
@@ -33,10 +34,12 @@ func _ready() -> void:
 	_bar.visible = false
 	_bar.position = Vector2(-30, -56)
 	_bar.size = Vector2(60, 9)
-	_refresh_label()
 	if VisualStyle:
 		VisualStyle.style_game_label(_label, 11, true)
 	_label.position = Vector2(-70, 28)
+	_label.visible = false
+	_refresh_label()
+	_update_presence_visuals()
 	z_index = int(global_position.y)
 	add_to_group("tower_sites")
 
@@ -47,17 +50,19 @@ func can_sell() -> bool:
 
 func _build_visuals() -> void:
 	if VisualStyle:
-		VisualStyle.make_blob_shadow(self, 32, 14, 10)
+		VisualStyle.make_blob_shadow(self, 28, 12, 10)
 	_platform = Node2D.new()
 	add_child(_platform)
-	var outer := FX.make_ellipse_poly(36, 22, 28, Color(0.35, 0.32, 0.3, 0.95))
+	# Soft, semi-transparent pads — not opaque green slabs
+	var outer := FX.make_ellipse_poly(32, 18, 28, Color(0.32, 0.30, 0.28, 0.55))
 	_platform.add_child(outer)
-	var mid := FX.make_ellipse_poly(28, 16, 24, Color(0.48, 0.44, 0.4, 0.95))
+	var mid := FX.make_ellipse_poly(22, 12, 24, Color(0.42, 0.40, 0.36, 0.5))
 	_platform.add_child(mid)
-	var inner := FX.make_ellipse_poly(16, 9, 20, Color(0.28, 0.35, 0.28, 0.9))
+	var inner := FX.make_ellipse_poly(12, 7, 18, Color(0.55, 0.62, 0.48, 0.35))
 	_platform.add_child(inner)
-	_type_swatch = FX.make_ellipse_poly(7, 4, 12, Color(0.4, 0.85, 0.45, 0.95))
+	_type_swatch = FX.make_ellipse_poly(6, 3.5, 12, Color(0.5, 0.85, 0.5, 0.85))
 	_type_swatch.position = Vector2(0, -2)
+	_type_swatch.visible = false
 	_platform.add_child(_type_swatch)
 	_range_preview = FX.make_ellipse_poly(85, 52, 40, Color(0.3, 0.85, 0.4, 0.12))
 	_range_preview.z_index = -2
@@ -73,25 +78,48 @@ func _sync_swatch() -> void:
 
 
 func _refresh_label() -> void:
+	if _label == null:
+		return
 	if TowerTypes == null:
 		_label.text = "Build"
-		return
-	match state:
-		State.EMPTY:
-			var d: Dictionary = TowerTypes.selected_def()
-			_label.text = "%s %d✦  [←→]" % [d.get("name"), d.get("cost")]
-		State.QUEUED:
-			_label.text = "Building %s..." % TowerTypes.def_for(_queued_type).get("name")
-		State.BUILT:
-			if _tower and _tower.get("level") != null:
-				var lv: int = int(_tower.level)
-				if lv >= GameState.TOWER_MAX_LEVEL:
-					_label.text = "Max · E sell"
+	else:
+		match state:
+			State.EMPTY:
+				var d: Dictionary = TowerTypes.selected_def()
+				_label.text = "%s %d✦  [←→]" % [d.get("name"), d.get("cost")]
+			State.QUEUED:
+				_label.text = "Building %s..." % TowerTypes.def_for(_queued_type).get("name")
+			State.BUILT:
+				if _tower and _tower.get("level") != null:
+					var lv: int = int(_tower.level)
+					if lv >= GameState.TOWER_MAX_LEVEL:
+						_label.text = "Max · E sell"
+					else:
+						_label.text = "Q up · E sell"
 				else:
-					_label.text = "Q up · E sell"
-			else:
-				_label.text = "Online"
+					_label.text = "Online"
 	_sync_swatch()
+	_update_presence_visuals()
+
+
+func _update_presence_visuals() -> void:
+	var near := _players_near > 0
+	# Show prompts only when interacting
+	if _label:
+		if state == State.QUEUED:
+			_label.visible = true
+		else:
+			_label.visible = near
+	if _type_swatch:
+		_type_swatch.visible = near and state == State.EMPTY
+	# Soft dim for empty far pads so they mark space without dominating
+	if _platform:
+		if state == State.EMPTY and not near:
+			_platform.modulate = Color(1, 1, 1, 0.55)
+		else:
+			_platform.modulate = Color.WHITE
+	if _tower and _tower.has_method("set_info_visible"):
+		_tower.call("set_info_visible", near)
 
 
 func _process(delta: float) -> void:
@@ -177,6 +205,8 @@ func _finish_build() -> void:
 			# configure after enter tree: rebuilds if needed and records investment.
 			if _tower.has_method("configure"):
 				_tower.call("configure", _queued_type, cost)
+			if _tower.has_method("set_info_visible"):
+				_tower.call("set_info_visible", _players_near > 0)
 	GameState.message.emit("%s ready!" % TowerTypes.def_for(_queued_type).get("name"))
 	_refresh_label()
 	_update_range_preview()
@@ -220,3 +250,4 @@ func _on_body_exited(body: Node) -> void:
 		body.unregister_build(self)
 		_players_near = maxi(0, _players_near - 1)
 		_update_range_preview()
+		_refresh_label()
