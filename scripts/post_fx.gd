@@ -37,14 +37,14 @@ func _try_soft_bloom() -> bool:
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var mat := ShaderMaterial.new()
 	mat.shader = sh
-	# Soft gold + pastel shimmer on highlights; midtones stay clear for actors
-	mat.set_shader_parameter("bloom_intensity", 0.26)
-	mat.set_shader_parameter("bloom_threshold", 0.64)
-	mat.set_shader_parameter("saturation", 1.08)
-	mat.set_shader_parameter("contrast", 1.1)
-	mat.set_shader_parameter("tint", Color(1.05, 1.0, 1.04, 1.0))
-	mat.set_shader_parameter("gold_lift", 0.035)
-	mat.set_shader_parameter("clarity", 0.42)
+	# Mild bloom on highlights only — crystal silhouette must stay readable
+	mat.set_shader_parameter("bloom_intensity", 0.16)
+	mat.set_shader_parameter("bloom_threshold", 0.72)
+	mat.set_shader_parameter("saturation", 1.04)
+	mat.set_shader_parameter("contrast", 1.12)
+	mat.set_shader_parameter("tint", Color(1.02, 1.0, 1.02, 1.0))
+	mat.set_shader_parameter("gold_lift", 0.015)
+	mat.set_shader_parameter("clarity", 0.55)
 	rect.material = mat
 	add_child(rect)
 	return true

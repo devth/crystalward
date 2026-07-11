@@ -266,7 +266,7 @@ func _too_close_to_existing_sites(pos: Vector2, min_dist: float) -> bool:
 
 func _build_atmosphere() -> void:
 	# Spec: cold violet night + warm amber Lightwell shafts — denser fireflies
-	var ambient := FX.spark_particles(self, Color(0.78, 0.68, 0.95, 0.38), 42, "star")
+	var ambient := FX.spark_particles(self, Color(0.75, 0.7, 0.9, 0.22), 14, "star")
 	ambient.position = Vector2(0, 40)
 	var pm := ambient.process_material as ParticleProcessMaterial
 	if pm:
@@ -277,46 +277,17 @@ func _build_atmosphere() -> void:
 		pm.initial_velocity_max = 10.0
 		pm.scale_min = 0.35
 		pm.scale_max = 1.5
-	var amber_motes := FX.spark_particles(self, Color(0.98, 0.86, 0.55, 0.38), 22, "glow")
+	var amber_motes := FX.spark_particles(self, Color(0.95, 0.85, 0.55, 0.22), 8, "glow")
 	amber_motes.position = Vector2(0, 40)
 	var pm2 := amber_motes.process_material as ParticleProcessMaterial
 	if pm2:
 		pm2.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
-		pm2.emission_sphere_radius = 220.0
-		pm2.gravity = Vector3(0, -0.8, 0)
+		pm2.emission_sphere_radius = 80.0
+		pm2.gravity = Vector3(0, -0.5, 0)
 
-	# Amber god-rays from the well (warm crystal light)
-	for i in 4:
-		var ray := Polygon2D.new()
-		var ang := -0.85 + i * 0.4
-		ray.polygon = PackedVector2Array([
-			Vector2(0, 20),
-			Vector2(cos(ang - 0.1) * 40, sin(ang - 0.1) * 30 - 70),
-			Vector2(cos(ang + 0.1) * 260, sin(ang + 0.1) * 140 - 240),
-			Vector2(cos(ang - 0.1) * 260, sin(ang - 0.1) * 140 - 240),
-		])
-		ray.color = Color(0.98, 0.88, 0.55, 0.05 + i * 0.01)
-		ray.z_index = -20
-		ray.position = Vector2(0, 40)
-		add_child(ray)
-	# Cool violet side shafts
-	for i in 3:
-		var ray2 := Polygon2D.new()
-		var ang2 := 0.9 + i * 0.45
-		ray2.polygon = PackedVector2Array([
-			Vector2(0, 30),
-			Vector2(cos(ang2 - 0.1) * 30, sin(ang2 - 0.1) * 50 - 40),
-			Vector2(cos(ang2 + 0.1) * 220, sin(ang2 + 0.1) * 180 - 80),
-			Vector2(cos(ang2 - 0.1) * 220, sin(ang2 - 0.1) * 180 - 80),
-		])
-		ray2.color = Color(0.75, 0.62, 0.95, 0.04)
-		ray2.z_index = -20
-		ray2.position = Vector2(0, 40)
-		add_child(ray2)
-
-	# Soft pearl-gold grade — ethereal lift without washing out actors
+	# Soft grade — keep actors crisp
 	var grade := CanvasModulate.new()
-	grade.color = Color(1.02, 0.99, 1.04)
+	grade.color = Color(1.0, 0.99, 1.01)
 	add_child(grade)
 
 	# Soft bloom / vignette post

@@ -2,8 +2,8 @@ extends Node2D
 ## Ground + dirt roads + forest props.
 ## All ground art stays under actors (Ground node z=-200 absolute). Props use local z only.
 
-# Ethereal glade — soft sage/mint canopy (actors stay unmodulated & crisp)
-const FOREST_MODULATE := Color(0.62, 0.82, 0.72)
+# Soft natural canopy tint for sparse trees only
+const FOREST_MODULATE := Color(0.48, 0.68, 0.52)
 const FLOOR_EXTENT := 3200.0
 ## Soft dirt-road gradient texture (V = across road width). Cached once.
 static var _dirt_tex: Texture2D
@@ -46,15 +46,15 @@ func _on_paths_rebuilt() -> void:
 
 func _build() -> void:
 	_build_floor()
-	_build_elevation_base()  # soft hill/valley washes under props
+	_build_elevation_base()  # soft material washes (grass/dirt/rock)
 	_build_plaza()
 	_build_paths()
 	_build_mist_fields()
-	_build_terrain_features()  # mountains, hills, lakes, forests
+	_build_terrain_features()  # mountains, hills, lakes (not prop confetti)
 	_build_landmarks()
-	_scatter_forest_props()
-	_build_botanicals()
-	_build_atmosphere_light()
+	_scatter_forest_props()  # sparse canopy only
+	_build_botanicals()      # light meadow accents
+	# No heavy atmosphere particle cloud — keep scene readable
 
 
 func _build_floor() -> void:
@@ -80,109 +80,69 @@ func _build_floor() -> void:
 
 
 func _build_elevation_base() -> void:
-	## Contour washes + stacked rings so hills/valleys read at a glance.
+	## Sparse material washes only — floor shader carries most of the texture.
 	if PathNetwork == null:
 		return
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 4242
-	# Dense grid of soft elevation blobs across the whole basin
-	for ix in range(-11, 12):
-		for iy in range(-9, 12):
+	for ix in range(-8, 9):
+		for iy in range(-7, 9):
+			if (ix + iy * 3) % 2 == 0:
+				continue  # half density
 			var pos := Vector2(
-				float(ix) * 180.0 + rng.randf_range(-50, 50),
-				float(iy) * 165.0 + rng.randf_range(-40, 40)
+				float(ix) * 240.0 + rng.randf_range(-40, 40),
+				float(iy) * 220.0 + rng.randf_range(-30, 30)
 			)
-			if pos.length() < 160.0:
-				continue
-			if PathNetwork.dist_to_path(pos) < PATH_CLEAR * 0.75:
+			if pos.length() < 220.0:
+				continue  # keep plaza open
+			if PathNetwork.dist_to_path(pos) < PATH_CLEAR * 0.9:
 				continue
 			var elev := PathNetwork.elevation_at(pos)
-			if absf(elev) < 0.08:
+			if absf(elev) < 0.18:
 				continue
 			if elev > 0.0:
-				var r := 55.0 + elev * 110.0
-				var a := 0.12 + elev * 0.14
-				var hill := _ellipse(pos, r, r * 0.58, Color(0.28, 0.48, 0.36, a), Z_HILL)
+				var r := 50.0 + elev * 70.0
+				var hill := _ellipse(pos, r, r * 0.55, Color(0.2, 0.38, 0.22, 0.1 + elev * 0.08), Z_HILL)
 				add_child(hill)
-				var mid := _ellipse(pos + Vector2(0, -r * 0.1), r * 0.62, r * 0.36, Color(0.42, 0.62, 0.45, a * 0.9), Z_HILL + 1)
-				add_child(mid)
-				var crest := _ellipse(pos + Vector2(0, -r * 0.2), r * 0.32, r * 0.18, Color(0.72, 0.7, 0.42, 0.1 + elev * 0.12), Z_HILL + 2)
-				add_child(crest)
-				var shade := _ellipse(pos + Vector2(0, r * 0.22), r * 0.7, r * 0.22, Color(0.22, 0.18, 0.28, 0.08 + elev * 0.06), Z_HILL)
-				add_child(shade)
 			else:
-				var r2 := 50.0 + absf(elev) * 100.0
-				var a2 := 0.12 + absf(elev) * 0.14
-				var hollow := _ellipse(pos, r2, r2 * 0.58, Color(0.28, 0.38, 0.48, a2), Z_HILL)
+				var r2 := 45.0 + absf(elev) * 60.0
+				var hollow := _ellipse(pos, r2, r2 * 0.55, Color(0.18, 0.26, 0.28, 0.1 + absf(elev) * 0.08), Z_HILL)
 				add_child(hollow)
-				var wet := _ellipse(pos, r2 * 0.65, r2 * 0.38, Color(0.4, 0.55, 0.68, a2 * 0.65), Z_HILL + 1)
-				add_child(wet)
-	# Explicit contour rings around major landmarks
-	for f in PathNetwork.features:
-		var kind: String = str(f.get("kind", ""))
-		if kind not in ["mountain", "hill", "lake", "pond"]:
-			continue
-		var c: Vector2 = f.get("pos", Vector2.ZERO)
-		var rad: float = float(f.get("radius", 100.0))
-		var elev_f: float = float(f.get("elev", 0.0))
-		for ring_i in 3:
-			var t := 0.45 + float(ring_i) * 0.28
-			var rr := rad * t
-			if elev_f > 0.0:
-				var ring := _ellipse(c, rr * 1.15, rr * 0.62, Color(0.38, 0.55, 0.4, 0.07 + elev_f * 0.05), Z_HILL)
-				add_child(ring)
-			else:
-				var bowl := _ellipse(c, rr * 1.1, rr * 0.6, Color(0.32, 0.45, 0.58, 0.08 + absf(elev_f) * 0.06), Z_HILL)
-				add_child(bowl)
 
 
 func _build_plaza() -> void:
-	# Lightwell glade — champagne gold + lilac pearl (ethereal, still clear)
-	var outer_mist := _ellipse(Vector2(0, 40), 380, 230, Color(0.55, 0.42, 0.72, 0.22), Z_PLAZA)
-	add_child(outer_mist)
-	var clear := _ellipse(Vector2(0, 40), 280, 170, Color(0.38, 0.52, 0.46, 0.38), Z_PLAZA)
+	## Open glade around the crystal — dirt/grass clearing, not fog or prop circle.
+	var outer := _ellipse(Vector2(0, 40), 320, 200, Color(0.22, 0.32, 0.24, 0.35), Z_PLAZA)
+	add_child(outer)
+	var clear := _ellipse(Vector2(0, 40), 220, 140, Color(0.32, 0.28, 0.22, 0.4), Z_PLAZA)
 	add_child(clear)
-	var amber_glow := _ellipse(Vector2(0, 40), 200, 118, Color(0.98, 0.86, 0.5, 0.24), Z_PLAZA)
-	add_child(amber_glow)
-	var lilac_haze := _ellipse(Vector2(0, 40), 170, 100, Color(0.78, 0.65, 0.95, 0.12), Z_PLAZA)
-	add_child(lilac_haze)
-	var cyan_ring := _ellipse(Vector2(0, 40), 145, 85, Color(0.62, 0.92, 0.96, 0.2), Z_PLAZA)
-	add_child(cyan_ring)
-	var core_glow := _ellipse(Vector2(0, 40), 80, 48, Color(1.0, 0.94, 0.72, 0.22), Z_PLAZA)
-	add_child(core_glow)
-	# Ethereal crystal circle around the well (original Dark Crystal vibe)
+	# Soft packed earth pad the crystal sits on
+	var pad := _ellipse(Vector2(0, 40), 90, 48, Color(0.4, 0.32, 0.24, 0.45), Z_PLAZA)
+	add_child(pad)
+	# Very subtle warm rim (not a fog ball)
+	var warm := _ellipse(Vector2(0, 40), 70, 38, Color(0.9, 0.78, 0.45, 0.1), Z_PLAZA)
+	add_child(warm)
+	# Four standing stones only — landmarks, not clutter
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 1982
-	for i in 8:
-		var ang := TAU * float(i) / 8.0 + 0.2
-		var p := Vector2(0, 40) + Vector2(cos(ang), sin(ang) * 0.72) * 165.0
+	for i in 4:
+		var ang := TAU * float(i) / 4.0 + 0.35
+		var p := Vector2(0, 40) + Vector2(cos(ang), sin(ang) * 0.7) * 150.0
 		if PathNetwork and PathNetwork.dist_to_path(p) < PATH_CLEAR:
 			continue
-		var tint := Color(0.55, 0.9, 0.95, 0.9) if i % 2 == 0 else Color(0.95, 0.75, 0.45, 0.88)
-		_add_ethereal_crystal(p, rng.randf_range(0.7, 1.05), tint, rng)
+		_add_standing_stone(p, rng.randf_range(0.85, 1.15))
 
 
 func _build_mist_fields() -> void:
-	# Soft ethereal mist banks across valleys and lake bowls
+	## Very few soft mist banks — atmosphere, not haze soup.
 	var banks := [
-		[Vector2(-420, -200), Vector2(340, 150)],
-		[Vector2(480, 180), Vector2(300, 130)],
-		[Vector2(-200, 520), Vector2(380, 170)],
-		[Vector2(300, -480), Vector2(280, 140)],
-		[Vector2(-600, 100), Vector2(260, 110)],
-		[Vector2(100, 1100), Vector2(320, 150)],
-		[Vector2(-400, 900), Vector2(280, 130)],
-		[Vector2(360, 640), Vector2(300, 140)],
-		[Vector2(-500, 480), Vector2(260, 120)],
-		[Vector2(0, 1600), Vector2(360, 160)],
-		[Vector2(200, 200), Vector2(240, 110)],
+		[Vector2(-500, -180), Vector2(280, 120)],
+		[Vector2(520, 200), Vector2(240, 100)],
+		[Vector2(0, 1400), Vector2(300, 130)],
 	]
 	for b in banks:
-		var mist := _ellipse(b[0], b[1].x * 0.5, b[1].y * 0.5, Color(0.68, 0.58, 0.88, 0.12), Z_PLAZA + 2)
+		var mist := _ellipse(b[0], b[1].x * 0.5, b[1].y * 0.5, Color(0.35, 0.32, 0.45, 0.1), Z_PLAZA + 2)
 		add_child(mist)
-		# Soft gold shimmer pockets in the mist
-		var gold := _ellipse(b[0] + Vector2(20, -10), b[1].x * 0.22, b[1].y * 0.18, Color(0.96, 0.85, 0.55, 0.06), Z_PLAZA + 2)
-		add_child(gold)
 
 
 func _build_paths() -> void:
@@ -231,7 +191,8 @@ func _build_terrain_features() -> void:
 			"pond":
 				_add_lake(pos, radius, rng, true)
 			"fairy_ring":
-				_add_fairy_ring(pos, radius, rng)
+				# Skip dense mushroom rings — floor materials + sparse botanicals are enough
+				pass
 			"crystal_grove", "crystals":
 				_add_crystal_grove(pos, radius, rng)
 			_:
@@ -309,19 +270,17 @@ func _add_hill(
 	# North-side shade for elevation read
 	var shade := _ellipse(center + Vector2(0, r * 0.28), r * 0.85, r * 0.2, Color(0.04, 0.08, 0.05, 0.22), Z_HILL)
 	add_child(shade)
-	# Trees denser on hilltop
-	var count := int(clampf(r / 16.0, 8.0, 20.0))
+	# Light crown of trees only
+	var count := int(clampf(r / 28.0, 3.0, 8.0))
 	for i in count:
 		var ang := rng.randf() * TAU
-		var rr := r * sqrt(rng.randf()) * 0.75
+		var rr := r * sqrt(rng.randf()) * 0.65
 		var p := center + Vector2(cos(ang), sin(ang) * 0.7) * rr + Vector2(0, -r * 0.1)
 		if PathNetwork and PathNetwork.dist_to_path(p) < PATH_CLEAR:
 			continue
 		var tex: Texture2D = pine_tree if (pine_tree and rng.randf() < 0.55) else round_tree
 		if tex:
-			_place_sprite(tex, p, rng.randf_range(2.1, 3.1), 0.97)
-	# Undergrowth
-	_add_thicket(center + Vector2(rng.randf_range(-20, 20), rng.randf_range(-8, 12)), rng.randf_range(-0.2, 0.2))
+			_place_sprite(tex, p, rng.randf_range(2.0, 2.8), 0.95)
 
 
 func _add_lake(center: Vector2, radius: float, rng: RandomNumberGenerator, is_pond: bool = false) -> void:
@@ -361,40 +320,18 @@ func _add_lake(center: Vector2, radius: float, rng: RandomNumberGenerator, is_po
 	# Ethereal mist over water
 	var mist := _ellipse(center + Vector2(0, -6), r * 0.75, r * aspect * 0.7, Color(0.45, 0.4, 0.75, 0.14), Z_WATER + 6)
 	add_child(mist)
-	# Lily pads (ponds + lakes)
-	var lily_n := 3 if is_pond else 6
-	for i in lily_n:
-		var ang := rng.randf() * TAU
-		var rr := r * rng.randf_range(0.15, 0.72)
-		var lp := center + Vector2(cos(ang), sin(ang) * aspect) * rr
-		if PathNetwork and PathNetwork.dist_to_path(lp) < PATH_CLEAR * 0.6:
-			continue
-		_add_lily_pad(lp, rng.randf_range(0.7, 1.2), rng)
-	# Shore reeds / crystals
-	var edge_n := 7 if is_pond else 12
+	# Sparse shore reeds only — materials carry the rest
+	var edge_n := 4 if is_pond else 6
 	for i in edge_n:
-		var ang := TAU * float(i) / float(edge_n) + rng.randf() * 0.15
-		var p := center + Vector2(cos(ang), sin(ang) * aspect) * r * rng.randf_range(0.92, 1.18)
+		var ang := TAU * float(i) / float(edge_n) + rng.randf() * 0.2
+		var p := center + Vector2(cos(ang), sin(ang) * aspect) * r * rng.randf_range(0.95, 1.12)
 		if PathNetwork and PathNetwork.dist_to_path(p) < PATH_CLEAR * 0.7:
 			continue
-		if not is_pond and rng.randf() < 0.28:
-			_add_ethereal_crystal(p, rng.randf_range(0.45, 0.8), Color(0.5, 0.85, 0.95, 0.7), rng)
-		else:
-			_add_reed_cluster(p, rng)
-	# Soft water sparkles
-	if FX and not is_pond:
-		var spark := FX.spark_particles(self, Color(0.6, 0.9, 1.0, 0.35), 8, "glow")
-		spark.position = center
-		spark.z_index = Z_WATER + 7
-		spark.amount = 8
-		spark.lifetime = 3.5
-		var pm := spark.process_material as ParticleProcessMaterial
-		if pm:
-			pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
-			pm.emission_sphere_radius = r * 0.55
-			pm.gravity = Vector3(0, -2, 0)
-			pm.initial_velocity_min = 1.0
-			pm.initial_velocity_max = 6.0
+		_add_reed_cluster(p, rng)
+	# One lily pad on larger lakes only
+	if not is_pond and rng.randf() < 0.6:
+		var lp := center + Vector2(rng.randf_range(-r * 0.25, r * 0.25), rng.randf_range(-r * 0.15, r * 0.15))
+		_add_lily_pad(lp, rng.randf_range(0.8, 1.1), rng)
 
 
 func _add_lily_pad(pos: Vector2, scale: float, rng: RandomNumberGenerator) -> void:
@@ -444,10 +381,10 @@ func _add_fairy_ring(center: Vector2, radius: float, rng: RandomNumberGenerator)
 
 
 func _add_crystal_grove(center: Vector2, radius: float, rng: RandomNumberGenerator) -> void:
-	## Cluster of ethereal crystal spires (Dark Crystal vibe).
-	var bed := _ellipse(center + Vector2(0, 8), radius * 0.7, radius * 0.38, Color(0.14, 0.1, 0.2, 0.55), Z_DECOR - 5)
+	## Small crystal cluster — keep sparse so home crystal remains the hero.
+	var bed := _ellipse(center + Vector2(0, 8), radius * 0.55, radius * 0.3, Color(0.18, 0.14, 0.22, 0.45), Z_DECOR - 5)
 	add_child(bed)
-	var n := clampi(int(radius / 28.0), 4, 9)
+	var n := clampi(int(radius / 40.0), 2, 4)
 	for i in n:
 		var ang := TAU * float(i) / float(n) + rng.randf() * 0.4
 		var o := Vector2(cos(ang), sin(ang) * 0.7) * radius * rng.randf_range(0.12, 0.72)
@@ -516,33 +453,24 @@ func _add_forest_cluster(
 	pine_tree: Texture2D,
 	rng: RandomNumberGenerator
 ) -> void:
-	var count := int(clampf(radius / 12.0, 10.0, 28.0))
+	var count := int(clampf(radius / 28.0, 4.0, 10.0))
 	for i in count:
 		var ang := rng.randf() * TAU
-		var r := radius * sqrt(rng.randf()) * 0.95
+		var r := radius * sqrt(rng.randf()) * 0.9
 		var pos := center + Vector2(cos(ang), sin(ang) * 0.78) * r
-		# Stay off the roads
 		if PathNetwork and PathNetwork.dist_to_path(pos) < PATH_CLEAR:
 			continue
 		var tex: Texture2D = pine_tree if (pine_tree and rng.randf() < 0.45) else round_tree
 		if tex == null:
 			continue
-		_place_sprite(tex, pos, rng.randf_range(2.0, 3.2), 0.97)
-	# Undergrowth thickets
-	for t in 3:
-		var o := Vector2(rng.randf_range(-radius * 0.4, radius * 0.4), rng.randf_range(-radius * 0.3, radius * 0.3))
-		if PathNetwork and PathNetwork.dist_to_path(center + o) < PATH_CLEAR:
-			continue
-		_add_thicket(center + o, rng.randf_range(-0.25, 0.25))
+		_place_sprite(tex, pos, rng.randf_range(2.0, 2.9), 0.95)
 
 
 func _build_landmarks() -> void:
-	# Plaza crystal markers — never on the road.
+	# Two small crystal markers far from well — don't compete with home crystal.
 	var crystals: Array = [
-		[Vector2(-240, -100), 0.95, Color(0.55, 0.9, 0.95, 0.9)],
-		[Vector2(250, -80), 0.9, Color(0.95, 0.75, 0.45, 0.88)],
-		[Vector2(-250, 160), 0.92, Color(0.7, 0.5, 0.95, 0.9)],
-		[Vector2(240, 150), 0.95, Color(0.55, 0.9, 0.95, 0.9)],
+		[Vector2(-280, -160), 0.75, Color(0.6, 0.88, 0.95, 0.85)],
+		[Vector2(300, -140), 0.7, Color(0.95, 0.82, 0.5, 0.85)],
 	]
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 77
@@ -600,7 +528,7 @@ func _ellipse(pos: Vector2, rx: float, ry: float, col: Color, z: int) -> Polygon
 
 
 func _scatter_forest_props() -> void:
-	## Dense canopy filler across the basin — main mass still from feature clusters.
+	## Sparse canopy + a few rocks. Lushness lives in the floor shader, not prop spam.
 	var tree_tex: Texture2D = AssetPaths.load_texture(AssetPaths.FOREST_TREES) if AssetPaths else null
 	var bush_tex: Texture2D = AssetPaths.load_texture(AssetPaths.FOREST_BUSHES) if AssetPaths else null
 	var stone_tex: Texture2D = AssetPaths.load_texture(AssetPaths.FOREST_STONES) if AssetPaths else null
@@ -615,56 +543,47 @@ func _scatter_forest_props() -> void:
 	elif tree_tex:
 		tree_sprites.append(tree_tex)
 
-	for i in 110:
-		var pos := _rand_map_pos(rng, 280, 2300)
-		if pos.length() < 260.0:
+	for i in 36:
+		var pos := _rand_map_pos(rng, 380, 2200)
+		if pos.length() < 340.0:
 			continue
-		if PathNetwork and PathNetwork.dist_to_path(pos) < PATH_CLEAR:
+		if PathNetwork and PathNetwork.dist_to_path(pos) < PATH_CLEAR + 20.0:
 			continue
 		if tree_sprites.is_empty():
 			break
-		# Prefer denser growth on high ground; keep some in mid elevations
 		var elev := PathNetwork.elevation_at(pos) if PathNetwork else 0.0
-		if elev < -0.2 and rng.randf() < 0.65:
-			continue  # sparse canopy over lake bowls
-		if elev < 0.05 and rng.randf() < 0.25:
+		if elev < -0.15 and rng.randf() < 0.7:
 			continue
-		var sc := rng.randf_range(2.1, 3.4) * (1.0 + clampf(elev, 0.0, 0.7) * 0.25)
-		_place_sprite(tree_sprites[i % tree_sprites.size()], pos, sc, 0.97)
+		var sc := rng.randf_range(2.2, 3.2)
+		_place_sprite(tree_sprites[i % tree_sprites.size()], pos, sc, 0.96)
 
 	if bush_tex:
-		for i in 55:
-			var pos := _rand_map_pos(rng, 220, 2100)
-			if PathNetwork and PathNetwork.dist_to_path(pos) < PATH_CLEAR:
+		for i in 14:
+			var pos := _rand_map_pos(rng, 320, 1800)
+			if pos.length() < 300.0:
 				continue
-			_place_sprite(bush_tex, pos, rng.randf_range(1.8, 3.0), 0.94)
+			if PathNetwork and PathNetwork.dist_to_path(pos) < PATH_CLEAR + 15.0:
+				continue
+			_place_sprite(bush_tex, pos, rng.randf_range(1.8, 2.6), 0.92)
 
 	if stone_tex:
-		for i in 32:
-			var pos := _rand_map_pos(rng, 240, 2000)
+		for i in 12:
+			var pos := _rand_map_pos(rng, 300, 1600)
+			if pos.length() < 280.0:
+				continue
 			if PathNetwork and PathNetwork.dist_to_path(pos) < PATH_CLEAR:
 				continue
-			_place_sprite(stone_tex, pos, rng.randf_range(1.4, 2.5), 0.9)
+			_place_sprite(stone_tex, pos, rng.randf_range(1.4, 2.2), 0.9)
 
-	# Rock clusters on high ground / path verges
-	for i in 36:
-		var pos := _rand_map_pos(rng, 180, 1900)
+	# A few rocks near path verges only
+	for i in 10:
+		var pos := _rand_map_pos(rng, 250, 1500)
 		if PathNetwork == null:
 			break
 		var d := PathNetwork.dist_to_path(pos)
-		if d < PATH_CLEAR or d > 260.0:
+		if d < PATH_CLEAR or d > 200.0 or pos.length() < 280.0:
 			continue
-		var elev2 := PathNetwork.elevation_at(pos)
-		if elev2 < 0.1 and rng.randf() < 0.4:
-			continue
-		_add_standing_stone(pos, rng.randf_range(0.55, 1.25))
-
-	# Extra thickets for undergrowth density
-	for i in 24:
-		var pos := _rand_map_pos(rng, 300, 1800)
-		if PathNetwork and PathNetwork.dist_to_path(pos) < PATH_CLEAR + 20.0:
-			continue
-		_add_thicket(pos, rng.randf_range(-0.3, 0.3))
+		_add_standing_stone(pos, rng.randf_range(0.6, 1.0))
 
 
 func _rand_map_pos(rng: RandomNumberGenerator, min_r: float, max_r: float) -> Vector2:
@@ -708,41 +627,27 @@ func _place_sprite(tex: Texture2D, pos: Vector2, scale_mul: float, alpha: float 
 	return s
 
 
-## Soft dirt road — continuous gradient body, no hard stripes / ruts / veins.
+## Soft dirt road — one continuous packed-dirt ribbon (no multi-band stripes).
 func _add_path_ribbon(pts: PackedVector2Array, half_width: float) -> void:
 	if pts.size() < 2:
 		return
 	_ensure_dirt_textures()
 
-	# Soft sage moss blend under the road (fades into ethereal biome)
+	# Soft grass shoulder (low contrast with ground — not purple rings)
 	var moss := Line2D.new()
-	moss.width = half_width * 2.55
-	moss.default_color = Color(0.32, 0.48, 0.38, 0.38)
+	moss.width = half_width * 2.35
+	moss.default_color = Color(0.2, 0.34, 0.22, 0.32)
 	moss.begin_cap_mode = Line2D.LINE_CAP_ROUND
 	moss.end_cap_mode = Line2D.LINE_CAP_ROUND
 	moss.joint_mode = Line2D.LINE_JOINT_ROUND
 	moss.antialiased = true
 	moss.points = pts
-	moss.z_index = Z_PATH_EDGE - 2
+	moss.z_index = Z_PATH_EDGE - 1
 	add_child(moss)
 
-	# Outer earth shoulder — soft dark rim (gradient tex fades edges)
-	var shoulder := Line2D.new()
-	shoulder.width = half_width * 2.2
-	shoulder.default_color = Color(1, 1, 1, 1)
-	shoulder.begin_cap_mode = Line2D.LINE_CAP_ROUND
-	shoulder.end_cap_mode = Line2D.LINE_CAP_ROUND
-	shoulder.joint_mode = Line2D.LINE_JOINT_ROUND
-	shoulder.antialiased = true
-	shoulder.points = pts
-	shoulder.texture = _dirt_edge_tex
-	shoulder.texture_mode = Line2D.LINE_TEXTURE_STRETCH
-	shoulder.z_index = Z_PATH_EDGE
-	add_child(shoulder)
-
-	# Main dirt body — warm continuous gradient (center lighter, edges darker)
+	# Single dirt body with soft edge gradient baked into texture
 	var dirt := Line2D.new()
-	dirt.width = half_width * 1.85
+	dirt.width = half_width * 1.9
 	dirt.default_color = Color(1, 1, 1, 1)
 	dirt.begin_cap_mode = Line2D.LINE_CAP_ROUND
 	dirt.end_cap_mode = Line2D.LINE_CAP_ROUND
@@ -753,9 +658,6 @@ func _add_path_ribbon(pts: PackedVector2Array, half_width: float) -> void:
 	dirt.texture_mode = Line2D.LINE_TEXTURE_STRETCH
 	dirt.z_index = Z_PATH
 	add_child(dirt)
-
-	# Very soft amber well-glow only near the crystal (not a full-path stripe)
-	_add_path_well_glow(pts)
 
 
 func _ensure_dirt_textures() -> void:
@@ -779,21 +681,20 @@ func _make_dirt_gradient_tex(for_edge: bool) -> Texture2D:
 
 		var col: Color
 		if for_edge:
-			# Soft rose-earth shoulder that fades into sage moss
-			var soil := Color(0.32, 0.24, 0.22, 1.0)
-			var mid := Color(0.48, 0.38, 0.32, 0.92)
+			var soil := Color(0.28, 0.2, 0.14, 1.0)
+			var mid := Color(0.4, 0.3, 0.22, 0.85)
 			col = mid.lerp(soil, clampf(e_smooth * 1.1, 0.0, 1.0))
-			col.a = clampf(0.7 - e_smooth * 0.5, 0.12, 0.75)
+			col.a = clampf(0.55 - e_smooth * 0.5, 0.05, 0.6)
 		else:
-			# Warm champagne dirt: soft light crown → rose body → soft rim
-			var crown := Color(0.72, 0.58, 0.42, 1.0)
-			var body := Color(0.55, 0.42, 0.32, 1.0)
-			var rim := Color(0.4, 0.3, 0.26, 1.0)
-			if edge < 0.45:
-				col = crown.lerp(body, edge / 0.45)
-			else:
-				col = body.lerp(rim, (edge - 0.45) / 0.55)
-			col.a = clampf(1.0 - pow(edge, 2.8) * 0.2, 0.8, 1.0)
+			# Packed dirt: center slightly lighter, edges blend to grass — one smooth falloff
+			var crown := Color(0.55, 0.42, 0.30, 1.0)
+			var body := Color(0.42, 0.32, 0.22, 1.0)
+			var rim := Color(0.3, 0.22, 0.16, 1.0)
+			# Smoothstep across full width (no hard bands)
+			var t := clampf(edge, 0.0, 1.0)
+			t = t * t * (3.0 - 2.0 * t)
+			col = crown.lerp(body, t * 0.7).lerp(rim, t)
+			col.a = clampf(1.0 - pow(edge, 3.2) * 0.35, 0.75, 1.0)
 
 		# Fine grain — subtle, not stripes
 		for x in w:
@@ -808,26 +709,6 @@ func _make_dirt_gradient_tex(for_edge: bool) -> Texture2D:
 			img.set_pixel(x, y, c)
 	var tex := ImageTexture.create_from_image(img)
 	return tex
-
-
-func _add_path_well_glow(pts: PackedVector2Array) -> void:
-	## Soft amber wash only on the final approach to the Lightwell — not a full-length stripe.
-	var near: PackedVector2Array = PackedVector2Array()
-	for p in pts:
-		if p.distance_to(Vector2(0, 40)) < 280.0:
-			near.append(p)
-	if near.size() < 2:
-		return
-	var glow := Line2D.new()
-	glow.width = 28.0
-	glow.default_color = Color(0.98, 0.88, 0.55, 0.12)
-	glow.begin_cap_mode = Line2D.LINE_CAP_ROUND
-	glow.end_cap_mode = Line2D.LINE_CAP_ROUND
-	glow.joint_mode = Line2D.LINE_JOINT_ROUND
-	glow.antialiased = true
-	glow.points = near
-	glow.z_index = Z_PATH_DETAIL
-	add_child(glow)
 
 
 func _add_spawn_portal(pos: Vector2) -> void:
