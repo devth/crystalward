@@ -1,7 +1,7 @@
 extends Node
 ## Nightspawn kind catalog — one kind per surge, with tower matchups.
 ## Autoloaded as EnemyKinds.
-## `flying: true` = air unit (Skyshard / air targeting).
+## `flying: true` = air unit (Skyshard / air targeting). Ground-only towers miss them.
 
 ## kind_id -> definition
 const KINDS := {
@@ -24,6 +24,25 @@ const KINDS := {
 		"skin": "pest",
 		"color": Color(0.55, 0.85, 0.45),
 	},
+	"shade": {
+		"name": "Soft Dark",
+		"short": "FLYER",
+		"blurb": "Air spirits. Skyshard & light burn them; ground towers miss.",
+		"flying": true,
+		"hp_mult": 0.95,
+		"speed_mult": 1.15,
+		"scale_mult": 1.0,
+		"path_slack": 32.0,
+		"sep_radius": 52.0,
+		"min_path_gap": 78.0,
+		"spawn_spacing": 0.9,
+		"weak_channels": ["light"],
+		"resist_channels": ["thorn", "shatter"],
+		"weak_specials": ["chain", "execute", "air", "snipe"],
+		"resist_specials": ["root", "splash", "multishot", "aoe"],
+		"skin": "shade",
+		"color": Color(0.7, 0.45, 0.95),
+	},
 	"ironclad": {
 		"name": "Iron Procession",
 		"short": "ARMORED",
@@ -42,6 +61,26 @@ const KINDS := {
 		"resist_specials": ["multishot"],
 		"skin": "undead",
 		"color": Color(0.65, 0.7, 0.85),
+	},
+	"gloomwing": {
+		"name": "Gloomwings",
+		"short": "FLYER",
+		"blurb": "Flock of night birds. Skyshard chains; ground AOE misses.",
+		"flying": true,
+		"hp_mult": 0.82,
+		"speed_mult": 1.35,
+		"scale_mult": 0.9,
+		"path_slack": 36.0,
+		"sep_radius": 50.0,
+		"min_path_gap": 68.0,
+		"spawn_spacing": 0.72,
+		"weak_channels": ["light", "mist"],
+		"resist_channels": ["thorn", "shatter"],
+		"weak_specials": ["chain", "air", "slow_aura", "multishot"],
+		"resist_specials": ["root", "splash", "aoe"],
+		"skin": "avian",
+		"color": Color(0.55, 0.65, 0.95),
+		"crystal_damage_mult": 0.9,
 	},
 	"skitter": {
 		"name": "Skitter Host",
@@ -62,24 +101,24 @@ const KINDS := {
 		"skin": "beast",
 		"color": Color(0.9, 0.7, 0.35),
 	},
-	"shade": {
-		"name": "Soft Dark",
-		"short": "FLYER",
-		"blurb": "Air spirits. Skyshard & light burn them; roots miss.",
+	"wraith": {
+		"name": "Night Wraiths",
+		"short": "WRAITH",
+		"blurb": "Tough air hunters. Skyshard chains melt them.",
 		"flying": true,
-		"hp_mult": 1.0,
-		"speed_mult": 1.12,
-		"scale_mult": 1.0,
-		"path_slack": 28.0,
-		"sep_radius": 52.0,
-		"min_path_gap": 80.0,
-		"spawn_spacing": 0.95,
+		"hp_mult": 1.2,
+		"speed_mult": 1.18,
+		"scale_mult": 1.08,
+		"path_slack": 30.0,
+		"sep_radius": 54.0,
+		"min_path_gap": 85.0,
+		"spawn_spacing": 1.0,
 		"weak_channels": ["light"],
 		"resist_channels": ["thorn", "shatter"],
-		"weak_specials": ["chain", "execute", "air", "snipe"],
-		"resist_specials": ["root", "splash", "multishot", "aoe"],
-		"skin": "demon",
-		"color": Color(0.7, 0.45, 0.95),
+		"weak_specials": ["chain", "air", "execute", "snipe"],
+		"resist_specials": ["splash", "root", "multishot", "aoe"],
+		"skin": "wraith",
+		"color": Color(0.55, 0.85, 0.95),
 	},
 	"brute": {
 		"name": "Siege Brutes",
@@ -101,6 +140,25 @@ const KINDS := {
 		"color": Color(0.95, 0.4, 0.35),
 		"crystal_damage_mult": 1.5,
 	},
+	"mothswarm": {
+		"name": "Mothswarm",
+		"short": "FLYER",
+		"blurb": "Pest-cloud flyers. Skyshard multi-hops; thorns can't reach.",
+		"flying": true,
+		"hp_mult": 0.7,
+		"speed_mult": 1.42,
+		"scale_mult": 0.85,
+		"path_slack": 40.0,
+		"sep_radius": 46.0,
+		"min_path_gap": 60.0,
+		"spawn_spacing": 0.65,
+		"weak_channels": ["light", "mist"],
+		"resist_channels": ["thorn", "shatter"],
+		"weak_specials": ["chain", "air", "multishot", "slow_aura"],
+		"resist_specials": ["root", "splash", "aoe", "execute"],
+		"skin": "moth",
+		"color": Color(0.85, 0.7, 0.95),
+	},
 	"blight": {
 		"name": "Blight Spores",
 		"short": "BLIGHT",
@@ -120,30 +178,19 @@ const KINDS := {
 		"skin": "slime",
 		"color": Color(0.45, 0.85, 0.55),
 	},
-	"wraith": {
-		"name": "Night Wraiths",
-		"short": "WRAITH",
-		"blurb": "Air hunters. Skyshard chains melt them.",
-		"flying": true,
-		"hp_mult": 1.15,
-		"speed_mult": 1.18,
-		"scale_mult": 1.05,
-		"path_slack": 30.0,
-		"sep_radius": 54.0,
-		"min_path_gap": 85.0,
-		"spawn_spacing": 1.0,
-		"weak_channels": ["light"],
-		"resist_channels": ["thorn", "shatter"],
-		"weak_specials": ["chain", "air", "execute"],
-		"resist_specials": ["splash", "root", "multishot", "aoe"],
-		"skin": "undead",
-		"color": Color(0.55, 0.85, 0.95),
-	},
 }
 
-## Order used when assigning kinds to waves (cycles).
+## Wave cycle — flyers every other surge so Skyshard always matters.
 const WAVE_ORDER: Array[String] = [
-	"thrall", "ironclad", "skitter", "shade", "brute", "blight", "wraith"
+	"thrall",      # 1 ground
+	"shade",       # 2 flyer  ← early air pressure
+	"ironclad",    # 3 ground
+	"gloomwing",   # 4 flyer flock
+	"skitter",     # 5 ground
+	"wraith",      # 6 flyer elite-feel
+	"brute",       # 7 ground
+	"mothswarm",   # 8 flyer swarm
+	"blight",      # 9 ground
 ]
 
 
@@ -198,31 +245,36 @@ func matchup_hint(kind_id: String) -> String:
 			seen[s] = true
 			tips.append(s)
 	if bool(d.get("flying", false)):
-		add.call("Skyshard")
+		add.call("Skyshard (AIR)")
 		add.call("Shardbow")
 	for ch in d.get("weak_channels", []):
 		match str(ch):
 			"thorn":
-				add.call("Thornspire")
+				if not bool(d.get("flying", false)):
+					add.call("Thornspire")
 			"light":
 				if not bool(d.get("flying", false)):
 					add.call("Shardbow")
 			"mist":
 				add.call("Mistvent")
 			"shatter":
-				add.call("Emberfall")
+				if not bool(d.get("flying", false)):
+					add.call("Emberfall")
 	for sp in d.get("weak_specials", []):
 		match str(sp):
 			"splash", "aoe":
-				add.call("Emberfall")
+				if not bool(d.get("flying", false)):
+					add.call("Emberfall")
 			"chain", "air":
 				add.call("Skyshard")
 			"root", "control":
-				add.call("Rootgate")
+				if not bool(d.get("flying", false)):
+					add.call("Rootgate")
 			"slow_aura":
 				add.call("Mistvent")
 			"multishot":
-				add.call("Thornspire")
+				if not bool(d.get("flying", false)):
+					add.call("Thornspire")
 			"execute", "snipe":
 				add.call("Shardbow")
 	if tips.is_empty():

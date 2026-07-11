@@ -69,6 +69,7 @@ const DAWNLIKE_MISC0 := DAWNLIKE_CHAR_DIR + "Misc0.png"
 const DAWNLIKE_MISC1 := DAWNLIKE_CHAR_DIR + "Misc1.png"
 const DAWNLIKE_AQUATIC0 := DAWNLIKE_CHAR_DIR + "Aquatic0.png"
 const DAWNLIKE_AVIAN0 := DAWNLIKE_CHAR_DIR + "Avian0.png"
+const DAWNLIKE_AVIAN1 := DAWNLIKE_CHAR_DIR + "Avian1.png"
 const DAWNLIKE_TREE0 := DAWNLIKE_OBJ_DIR + "Tree0.png"
 const DAWNLIKE_TREE1 := DAWNLIKE_OBJ_DIR + "Tree1.png"
 
@@ -281,6 +282,30 @@ func skin_for_kind(skin_key: String) -> Dictionary:
 			modulate = Color(0.45, 0.85, 0.55)
 			aura = Color(0.35, 0.75, 0.45, 0.3)
 			scale_mul = 3.7
+		"avian", "gloomwing":
+			frames = dawnlike_frames(DAWNLIKE_AVIAN0, DAWNLIKE_AVIAN1, randi() % 4, randi() % 2)
+			if frames.is_empty():
+				frames = dawnlike_frames(DAWNLIKE_PEST0, DAWNLIKE_PEST1, 2, 0)
+			modulate = Color(0.55, 0.65, 0.95)
+			aura = Color(0.45, 0.55, 0.95, 0.32)
+			scale_mul = 3.8
+		"moth":
+			frames = dawnlike_frames(DAWNLIKE_PEST0, DAWNLIKE_PEST1, 0, randi() % 2)
+			if frames.is_empty():
+				frames = dawnlike_frames(DAWNLIKE_AVIAN0, DAWNLIKE_AVIAN1, 1, 0)
+			modulate = Color(0.85, 0.7, 0.95)
+			aura = Color(0.75, 0.5, 0.95, 0.3)
+			scale_mul = 3.4
+		"shade":
+			frames = dawnlike_frames(DAWNLIKE_DEMON0, DAWNLIKE_DEMON1, randi() % 3, 1)
+			modulate = Color(0.7, 0.45, 0.95)
+			aura = Color(0.65, 0.35, 0.95, 0.35)
+			scale_mul = 4.0
+		"wraith":
+			frames = dawnlike_frames(DAWNLIKE_UNDEAD0, DAWNLIKE_UNDEAD1, randi() % 3, 1)
+			modulate = Color(0.55, 0.85, 0.95)
+			aura = Color(0.4, 0.75, 0.95, 0.35)
+			scale_mul = 4.15
 		_:
 			return random_enemy_skin()
 	if frames.is_empty():

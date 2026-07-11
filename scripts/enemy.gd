@@ -73,11 +73,25 @@ func _ready() -> void:
 	FX.style_progress_bar(_bar, bar_col, Color(0.1, 0.04, 0.08, 0.85))
 	_bar.max_value = max_hp
 	_bar.value = hp
-	_bar.position = Vector2(-18, -36)
-	_bar.size = Vector2(36, 7)
+	if is_flying:
+		_bar.position = Vector2(-18, -52)
+		_bar.size = Vector2(36, 7)
+		# AIR tag so flyers read at a glance
+		var air_tag := Label.new()
+		air_tag.name = "AirTag"
+		air_tag.text = "AIR"
+		air_tag.position = Vector2(-12, -64)
+		air_tag.add_theme_font_size_override("font_size", 9)
+		air_tag.add_theme_color_override("font_color", Color(0.7, 0.92, 1.0))
+		air_tag.add_theme_color_override("font_outline_color", Color(0.05, 0.08, 0.15, 0.95))
+		air_tag.add_theme_constant_override("outline_size", 2)
+		add_child(air_tag)
+	else:
+		_bar.position = Vector2(-18, -36)
+		_bar.size = Vector2(36, 7)
 	if _is_elite:
 		_bar.size = Vector2(48, 8)
-		_bar.position = Vector2(-24, -42)
+		_bar.position = Vector2(-24, -52 if is_flying else -42)
 	_crystal = get_tree().get_first_node_in_group("crystal") as Node2D
 
 
@@ -149,7 +163,19 @@ func make_elite() -> void:
 func _build_visuals() -> void:
 	_visual = Node2D.new()
 	add_child(_visual)
-	FX.add_soft_shadow(_visual, 18, 8, 12)
+
+	# Ground shadow stays on the path (flyers cast a drop-shadow below)
+	var shadow_parent := Node2D.new()
+	shadow_parent.name = "GroundShadow"
+	shadow_parent.z_index = -5
+	add_child(shadow_parent)
+	if is_flying:
+		FX.add_soft_shadow(shadow_parent, 14, 6, 10)
+		var pad := FX.make_ellipse_poly(16, 7, 16, Color(0.2, 0.35, 0.55, 0.18))
+		pad.position = Vector2(0, 10)
+		shadow_parent.add_child(pad)
+	else:
+		FX.add_soft_shadow(shadow_parent, 18, 8, 12)
 
 	var skin: Dictionary
 	if _kind_skin_key != "" and AssetPaths and AssetPaths.has_method("skin_for_kind"):
@@ -162,7 +188,7 @@ func _build_visuals() -> void:
 	_sprite_scale = float(skin.get("scale", 0.85))
 	var aura_col: Color = skin.get("aura", Color(_kind_color.r, _kind_color.g, _kind_color.b, 0.3)) as Color
 	aura_col = aura_col.lerp(_kind_color, 0.4)
-	aura_col.a = 0.32
+	aura_col.a = 0.32 if not is_flying else 0.4
 	_anim_walk = []
 	_anim_idle = []
 	for t in skin.get("walk", skin.get("frames", [])):
@@ -179,17 +205,36 @@ func _build_visuals() -> void:
 		_sprite_scale *= 1.28
 		aura_col = Color(1.0, 0.55, 0.25, 0.38)
 
-	# Soft corruption aura under feet
+	# Soft corruption / flight aura
 	var aura := FX.make_ellipse_poly(22 if not _is_elite else 28, 14 if not _is_elite else 18, 22, aura_col)
 	aura.z_index = -2
 	aura.name = "CorruptAura"
 	_visual.add_child(aura)
 
+	if is_flying:
+		# Ethereal wing silhouettes — flap in _finish_frame
+		_wings.clear()
+		for sx in [-1.0, 1.0]:
+			var wing := Polygon2D.new()
+			wing.polygon = PackedVector2Array([
+				Vector2(0, -6), Vector2(sx * 22, -14), Vector2(sx * 18, 2), Vector2(sx * 6, 4)
+			])
+			wing.color = Color(_kind_color.r, _kind_color.g, _kind_color.b, 0.55)
+			wing.position = Vector2(sx * 4, -4)
+			wing.z_index = -1
+			wing.name = "Wing"
+			_visual.add_child(wing)
+			_wings.append(wing)
+		# Soft flight trail
+		var trail := FX.make_ellipse_poly(10, 16, 14, Color(_kind_color.r, _kind_color.g, _kind_color.b, 0.12))
+		trail.position = Vector2(0, 10)
+		trail.z_index = -3
+		_visual.add_child(trail)
+
 	if _is_elite:
 		var ring := FX.make_ellipse_poly(26, 16, 22, Color(1.0, 0.55, 0.25, 0.28))
 		ring.z_index = -1
 		_visual.add_child(ring)
-		# Horn crowns for elite read
 		for sx in [-1.0, 1.0]:
 			var horn := Polygon2D.new()
 			horn.polygon = PackedVector2Array([
@@ -364,8 +409,8 @@ func _finish_frame() -> void:
 	else:
 		z_index = clampi(50 + int(global_position.y) + 2000, 50, 4000)
 	if _visual:
-		# Flyers hover above the path
-		var hover := (-14.0 + sin(_anim_t * 2.4) * 3.0) if is_flying else 0.0
+		# Flyers hover well above the path; ground units stay locked
+		var hover := (-22.0 + sin(_anim_t * 2.6) * 4.5) if is_flying else 0.0
 		_visual.position.y = hover
 		if _move_dir.x < -0.12:
 			_face_sign = -1.0
@@ -384,6 +429,12 @@ func _finish_frame() -> void:
 		if aura is Node2D:
 			var p := 0.92 + 0.1 * sin(_anim_t * 3.0)
 			(aura as Node2D).scale = Vector2(p, p)
+		# Flap wings
+		for w in _wings:
+			if is_instance_valid(w):
+				var side := 1.0 if w.position.x >= 0.0 else -1.0
+				w.rotation = side * sin(_anim_t * 9.0) * 0.35
+				w.scale.y = 0.85 + 0.2 * absf(sin(_anim_t * 9.0))
 	# Walk flip while moving along path
 	if _use_sprite and _body_sprite and _anim_walk.size() > 0:
 		var moving := _move_dir.length() > 0.05

@@ -386,11 +386,21 @@ func _refresh_wave_prep() -> void:
 			title.text = "NEXT SURGE  ·  WAVE %d" % next_n
 		else:
 			title.text = "SURGE ACTIVE  ·  WAVE %d" % next_n
+	var flying := bool(d.get("flying", false))
 	if kind_name:
-		kind_name.text = nname if short == "" else "%s  [%s]" % [nname, short]
+		var tag := short
+		if flying and short != "FLYER" and short != "WRAITH":
+			tag = "AIR · %s" % short if short != "" else "AIR"
+		elif flying and short == "":
+			tag = "AIR"
+		kind_name.text = nname if tag == "" else "%s  [%s]" % [nname, tag]
 		kind_name.add_theme_color_override("font_color", col.lightened(0.25))
 	if kind_hint:
-		kind_hint.text = hint if prep else str(d.get("blurb", ""))
+		var base_hint := hint if prep else str(d.get("blurb", ""))
+		if flying:
+			kind_hint.text = "✈ FLYING — ground towers miss  ·  " + base_hint
+		else:
+			kind_hint.text = base_hint
 	if swatch:
 		swatch.color = col
 

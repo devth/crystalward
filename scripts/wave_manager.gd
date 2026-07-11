@@ -184,10 +184,16 @@ func _begin_wave() -> void:
 	var map := _map_def()
 	var kind_name: String = str(kind_def.get("name", "Nightspawn"))
 	var hint: String = EnemyKinds.matchup_hint(_wave_kind) if EnemyKinds else ""
-	GameState.message.emit("⚔ SURGE %d — %s" % [_wave, kind_name])
+	var flying := bool(kind_def.get("flying", false))
+	if flying:
+		GameState.message.emit("⚔ SURGE %d — %s  ✈ FLYING" % [_wave, kind_name])
+	else:
+		GameState.message.emit("⚔ SURGE %d — %s" % [_wave, kind_name])
 	if hint != "":
 		# Brief matchup tip so players know which towers to lean on
 		GameState.message.emit(hint)
+	if flying:
+		GameState.message.emit("Air units! Skyshard / Shardbow — ground towers cannot hit them.")
 	if Sfx:
 		Sfx.wave_start()
 	if Juice:

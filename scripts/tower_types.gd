@@ -42,6 +42,24 @@ const DEFS := {
 		"unlock_tier": 0,
 		"special": "splash",
 	},
+	"skyshard": {
+		"name": "Skyshard",
+		"short": "AIR",
+		"target": "air",
+		"target_label": "AIR",
+		"cost": 34,
+		"color": Color(0.55, 0.9, 0.95),
+		"desc": "Chain light. Flyers only.",
+		"damage": 24,
+		"fire_rate": 0.62,
+		"range": 480.0,
+		"role": "air",
+		"channel": "light",
+		"chain_count": 3,
+		"chain_falloff": 0.72,
+		"unlock_tier": 1,
+		"special": "chain",
+	},
 	"shardbow": {
 		"name": "Shardbow",
 		"short": "SNIPE",
@@ -55,7 +73,7 @@ const DEFS := {
 		"range": 560.0,
 		"role": "snipe",
 		"channel": "light",
-		"unlock_tier": 1,
+		"unlock_tier": 2,
 		"special": "execute",
 	},
 	"mistvent": {
@@ -72,26 +90,8 @@ const DEFS := {
 		"role": "slow",
 		"channel": "mist",
 		"aura_slow": 0.55,
-		"unlock_tier": 2,
-		"special": "slow_aura",
-	},
-	"skyshard": {
-		"name": "Skyshard",
-		"short": "AIR",
-		"target": "air",
-		"target_label": "AIR",
-		"cost": 38,
-		"color": Color(0.55, 0.9, 0.95),
-		"desc": "Chain light. Flyers only.",
-		"damage": 24,
-		"fire_rate": 0.62,
-		"range": 480.0,
-		"role": "air",
-		"channel": "light",
-		"chain_count": 3,
-		"chain_falloff": 0.72,
 		"unlock_tier": 3,
-		"special": "chain",
+		"special": "slow_aura",
 	},
 	"rootgate": {
 		"name": "Rootgate",
@@ -114,8 +114,9 @@ const DEFS := {
 }
 
 ## Unlock order (campaign / wave progression)
+## Skyshard early so flyer surges (wave 2+) are answerable.
 const ORDER: Array[String] = [
-	"thornspire", "emberfall", "shardbow", "mistvent", "skyshard", "rootgate"
+	"thornspire", "emberfall", "skyshard", "shardbow", "mistvent", "rootgate"
 ]
 
 ## Match-scoped unlocks (reset each battle)
