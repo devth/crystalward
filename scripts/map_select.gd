@@ -44,12 +44,84 @@ func _build() -> void:
 	for m in Campaign.maps():
 		list.add_child(_map_row(m))
 
+	var powers_btn := Button.new()
+	powers_btn.text = "✦ Powers & Auras (spend dust)"
+	powers_btn.pressed.connect(func() -> void:
+		_open_powers()
+	)
+	root.add_child(powers_btn)
+
 	var back := Button.new()
 	back.text = "← Back to Title"
 	back.pressed.connect(func() -> void:
 		get_tree().change_scene_to_file("res://scenes/title.tscn")
 	)
 	root.add_child(back)
+
+
+func _open_powers() -> void:
+	# Simple modal list
+	var layer := CanvasLayer.new()
+	layer.layer = 20
+	add_child(layer)
+	var dim := ColorRect.new()
+	dim.set_anchors_preset(PRESET_FULL_RECT)
+	dim.color = Color(0, 0, 0, 0.65)
+	layer.add_child(dim)
+	var panel := PanelContainer.new()
+	panel.set_anchors_preset(PRESET_CENTER)
+	panel.offset_left = -260
+	panel.offset_top = -220
+	panel.offset_right = 260
+	panel.offset_bottom = 220
+	if VisualStyle:
+		VisualStyle.style_hud_panel(panel)
+	layer.add_child(panel)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 8)
+	panel.add_child(v)
+	var title := Label.new()
+	title.text = "Powers  ·  Dust: %d" % (GameState.crystal_dust if GameState else 0)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 20)
+	v.add_child(title)
+	if Powers:
+		for id in Powers.CATALOG.keys():
+			var def: Dictionary = Powers.CATALOG[id]
+			var row := HBoxContainer.new()
+			var lab := Label.new()
+			var status := "ON" if Powers.has(id) else ("owned" if Powers.is_unlocked(id) else "%d✦" % int(def.get("cost_dust", 0)))
+			lab.text = "%s — %s [%s]" % [def.get("name"), def.get("desc"), status]
+			lab.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			lab.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			row.add_child(lab)
+			var b := Button.new()
+			if Powers.is_unlocked(id):
+				b.text = "Equip" if not Powers.is_equipped(id) else "Unequip"
+				if id == "double_jump":
+					b.text = "Always"
+					b.disabled = true
+				else:
+					var capt := str(id)
+					b.pressed.connect(func() -> void:
+						Powers.toggle_equip(capt)
+						layer.queue_free()
+						_open_powers()
+					)
+			else:
+				b.text = "Unlock"
+				var capt2 := str(id)
+				b.pressed.connect(func() -> void:
+					Powers.try_unlock(capt2)
+					layer.queue_free()
+					_open_powers()
+				)
+			row.add_child(b)
+			v.add_child(row)
+	var close := Button.new()
+	close.text = "Close"
+	close.pressed.connect(layer.queue_free)
+	v.add_child(close)
 
 
 func _map_row(m: Dictionary) -> Control:

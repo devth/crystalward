@@ -6,6 +6,12 @@ enum Mode { SEEK_LOOT, SEEK_WELL, GATHER, IDLE }
 
 @export var fly_speed: float = 150.0
 @export var gather_rate_mult: float = 0.55
+
+func _fly_speed() -> float:
+	return fly_speed * (Powers.fairy_speed_mult() if Powers else 1.0)
+
+func _gather_mult() -> float:
+	return gather_rate_mult * (Powers.fairy_gather_mult() if Powers else 1.0)
 @export var gather_range: float = 36.0
 @export var loot_range: float = 30.0
 @export var owner_index: int = 0
@@ -122,7 +128,7 @@ func _seek_loot(delta: float) -> void:
 		else:
 			mode = Mode.SEEK_WELL
 		return
-	global_position += to.normalized() * (fly_speed * 1.15) * delta
+	global_position += to.normalized() * (_fly_speed() * 1.15) * delta
 	global_position = GameState.clamp_world_position(global_position)
 	_face(to)
 
@@ -144,7 +150,7 @@ func _seek_well(delta: float) -> void:
 	if to.length() <= gather_range:
 		mode = Mode.GATHER
 		return
-	global_position += to.normalized() * fly_speed * delta
+	global_position += to.normalized() * _fly_speed() * delta
 	global_position = GameState.clamp_world_position(global_position)
 	_face(to)
 
@@ -167,7 +173,7 @@ func _gather(delta: float) -> void:
 	var want: Vector2 = _target.global_position + orbit + Vector2(0, -10)
 	global_position = global_position.lerp(want, 1.0 - exp(-6.0 * delta))
 	if _target.has_method("contribute_gather"):
-		_target.contribute_gather(delta * gather_rate_mult)
+		_target.contribute_gather(delta * _gather_mult())
 
 
 func _idle_hover(delta: float) -> void:

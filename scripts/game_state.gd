@@ -172,7 +172,17 @@ func add_essence(amount: int, show_msg: bool = false) -> void:
 func add_crystal_dust(amount: int) -> void:
 	if is_game_over:
 		return
-	crystal_dust += amount
+	crystal_dust = crystal_dust + amount
+
+
+func try_spend_crystal_dust(amount: int) -> bool:
+	## Spend dust (map powers unlock). Always uses setter so HUD signals fire.
+	if amount <= 0:
+		return true
+	if crystal_dust < amount:
+		return false
+	crystal_dust = crystal_dust - amount
+	return true
 
 
 func reward_kill(elite: bool = false, world_pos: Vector2 = Vector2.ZERO) -> void:

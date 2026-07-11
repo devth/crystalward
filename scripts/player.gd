@@ -27,6 +27,17 @@ var _frame_flip_t: float = 0.0
 var _frame_idx: int = 0
 var _use_sprite: bool = false
 
+## Hop / double-jump (top-down height sim)
+var _height: float = 0.0
+var _height_vel: float = 0.0
+var _jumps_left: int = 2
+var _was_airborne: bool = false
+var _shadow: Polygon2D = null
+var _aura_poly: Polygon2D = null
+var _ground_y_bob: float = 0.0
+
+const BASE_GRAVITY := 1100.0
+
 @onready var _label: Label = $Label
 
 
@@ -43,6 +54,7 @@ func _ready() -> void:
 		$Shadow.visible = false
 
 	_build_visuals()
+	_jumps_left = Powers.max_jumps() if Powers else 2
 	_label.text = "P%d" % (player_index + 1)
 	if VisualStyle:
 		VisualStyle.style_game_label(_label, 15, true)
@@ -66,10 +78,17 @@ func _build_visuals() -> void:
 	body_color = _skin_modulate
 	var scale_mul: float = float(skin.get("scale", 3.6))
 
+	# Ground shadow (shrinks while jumping)
+	if VisualStyle:
+		_shadow = VisualStyle.make_blob_shadow(_visual_root, 16, 7, 12)
+	else:
+		_shadow = FX.add_soft_shadow(_visual_root, 16, 7, 12)
+
 	# Soft organic aura — living crystal flesh vibe
 	var aura := FX.make_ellipse_poly(22, 26, 24, Color(_skin_modulate.r, _skin_modulate.g, _skin_modulate.b, 0.16))
 	aura.z_index = -2
 	_visual_root.add_child(aura)
+	_aura_poly = aura
 	var aura2 := FX.make_ellipse_poly(14, 16, 18, Color(_skin_modulate.r * 0.7, _skin_modulate.g, _skin_modulate.b * 0.9, 0.12))
 	aura2.z_index = -1
 	_visual_root.add_child(aura2)
@@ -144,6 +163,10 @@ func _exit_tree() -> void:
 	GameState.unregister_warden(self)
 
 
+func is_airborne() -> bool:
+	return _height > 2.0
+
+
 func _physics_process(delta: float) -> void:
 	if GameState.is_game_over:
 		velocity = Vector2.ZERO
@@ -151,15 +174,17 @@ func _physics_process(delta: float) -> void:
 
 	_attack_cd = maxf(0.0, _attack_cd - delta)
 	_bob_t += delta * (8.0 if velocity.length() > 10.0 else 3.0)
+	_update_jump(delta)
+	_update_power_auras(delta)
 
 	var dir := _read_move()
+	var air_control := 0.85 if is_airborne() else 1.0
 	if dir.length_squared() > 0.01:
 		_facing = dir.normalized()
-		# Only update face sign on meaningful horizontal input (don't flip on pure up/down)
 		if absf(_facing.x) > 0.15:
 			_face_sign = -1.0 if _facing.x < 0.0 else 1.0
-		velocity = velocity.move_toward(dir.normalized() * move_speed, move_accel * delta)
-		if _use_sprite and _skin_frames.size() > 1 and _body_sprite:
+		velocity = velocity.move_toward(dir.normalized() * move_speed * air_control, move_accel * air_control * delta)
+		if _use_sprite and _skin_frames.size() > 1 and _body_sprite and not is_airborne():
 			_frame_flip_t += delta
 			if _frame_flip_t >= 0.16:
 				_frame_flip_t = 0.0
@@ -167,33 +192,48 @@ func _physics_process(delta: float) -> void:
 				_body_sprite.texture = _skin_frames[_frame_idx]
 	else:
 		velocity = velocity.move_toward(Vector2.ZERO, move_friction * delta)
-		if _use_sprite and not _skin_frames.is_empty() and _body_sprite:
+		if _use_sprite and not _skin_frames.is_empty() and _body_sprite and not is_airborne():
 			_body_sprite.texture = _skin_frames[0]
 			_frame_idx = 0
 
 	move_and_slide()
 	global_position = GameState.clamp_world_position(global_position)
-	z_index = int(global_position.y)
+	z_index = int(global_position.y - _height * 0.15)
 
-	# Single scale write: facing sign × squash (never set flip_h / scale elsewhere)
 	if _visual_root:
-		var moving := velocity.length() > 12.0
-		_visual_root.position.y = sin(_bob_t) * (3.0 if moving else 1.2)
-		var squash := 1.0 + sin(_bob_t * 2.0) * (0.06 if moving else 0.02)
-		_visual_root.scale = Vector2(_face_sign * squash, 1.0 / squash)
+		var moving := velocity.length() > 12.0 and not is_airborne()
+		_ground_y_bob = sin(_bob_t) * (3.0 if moving else 1.2)
+		# Height is upward on screen (negative y)
+		_visual_root.position.y = _ground_y_bob - _height
+		var squash := 1.0
+		if is_airborne():
+			squash = 1.0 - clampf(_height_vel / 600.0, -0.15, 0.12)
+		else:
+			squash = 1.0 + sin(_bob_t * 2.0) * (0.06 if moving else 0.02)
+		_visual_root.scale = Vector2(_face_sign * squash, 1.0 / maxf(0.7, squash))
+		if _shadow:
+			var s := clampf(1.0 - _height / 120.0, 0.35, 1.0)
+			_shadow.scale = Vector2(s, s)
+			_shadow.modulate.a = 0.25 + 0.35 * s
 		if has_node("Visual/StaffGem"):
 			var gem: Polygon2D = $Visual/StaffGem
 			gem.modulate = Color(1, 1, 1, 0.75 + 0.25 * sin(_bob_t * 1.3))
 
-	if _action_just_pressed("gather"):
+	if _action_just_pressed("jump"):
+		_try_jump()
+	# Glide: hold jump while falling (negative height_vel) to cap fall speed
+	if is_airborne() and _action_pressed("jump") and Powers and Powers.has("crystal_glide") and _height_vel < 0.0:
+		_height_vel = maxf(_height_vel, -90.0)
+
+	if _action_just_pressed("gather") and not is_airborne():
 		# Gather wins over sell when an essence node is in range (no accidental sells).
 		if not _near_gather.is_empty():
 			_try_gather(delta)
 		else:
 			# KR sell: tap E on a built pad only when not gathering.
 			_try_sell_nearby()
-	elif _action_pressed("gather"):
-		# Hold-to-gather only — never sell on hold (avoids sell spam / gather conflict).
+	elif _action_pressed("gather") and not is_airborne():
+		# Hold-to-gather only while grounded — never sell on hold.
 		if not _near_gather.is_empty():
 			_try_gather(delta)
 	if _action_just_pressed("build"):
@@ -275,6 +315,91 @@ func _try_spawn_fairy() -> void:
 	var f := GameState.try_spawn_fairy(global_position, player_index)
 	if f and FX:
 		FX.burst_particles(get_parent(), global_position + Vector2(0, -20), Color(0.8, 0.9, 1.0), 12, "star", 0.4)
+
+
+func _try_jump() -> void:
+	var max_j := Powers.max_jumps() if Powers else 2
+	if _jumps_left <= 0:
+		return
+	var is_double := _height > 4.0 or _jumps_left < max_j
+	_jumps_left -= 1
+	_height_vel = Powers.jump_velocity() if Powers else 380.0
+	if is_double:
+		_height_vel *= 0.92
+		if FX:
+			FX.burst_particles(get_parent(), global_position, Color(0.7, 0.85, 1.0), 8, "star", 0.25)
+	if Sfx:
+		Sfx.attack()
+
+
+func _update_jump(delta: float) -> void:
+	# _height_vel: positive = rising, negative = falling
+	var g_scale := Powers.gravity_scale() if Powers else 1.0
+	var g := BASE_GRAVITY * g_scale
+	if _height > 0.0 or _height_vel != 0.0:
+		_height_vel -= g * delta
+		_height += _height_vel * delta
+		if _height <= 0.0:
+			var was_high := _was_airborne and _height_vel < -200.0
+			var from_double := _jumps_left == 0
+			_height = 0.0
+			_height_vel = 0.0
+			_jumps_left = Powers.max_jumps() if Powers else 2
+			if _was_airborne:
+				_on_landed(was_high, from_double)
+			_was_airborne = false
+		else:
+			_was_airborne = true
+	else:
+		_jumps_left = Powers.max_jumps() if Powers else 2
+		_was_airborne = false
+
+
+func _on_landed(hard: bool, from_air_jump: bool) -> void:
+	if FX:
+		FX.burst_particles(get_parent(), global_position, Color(0.6, 0.8, 0.5, 0.5), 6, "puff", 0.2)
+	if Powers and Powers.has("pollen_burst"):
+		_spawn_pollen_cloud()
+	if Powers and Powers.has("stomp") and (hard or from_air_jump):
+		_stomp_damage()
+
+
+func _spawn_pollen_cloud() -> void:
+	if FX:
+		FX.burst_particles(get_parent(), global_position, Color(0.85, 0.7, 1.0, 0.7), 16, "star", 0.45)
+	for e in get_tree().get_nodes_in_group("enemies"):
+		if e is Node2D and global_position.distance_to(e.global_position) < 90.0:
+			if e.has_method("apply_slow"):
+				e.call("apply_slow", 0.55, 1.4)
+
+
+func _stomp_damage() -> void:
+	if Juice:
+		Juice.shake(5.0)
+	for e in get_tree().get_nodes_in_group("enemies"):
+		if e is Node2D and global_position.distance_to(e.global_position) < 70.0:
+			if e.has_method("take_damage"):
+				e.call("take_damage", 22)
+				FloatingText.spawn(get_parent(), e.global_position, "22", Color(0.5, 1.0, 0.55))
+
+
+func _update_power_auras(delta: float) -> void:
+	if _aura_poly and Powers:
+		if Powers.has("low_gravity"):
+			_aura_poly.color = Color(0.6, 0.75, 1.0, 0.2 + 0.08 * sin(_bob_t * 2.0))
+			_aura_poly.scale = Vector2.ONE * (1.15 + 0.1 * sin(_bob_t))
+		elif Powers.has("loot_magnet"):
+			_aura_poly.color = Color(1.0, 0.85, 0.4, 0.15)
+		else:
+			_aura_poly.color = Color(_skin_modulate.r, _skin_modulate.g, _skin_modulate.b, 0.16)
+			_aura_poly.scale = Vector2.ONE
+	# Loot magnet while airborne
+	if Powers and Powers.has("loot_magnet") and is_airborne():
+		for loot in get_tree().get_nodes_in_group("loot"):
+			if loot is Node2D and global_position.distance_to(loot.global_position) < 120.0:
+				loot.global_position = loot.global_position.lerp(global_position, 1.0 - exp(-8.0 * delta))
+				if loot.global_position.distance_to(global_position) < 28.0 and loot.has_method("collect"):
+					loot.collect()
 
 
 

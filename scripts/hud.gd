@@ -49,7 +49,7 @@ func _ready() -> void:
 	_on_dust(GameState.crystal_dust)
 	_on_crystal(GameState.crystal_hp, GameState.crystal_max_hp)
 	_on_wave(GameState.current_wave, GameState.waves_to_win)
-	hint_label.text = "F fairy · loot auto · walk-over pickups · Z/X towers · Q build · T wave"
+	hint_label.text = "Space jump/double · F fairy · C attack · Z/X towers · Q build · T wave"
 	_ensure_minimap()
 	_ensure_call_wave_ui()
 

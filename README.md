@@ -34,9 +34,10 @@ godot --path .
 | | P1 | P2 |
 |---|---|---|
 | Move | WASD | Arrows |
-| Gather | E (hold) | `.` (hold) |
+| Gather | E (hold, ground only) | `.` (hold, ground only) |
 | Queue tower | Q | `,` |
-| Attack | Space | `/` |
+| Attack | **C** | `/` |
+| Jump / double-jump | **Space** | **Shift** |
 | **Pause / help** | **Esc** or **P** or pad **Start** | same |
 | Restart | R | R |
 
@@ -49,7 +50,8 @@ Switch Pro / Joy-Cons: device 0 → P1, device 1 → P2 (A gather, B attack, X b
 - Shared **Essence** (💰). Kills pay bounty; gather wells along paths for more.
 - **Stone build pads** → **Q** build / upgrade (Lv1–3). Near pad **E** sells (60% refund) if not gathering.
 - **T / LB** = **Call Wave early** for bonus gold (prep phase only).
-- **F / Y** = summon **fairy** (20 Essence, max 6) — auto-**loot** kills + auto-**gather** wells. Walk over drops yourself too.
+- **F / Y** = summon **fairy** (20 Essence, max 6) — auto-**loot** + auto-**gather**.
+- **Space / RB** = **jump** + **double jump**. Unlock auras (low gravity, glide, stomp…) on Campaign → Powers with dust.
 - Nightspawn march **path lanes**; leaks cost **Lives** (♥). Stars 1–3 on victory.
 - Towers auto-fire (prefer enemies closest to crystal); floating dmg/+gold text.
 - Survive **8 waves**. **R** restart. Esc pause. Minimap top-right.
