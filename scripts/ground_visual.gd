@@ -73,16 +73,26 @@ func _build_floor() -> void:
 
 func _build_plaza() -> void:
 	# Lightwell glade — warm amber heart in cold violet night (spec art dir)
-	var outer_mist := _ellipse(Vector2(0, 40), 380, 230, Color(0.28, 0.2, 0.42, 0.22), Z_PLAZA)
+	var outer_mist := _ellipse(Vector2(0, 40), 380, 230, Color(0.28, 0.2, 0.42, 0.28), Z_PLAZA)
 	add_child(outer_mist)
-	var clear := _ellipse(Vector2(0, 40), 280, 170, Color(0.18, 0.28, 0.26, 0.45), Z_PLAZA)
+	var clear := _ellipse(Vector2(0, 40), 280, 170, Color(0.18, 0.28, 0.26, 0.5), Z_PLAZA)
 	add_child(clear)
-	var amber_glow := _ellipse(Vector2(0, 40), 180, 105, Color(0.9, 0.7, 0.35, 0.14), Z_PLAZA)
+	var amber_glow := _ellipse(Vector2(0, 40), 200, 118, Color(0.95, 0.72, 0.35, 0.2), Z_PLAZA)
 	add_child(amber_glow)
-	var cyan_ring := _ellipse(Vector2(0, 40), 130, 75, Color(0.45, 0.9, 0.95, 0.16), Z_PLAZA)
+	var cyan_ring := _ellipse(Vector2(0, 40), 145, 85, Color(0.45, 0.92, 0.95, 0.22), Z_PLAZA)
 	add_child(cyan_ring)
-	var core_glow := _ellipse(Vector2(0, 40), 70, 42, Color(0.95, 0.85, 0.55, 0.12), Z_PLAZA)
+	var core_glow := _ellipse(Vector2(0, 40), 80, 48, Color(0.98, 0.88, 0.55, 0.18), Z_PLAZA)
 	add_child(core_glow)
+	# Ethereal crystal circle around the well (original Dark Crystal vibe)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1982
+	for i in 8:
+		var ang := TAU * float(i) / 8.0 + 0.2
+		var p := Vector2(0, 40) + Vector2(cos(ang), sin(ang) * 0.72) * 165.0
+		if PathNetwork and PathNetwork.dist_to_path(p) < PATH_CLEAR:
+			continue
+		var tint := Color(0.55, 0.9, 0.95, 0.9) if i % 2 == 0 else Color(0.95, 0.75, 0.45, 0.88)
+		_add_ethereal_crystal(p, rng.randf_range(0.7, 1.05), tint, rng)
 
 
 func _build_mist_fields() -> void:

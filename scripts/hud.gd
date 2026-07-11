@@ -49,11 +49,16 @@ func _ready() -> void:
 	_on_dust(GameState.crystal_dust)
 	_on_crystal(GameState.crystal_hp, GameState.crystal_max_hp)
 	_on_wave(GameState.current_wave, GameState.waves_to_win)
-	hint_label.text = "Space jump · C attack · E gather · Q build · F fairy"
+	hint_label.text = "Z/X tower type · Q build/up · E gather/sell · C attack · F fairy · T call wave"
 	hint_label.modulate = Color(1, 1, 1, 0.55)
 	_ensure_minimap()
 	_ensure_call_wave_ui()
 	_ensure_burst_hud()
+	_ensure_tower_loadout()
+	if TowerTypes and TowerTypes.has_signal("unlocks_changed"):
+		TowerTypes.unlocks_changed.connect(_refresh_tower_loadout)
+	if TowerTypes and TowerTypes.has_signal("selection_changed"):
+		TowerTypes.selection_changed.connect(func(_p, _id): _refresh_tower_loadout())
 
 
 func _ensure_minimap() -> void:
@@ -110,6 +115,83 @@ func _resume_if_needed() -> void:
 		_paused = false
 		get_tree().paused = false
 		pause_layer.visible = false
+
+
+func _ensure_tower_loadout() -> void:
+	if has_node("Root/TowerLoadout"):
+		_refresh_tower_loadout()
+		return
+	var host := HBoxContainer.new()
+	host.name = "TowerLoadout"
+	host.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	host.offset_top = -72.0
+	host.offset_bottom = -28.0
+	host.offset_left = 16.0
+	host.offset_right = -16.0
+	host.alignment = BoxContainer.ALIGNMENT_CENTER
+	host.add_theme_constant_override("separation", 8)
+	$Root.add_child(host)
+	_refresh_tower_loadout()
+
+
+func _refresh_tower_loadout() -> void:
+	var host := get_node_or_null("Root/TowerLoadout") as HBoxContainer
+	if host == null or TowerTypes == null:
+		return
+	for c in host.get_children():
+		c.queue_free()
+	var unlocked: Array[String] = TowerTypes.unlocked_ids()
+	var selected: String = TowerTypes.selected_id_for(0)
+	for id in unlocked:
+		var d: Dictionary = TowerTypes.def_for(id)
+		var panel := PanelContainer.new()
+		var style := StyleBoxFlat.new()
+		var col: Color = d.get("color", Color.WHITE) as Color
+		var is_sel := id == selected
+		style.bg_color = Color(col.r * 0.25, col.g * 0.25, col.b * 0.3, 0.88 if is_sel else 0.55)
+		style.border_color = col if is_sel else Color(col.r, col.g, col.b, 0.45)
+		style.set_border_width_all(2 if is_sel else 1)
+		style.set_corner_radius_all(6)
+		style.content_margin_left = 8
+		style.content_margin_right = 8
+		style.content_margin_top = 4
+		style.content_margin_bottom = 4
+		panel.add_theme_stylebox_override("panel", style)
+		var v := VBoxContainer.new()
+		v.add_theme_constant_override("separation", 0)
+		var name_l := Label.new()
+		name_l.text = str(d.get("short", "?"))
+		name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		name_l.add_theme_font_size_override("font_size", 12)
+		name_l.add_theme_color_override("font_color", col.lightened(0.25))
+		var cost_l := Label.new()
+		cost_l.text = "%d✦" % int(d.get("cost", 0))
+		cost_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		cost_l.add_theme_font_size_override("font_size", 10)
+		cost_l.add_theme_color_override("font_color", Color(1, 0.9, 0.65, 0.9))
+		v.add_child(name_l)
+		v.add_child(cost_l)
+		panel.add_child(v)
+		# Click to select (P1)
+		panel.gui_input.connect(func(ev: InputEvent):
+			if ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT:
+				TowerTypes.set_player_pick_id(0, id)
+				_refresh_tower_loadout()
+		)
+		host.add_child(panel)
+	# Locked next teaser
+	var next_id := ""
+	for id in TowerTypes.all_ids():
+		if not TowerTypes.is_unlocked(id):
+			next_id = id
+			break
+	if next_id != "":
+		var d2: Dictionary = TowerTypes.def_for(next_id)
+		var lock := Label.new()
+		lock.text = "  next: %s (later surge)" % d2.get("name")
+		lock.add_theme_font_size_override("font_size", 11)
+		lock.add_theme_color_override("font_color", Color(0.75, 0.7, 0.85, 0.55))
+		host.add_child(lock)
 
 
 func _ensure_call_wave_ui() -> void:

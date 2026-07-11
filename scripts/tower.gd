@@ -14,6 +14,10 @@ var aura_slow: float = 0.0
 var aura_haste: float = 0.0
 var mark_mult: float = 1.0
 var splash: float = 0.0
+var special: String = ""
+var root_duration: float = 0.0
+var chain_count: int = 1
+var chain_falloff: float = 0.7
 
 var _cd: float = 0.0
 var _visual: Node2D
@@ -91,11 +95,19 @@ func _apply_def(d: Dictionary) -> void:
 	aura_haste = float(d.get("aura_haste", 0.0))
 	mark_mult = float(d.get("mark_mult", 1.0))
 	splash = float(d.get("splash", 0.0))
+	special = str(d.get("special", ""))
+	root_duration = float(d.get("root_duration", 0.0))
+	chain_count = int(d.get("chain_count", 1))
+	chain_falloff = float(d.get("chain_falloff", 0.7))
 	_def_color = d.get("color", Color(0.5, 0.7, 0.5)) as Color
 	# level scaling
 	damage = int(damage * (1.0 + (level - 1) * 0.45))
 	fire_rate = maxf(0.22, fire_rate * (1.0 - (level - 1) * 0.12))
 	fire_range = fire_range + (level - 1) * 22.0
+	if root_duration > 0.0:
+		root_duration += (level - 1) * 0.2
+	if chain_count > 1:
+		chain_count += level - 1
 
 
 func set_invested(amount: int) -> void:
@@ -200,6 +212,10 @@ func _build_visuals() -> void:
 			_build_hearth()
 		"pulse":
 			_build_bonehowl()
+		"root":
+			_build_rootgate()
+		"chain":
+			_build_skyshard()
 		_:
 			_build_thornspire()
 
@@ -528,33 +544,148 @@ func apply_haste(amount: float, duration: float) -> void:
 func _fire_at(target: Node2D) -> void:
 	if target == null or not is_instance_valid(target):
 		return
-	var dmg := damage
-	if target.has_method("is_marked") and bool(target.call("is_marked")):
-		dmg = int(float(dmg) * 1.35)
 	var host: Node = get_parent()
 	if host == null:
 		host = self
 
-	if target.has_method("take_damage"):
-		if splash > 0.0:
-			var tree := get_tree()
-			if tree:
-				for e in tree.get_nodes_in_group("enemies"):
-					if not (e is Node2D) or not is_instance_valid(e):
-						continue
-					if target.global_position.distance_to(e.global_position) <= splash:
-						var mult := 1.0 if e == target else 0.55
-						var hit := maxi(1, int(float(dmg) * mult))
-						e.call("take_damage", hit)
-						FloatingText.spawn(host, e.global_position + Vector2(0, -12), str(hit), _def_color)
-		else:
-			target.call("take_damage", dmg)
-			FloatingText.spawn(host, target.global_position + Vector2(0, -16), str(dmg), _def_color)
+	match special:
+		"multishot":
+			_fire_multishot(host)
+		"chain":
+			_fire_chain(target, host)
+		"execute":
+			_hit_one(target, _execute_damage(target), host)
+			_muzzle_flash(target.global_position)
+		"root":
+			_fire_root_pulse(target, host)
+		_:
+			if splash > 0.0:
+				_fire_splash(target, host)
+			else:
+				_hit_one(target, damage, host)
+				_muzzle_flash(target.global_position)
 
-	if role == "mark" and target.has_method("apply_mark") and is_instance_valid(target):
+	if role == "mark" and is_instance_valid(target) and target.has_method("apply_mark"):
 		target.call("apply_mark", mark_mult, 3.0)
-	if is_instance_valid(target):
-		_muzzle_flash(target.global_position)
+
+
+func _execute_damage(target: Node2D) -> int:
+	var dmg := damage
+	if target.has_method("is_elite") and bool(target.call("is_elite")):
+		dmg = int(float(dmg) * 1.35)
+	var hp_v = target.get("hp")
+	var max_v = target.get("max_hp")
+	if hp_v != null and max_v != null:
+		var mx := maxi(1, int(max_v))
+		if float(hp_v) / float(mx) <= 0.28:
+			dmg = int(float(dmg) * 1.6)
+	return dmg
+
+
+func _hit_one(target: Node2D, dmg: int, host: Node) -> void:
+	if target == null or not is_instance_valid(target) or not target.has_method("take_damage"):
+		return
+	if target.has_method("is_marked") and bool(target.call("is_marked")):
+		dmg = int(float(dmg) * 1.35)
+	target.call("take_damage", maxi(1, dmg))
+	FloatingText.spawn(host, target.global_position + Vector2(0, -16), str(maxi(1, dmg)), _def_color)
+
+
+func _fire_splash(target: Node2D, host: Node) -> void:
+	var tree := get_tree()
+	if tree == null:
+		return
+	for e in tree.get_nodes_in_group("enemies"):
+		if not (e is Node2D) or not is_instance_valid(e):
+			continue
+		if target.global_position.distance_to(e.global_position) <= splash:
+			var mult := 1.0 if e == target else 0.55
+			_hit_one(e, int(float(damage) * mult), host)
+	_muzzle_flash(target.global_position)
+
+
+func _fire_multishot(host: Node) -> void:
+	## Thornspire: hit up to 2 nearest enemies in range.
+	var targets := _enemies_in_range_sorted(2)
+	for t in targets:
+		_hit_one(t, damage, host)
+		_muzzle_flash(t.global_position)
+
+
+func _fire_chain(primary: Node2D, host: Node) -> void:
+	## Skyshard: bolt leaps to nearby foes.
+	var hit_list: Array[Node2D] = []
+	var cur: Node2D = primary
+	var dmg_f := float(damage)
+	var hops := maxi(1, chain_count)
+	for _i in hops:
+		if cur == null or not is_instance_valid(cur):
+			break
+		if cur in hit_list:
+			break
+		hit_list.append(cur)
+		_hit_one(cur, int(dmg_f), host)
+		_muzzle_flash(cur.global_position)
+		dmg_f *= chain_falloff
+		cur = _nearest_enemy_from(cur.global_position, hit_list, 160.0)
+	# Draw chain arcs between hits
+	for i in range(hit_list.size() - 1):
+		_chain_arc(hit_list[i].global_position, hit_list[i + 1].global_position)
+
+
+func _fire_root_pulse(target: Node2D, host: Node) -> void:
+	var tree := get_tree()
+	if tree == null:
+		return
+	var r := maxf(splash, 70.0)
+	for e in tree.get_nodes_in_group("enemies"):
+		if not (e is Node2D) or not is_instance_valid(e):
+			continue
+		if target.global_position.distance_to(e.global_position) <= r:
+			var mult := 1.0 if e == target else 0.6
+			_hit_one(e, int(float(damage) * mult), host)
+			if e.has_method("apply_root"):
+				e.call("apply_root", root_duration)
+			if e.has_method("apply_slow"):
+				e.call("apply_slow", 0.35, root_duration + 0.3)
+	_muzzle_flash(target.global_position)
+
+
+func _enemies_in_range_sorted(limit: int) -> Array[Node2D]:
+	var out: Array[Node2D] = []
+	var tree := get_tree()
+	if tree == null:
+		return out
+	var scored: Array = []
+	var r2 := fire_range * fire_range
+	for e in tree.get_nodes_in_group("enemies"):
+		if not (e is Node2D) or not is_instance_valid(e):
+			continue
+		var d2: float = global_position.distance_squared_to(e.global_position)
+		if d2 <= r2:
+			scored.append({"e": e, "d": d2})
+	scored.sort_custom(func(a, b): return a.d < b.d)
+	for i in mini(limit, scored.size()):
+		out.append(scored[i].e)
+	return out
+
+
+func _nearest_enemy_from(from: Vector2, exclude: Array[Node2D], max_dist: float) -> Node2D:
+	var best: Node2D = null
+	var best_d := max_dist * max_dist
+	var tree := get_tree()
+	if tree == null:
+		return null
+	for e in tree.get_nodes_in_group("enemies"):
+		if not (e is Node2D) or not is_instance_valid(e):
+			continue
+		if e in exclude:
+			continue
+		var d2: float = from.distance_squared_to(e.global_position)
+		if d2 < best_d:
+			best_d = d2
+			best = e
+	return best
 
 
 func _find_target() -> Node2D:
@@ -571,11 +702,12 @@ func _find_target() -> Node2D:
 		var d2: float = global_position.distance_squared_to(e.global_position)
 		if d2 > r2:
 			continue
-		# Prefer enemies closest to the Lightwell (about to leak), then nearer to tower.
 		var to_crystal: float = e.global_position.distance_to(crystal_pos)
 		var score := 10000.0 / maxf(40.0, to_crystal) + 200.0 / maxf(20.0, sqrt(d2))
 		if role == "snipe" and e.has_method("is_elite") and bool(e.call("is_elite")):
 			score *= 3.0
+		if role == "root" and e.has_method("is_rooted") and not bool(e.call("is_rooted")):
+			score *= 1.4  # prefer free-moving packs
 		if score > best_score:
 			best_score = score
 			best = e
@@ -595,3 +727,73 @@ func _muzzle_flash(to: Vector2) -> void:
 	var tw := create_tween()
 	tw.tween_property(line, "modulate:a", 0.0, 0.14)
 	tw.tween_callback(line.queue_free)
+
+
+func _chain_arc(from: Vector2, to: Vector2) -> void:
+	var line := Line2D.new()
+	line.width = 2.5
+	line.default_color = Color(_def_color.r, _def_color.g, _def_color.b, 0.85)
+	line.begin_cap_mode = Line2D.LINE_CAP_ROUND
+	line.end_cap_mode = Line2D.LINE_CAP_ROUND
+	line.points = PackedVector2Array([from - global_position, to - global_position])
+	line.z_index = 20
+	add_child(line)
+	var tw := create_tween()
+	tw.tween_property(line, "modulate:a", 0.0, 0.18)
+	tw.tween_callback(line.queue_free)
+
+
+func _build_rootgate() -> void:
+	var base := FX.make_ellipse_poly(22 + level * 3, 12, 20, Color(0.2, 0.28, 0.16, 0.9))
+	base.position = Vector2(0, 8)
+	_visual.add_child(base)
+	_body = Polygon2D.new()
+	var h := 48.0 + (level - 1) * 12.0
+	_body.polygon = PackedVector2Array([
+		Vector2(-10, 8), Vector2(10, 8), Vector2(8, -h * 0.4), Vector2(0, -h), Vector2(-8, -h * 0.4)
+	])
+	_body.color = Color(0.35, 0.48, 0.28)
+	_visual.add_child(_body)
+	_accent = Polygon2D.new()
+	_accent.polygon = PackedVector2Array([
+		Vector2(-18, -10), Vector2(-6, -h * 0.55), Vector2(-2, -8)
+	])
+	_accent.color = _def_color
+	_visual.add_child(_accent)
+	var root2 := _accent.duplicate() as Polygon2D
+	root2.scale.x = -1
+	_visual.add_child(root2)
+	if level >= 2:
+		for i in 3:
+			var vine := Line2D.new()
+			vine.width = 2.0
+			vine.default_color = Color(0.3, 0.55, 0.28, 0.85)
+			var a := TAU * float(i) / 3.0
+			vine.points = PackedVector2Array([
+				Vector2(cos(a) * 6, 4), Vector2(cos(a) * 20, -20 - level * 4)
+			])
+			_visual.add_child(vine)
+
+
+func _build_skyshard() -> void:
+	var base := FX.make_ellipse_poly(16 + level * 2, 9, 16, Color(0.2, 0.28, 0.35, 0.9))
+	base.position = Vector2(0, 8)
+	_visual.add_child(base)
+	var h := 54.0 + (level - 1) * 12.0
+	_body = Polygon2D.new()
+	_body.polygon = PackedVector2Array([
+		Vector2(0, -h), Vector2(10, -h * 0.55), Vector2(4, 6), Vector2(-4, 6), Vector2(-10, -h * 0.55)
+	])
+	_body.color = Color(0.55, 0.85, 0.95)
+	_visual.add_child(_body)
+	_accent = FX.make_ellipse_poly(8 + level * 2, 8 + level * 2, 12, Color(0.95, 0.95, 1.0, 0.75))
+	_accent.position = Vector2(0, -h * 0.7)
+	_visual.add_child(_accent)
+	# Floating shard satellites
+	for i in (1 + level):
+		var ang := TAU * float(i) / float(1 + level)
+		var shard := Polygon2D.new()
+		shard.polygon = PackedVector2Array([Vector2(0, -8), Vector2(4, 0), Vector2(0, 4), Vector2(-4, 0)])
+		shard.color = Color(0.7, 0.95, 1.0, 0.85)
+		shard.position = Vector2(cos(ang), sin(ang) * 0.7) * (22.0 + level * 4.0) + Vector2(0, -28)
+		_visual.add_child(shard)

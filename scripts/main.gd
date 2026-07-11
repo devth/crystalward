@@ -17,6 +17,12 @@ func _ready() -> void:
 	if GameState:
 		GameState.reset()
 	_apply_campaign_map()
+	# Tower roster for this match (campaign tier + map difficulty)
+	if TowerTypes and Campaign:
+		var m: Dictionary = Campaign.get_map(Campaign.selected_map_id)
+		TowerTypes.begin_match(int(m.get("difficulty", 1)))
+	elif TowerTypes:
+		TowerTypes.begin_match(1)
 	print("Path lanes: ", PathNetwork.lane_count() if PathNetwork else 0)
 	_essence_scene = load("res://scenes/essence_node.tscn") as PackedScene
 	_site_scene = load("res://scenes/tower_site.tscn") as PackedScene

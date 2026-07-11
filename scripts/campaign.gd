@@ -132,6 +132,19 @@ func get_map(id: String) -> Dictionary:
 	return maps()[0]
 
 
+func tower_unlock_tier() -> int:
+	## How far into the tower catalog permanent campaign progress has opened.
+	## Completing maps raises the floor of available towers next match.
+	var tier := 1  # Thornspire + Shardbow baseline
+	var list := maps()
+	for i in list.size():
+		var mid: String = str(list[i].get("id"))
+		if is_unlocked(mid):
+			# Each unlocked map past glade opens another tower tier
+			tier = maxi(tier, i + 1)
+	return clampi(tier, 1, 7)
+
+
 func is_unlocked(id: String) -> bool:
 	return unlocked.get(id, false) == true
 

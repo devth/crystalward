@@ -309,12 +309,13 @@ func _physics_process(delta: float) -> void:
 		_try_call_wave()
 	if Input.is_action_just_pressed("spawn_fairy") or _action_just_pressed("fairy"):
 		_try_spawn_fairy()
-	# Cycle tower types on pad (Kingdom Rush shop feel)
-	if _near_build.size() > 0:
-		if _action_just_pressed("cycle_left") or Input.is_action_just_pressed("ui_left"):
-			_cycle_pad(-1)
-		if _action_just_pressed("cycle_right") or Input.is_action_just_pressed("ui_right"):
-			_cycle_pad(1)
+	# Cycle tower pick anytime (Z/X or shoulders) — different pads can use different types
+	if _action_just_pressed("cycle_left") or Input.is_action_just_pressed("cycle_left") \
+			or (player_index == 0 and Input.is_action_just_pressed("ui_left")):
+		_cycle_pad(-1)
+	if _action_just_pressed("cycle_right") or Input.is_action_just_pressed("cycle_right") \
+			or (player_index == 0 and Input.is_action_just_pressed("ui_right")):
+		_cycle_pad(1)
 
 
 func _read_move() -> Vector2:
@@ -353,7 +354,7 @@ func _try_sell_nearby() -> void:
 func _try_build() -> void:
 	for n in _near_build:
 		if n and n.has_method("try_queue_build"):
-			if n.try_queue_build():
+			if n.try_queue_build(player_index):
 				return
 
 
@@ -366,12 +367,21 @@ func _try_call_wave() -> void:
 
 
 func _cycle_pad(dir: int) -> void:
-	for n in _near_build:
-		if n and n.has_method("cycle_type"):
-			n.call("cycle_type", dir)
-			return
+	## Per-player tower pick — cycle unlocked types, preview on nearby pad.
 	if TowerTypes:
-		TowerTypes.cycle(dir)
+		var id: String = TowerTypes.cycle_for_player(player_index, dir)
+		var d: Dictionary = TowerTypes.def_for(id)
+		# Update any pad we're standing on so range ring / label match our pick
+		for n in _near_build:
+			if n and n.has_method("set_preview_from_player"):
+				n.call("set_preview_from_player", player_index)
+			elif n and n.has_method("cycle_type"):
+				# Already cycled globally for this player; just refresh label
+				if n.has_method("set_preview_from_player"):
+					n.call("set_preview_from_player", player_index)
+		if _near_build.is_empty():
+			FloatingText.spawn(get_parent(), global_position + Vector2(0, -36), str(d.get("name")), d.get("color"))
+		return
 
 
 func _try_spawn_fairy() -> void:

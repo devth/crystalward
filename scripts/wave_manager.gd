@@ -125,6 +125,8 @@ func _begin_wave() -> void:
 		_phase = Phase.DONE
 		return
 	GameState.set_wave(_wave)
+	if TowerTypes and TowerTypes.has_method("on_wave_started"):
+		TowerTypes.on_wave_started(_wave)
 	var map := _map_def()
 	var names := [
 		"Thrall Tide", "Iron Procession", "Wild Hunt", "Soft Dark",

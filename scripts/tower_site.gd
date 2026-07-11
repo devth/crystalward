@@ -10,9 +10,12 @@ var state: State = State.EMPTY
 var _queue_left: float = 0.0
 var _tower: Node2D = null
 var _queued_type: String = "thornspire"
+var _preview_type: String = "thornspire"
+var _last_builder: int = 0
 var _platform: Node2D
 var _range_preview: Polygon2D
 var _type_swatch: Polygon2D
+var _crystal_ornament: Node2D
 var _players_near: int = 0
 
 @onready var _bar: ProgressBar = $Progress
@@ -57,18 +60,32 @@ func _build_visuals() -> void:
 		VisualStyle.make_blob_shadow(self, 28, 12, 10)
 	_platform = Node2D.new()
 	add_child(_platform)
-	# Stone build pad — quiet marker, not a neon manhole
-	var outer := FX.make_ellipse_poly(30, 16, 28, Color(0.22, 0.2, 0.18, 0.7))
+	# Ethereal crystal plinth (Dark Crystal / Lightwell vibe)
+	var outer := FX.make_ellipse_poly(32, 17, 28, Color(0.14, 0.12, 0.2, 0.75))
 	_platform.add_child(outer)
-	var mid := FX.make_ellipse_poly(20, 11, 24, Color(0.36, 0.34, 0.3, 0.65))
+	var mid := FX.make_ellipse_poly(22, 12, 24, Color(0.28, 0.22, 0.38, 0.7))
 	_platform.add_child(mid)
-	var inner := FX.make_ellipse_poly(10, 6, 16, Color(0.48, 0.5, 0.42, 0.4))
+	var glow := FX.make_ellipse_poly(14, 8, 18, Color(0.55, 0.85, 0.95, 0.22))
+	_platform.add_child(glow)
+	var inner := FX.make_ellipse_poly(9, 5, 14, Color(0.95, 0.75, 0.4, 0.35))
 	_platform.add_child(inner)
-	_type_swatch = FX.make_ellipse_poly(6, 3.5, 12, Color(0.5, 0.85, 0.5, 0.85))
-	_type_swatch.position = Vector2(0, -2)
+	_crystal_ornament = Node2D.new()
+	_platform.add_child(_crystal_ornament)
+	for i in 3:
+		var shard := Polygon2D.new()
+		var ang := -0.6 + i * 0.6
+		var h := 14.0 + i * 3.0
+		shard.polygon = PackedVector2Array([
+			Vector2(0, -h), Vector2(4, -h * 0.4), Vector2(2, 2), Vector2(-2, 2), Vector2(-4, -h * 0.4)
+		])
+		shard.color = Color(0.55, 0.9, 0.95, 0.75) if i != 1 else Color(0.95, 0.75, 0.45, 0.8)
+		shard.position = Vector2(sin(ang) * 10.0, -6)
+		shard.rotation = ang * 0.35
+		_crystal_ornament.add_child(shard)
+	_type_swatch = FX.make_ellipse_poly(7, 4, 12, Color(0.5, 0.85, 0.5, 0.9))
+	_type_swatch.position = Vector2(0, 4)
 	_type_swatch.visible = false
 	_platform.add_child(_type_swatch)
-	# Base ring = 100px radius; scaled so preview matches tower fire_range.
 	_range_preview = FX.make_ellipse_poly(100, 72, 48, Color(0.3, 0.85, 0.4, 0.14))
 	_range_preview.z_index = -2
 	_range_preview.visible = false
@@ -78,8 +95,18 @@ func _build_visuals() -> void:
 
 func _sync_swatch() -> void:
 	if _type_swatch and TowerTypes:
-		var d: Dictionary = TowerTypes.selected_def() if state == State.EMPTY else TowerTypes.def_for(_queued_type)
+		var id := _preview_type if state == State.EMPTY else _queued_type
+		var d: Dictionary = TowerTypes.def_for(id)
 		_type_swatch.color = d.get("color", Color.WHITE)
+		if _range_preview and state == State.EMPTY:
+			var r: float = float(d.get("range", 340.0))
+			_range_preview.color = Color(
+				d.get("color", Color.GREEN).r,
+				d.get("color", Color.GREEN).g,
+				d.get("color", Color.GREEN).b,
+				0.14
+			)
+			_range_preview.scale = Vector2.ONE * (r / 100.0)
 
 
 func _refresh_label() -> void:
@@ -90,8 +117,9 @@ func _refresh_label() -> void:
 	else:
 		match state:
 			State.EMPTY:
-				var d: Dictionary = TowerTypes.selected_def()
-				_label.text = "%s %d✦  [←→]" % [d.get("name"), d.get("cost")]
+				var d: Dictionary = TowerTypes.def_for(_preview_type)
+				var n := TowerTypes.unlocked_count()
+				_label.text = "%s %d✦  Z/X · %d types" % [d.get("name"), d.get("cost"), n]
 			State.QUEUED:
 				_label.text = "Building %s..." % TowerTypes.def_for(_queued_type).get("name")
 			State.BUILT:
@@ -137,22 +165,36 @@ func _process(delta: float) -> void:
 		_refresh_label()
 
 
-func cycle_type(dir: int) -> void:
+func cycle_type(dir: int, player_index: int = 0) -> void:
 	if state != State.EMPTY or TowerTypes == null:
 		return
-	TowerTypes.cycle(dir)
+	_last_builder = player_index
+	var id: String = TowerTypes.cycle_for_player(player_index, dir)
+	_preview_type = id
 	_refresh_label()
-	FloatingText.spawn(get_parent(), global_position + Vector2(0, -30), str(TowerTypes.selected_def().get("name")), TowerTypes.selected_def().get("color"))
+	var d: Dictionary = TowerTypes.def_for(id)
+	FloatingText.spawn(get_parent(), global_position + Vector2(0, -30), str(d.get("name")), d.get("color"))
 
 
-func try_queue_build() -> bool:
+func set_preview_from_player(player_index: int) -> void:
+	if TowerTypes == null or state != State.EMPTY:
+		return
+	_preview_type = TowerTypes.selected_id_for(player_index)
+	_last_builder = player_index
+	_refresh_label()
+
+
+func try_queue_build(player_index: int = 0) -> bool:
 	if GameState.is_game_over:
 		return false
 	if state == State.BUILT:
 		return try_upgrade()
 	if state != State.EMPTY:
 		return false
-	_queued_type = TowerTypes.selected_id() if TowerTypes else "thornspire"
+	_last_builder = player_index
+	_queued_type = TowerTypes.selected_id_for(player_index) if TowerTypes else "thornspire"
+	if TowerTypes and not TowerTypes.is_unlocked(_queued_type):
+		_queued_type = TowerTypes.selected_id_for(player_index)
 	var cost: int = TowerTypes.cost_for(_queued_type) if TowerTypes else GameState.TOWER_COST_ESSENCE
 	if not GameState.try_spend_essence(cost):
 		return false
@@ -234,8 +276,9 @@ func _update_range_preview() -> void:
 		var fr := float(_tower.fire_range)
 		_range_preview.scale = Vector2.ONE * (fr / 100.0)
 	elif state == State.EMPTY and TowerTypes:
-		var r: float = float(TowerTypes.selected_def().get("range", 340.0))
-		var col: Color = TowerTypes.selected_def().get("color", Color.GREEN) as Color
+		var d: Dictionary = TowerTypes.def_for(_preview_type)
+		var r: float = float(d.get("range", 340.0))
+		var col: Color = d.get("color", Color.GREEN) as Color
 		_range_preview.color = Color(col.r, col.g, col.b, 0.14)
 		_range_preview.scale = Vector2.ONE * (r / 100.0)
 
@@ -244,6 +287,8 @@ func _on_body_entered(body: Node) -> void:
 	if body.has_method("register_build"):
 		body.register_build(self)
 		_players_near += 1
+		if body.get("player_index") != null:
+			set_preview_from_player(int(body.player_index))
 		_update_range_preview()
 		_refresh_label()
 

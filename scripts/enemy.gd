@@ -35,6 +35,7 @@ var _slow: float = 0.0
 var _slow_t: float = 0.0
 var _mark_mult: float = 1.0
 var _mark_t: float = 0.0
+var _root_t: float = 0.0
 var _move_dir: Vector2 = Vector2.DOWN
 
 @onready var _bar: ProgressBar = $HpBar
@@ -177,8 +178,12 @@ func _physics_process(delta: float) -> void:
 		_mark_t -= delta
 		if _mark_t <= 0.0:
 			_mark_mult = 1.0
+	if _root_t > 0.0:
+		_root_t -= delta
 
 	var spd := move_speed * (1.0 - clampf(_slow, 0.0, 0.7))
+	if _root_t > 0.0:
+		spd = 0.0
 
 	# Lateral separation only — stay on the road, don't shove off-path
 	_apply_lateral_separation(delta)
@@ -291,6 +296,14 @@ func apply_slow(amount: float, duration: float) -> void:
 func apply_mark(mult: float, duration: float) -> void:
 	_mark_mult = maxf(_mark_mult, mult)
 	_mark_t = maxf(_mark_t, duration)
+
+
+func apply_root(duration: float) -> void:
+	_root_t = maxf(_root_t, duration)
+
+
+func is_rooted() -> bool:
+	return _root_t > 0.0
 
 
 func is_marked() -> bool:
