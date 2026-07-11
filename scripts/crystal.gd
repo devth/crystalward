@@ -72,8 +72,15 @@ func _build_visuals() -> void:
 		Vector2(6, 36), Vector2(-8, 34), Vector2(-22, 18), Vector2(-30, -6),
 		Vector2(-20, -34)
 	])
-	_core.color = Color(0.72, 0.55, 0.95, 0.95)
+	_core.color = Color(0.85, 0.72, 1.0, 0.98)
 	add_child(_core)
+	# Bold outline rings for silhouette (PJ readability)
+	var outline := _core.duplicate() as Polygon2D
+	outline.color = Color(0.12, 0.08, 0.16, 0.85)
+	outline.scale = Vector2(1.08, 1.08)
+	outline.z_index = -1
+	add_child(outline)
+	move_child(outline, _core.get_index())
 
 	var facet_l := Polygon2D.new()
 	facet_l.polygon = PackedVector2Array([

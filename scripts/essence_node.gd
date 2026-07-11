@@ -1,5 +1,5 @@
 extends Area2D
-## Essence node — hold gather; shared progress; cyan crystal well VFX.
+## Essence fruit well — hold gather; shared progress. PJ-style glowing orbs.
 
 @export var respawn_time: float = 4.0
 
@@ -7,9 +7,10 @@ var _progress: float = 0.0
 var _depleted: bool = false
 var _respawn_left: float = 0.0
 var _visual: Node2D
-var _crystal: Polygon2D
-var _ring: Polygon2D
+var _fruit: Polygon2D
+var _leaf: Polygon2D
 var _particles: GPUParticles2D
+var _bob: float = 0.0
 
 @onready var _bar: ProgressBar = $Progress
 @onready var _label: Label = $Label
@@ -23,57 +24,82 @@ func _ready() -> void:
 	if has_node("Body"):
 		$Body.visible = false
 
+	_bob = randf() * TAU
 	_build_visuals()
-	FX.style_progress_bar(_bar, Color(0.4, 0.85, 0.9), Color(0.05, 0.1, 0.12, 0.85))
+	FX.style_progress_bar(_bar, Color(0.45, 0.95, 0.9), Color(0.05, 0.1, 0.12, 0.85))
 	_bar.max_value = GameState.GATHER_NEED
 	_bar.value = 0.0
-	_bar.position = Vector2(-26, -42)
-	_bar.size = Vector2(52, 8)
+	_bar.position = Vector2(-26, -48)
+	_bar.size = Vector2(52, 9)
 	_label.text = "Hold gather"
-	_label.add_theme_color_override("font_color", Color(0.7, 0.95, 1.0, 0.85))
-	_label.add_theme_color_override("font_outline_color", Color(0.05, 0.08, 0.12, 0.9))
-	_label.add_theme_constant_override("outline_size", 3)
-	_label.position = Vector2(-36, 26)
+	if VisualStyle:
+		VisualStyle.style_game_label(_label, 12, true)
+	_label.position = Vector2(-40, 26)
 	z_index = int(global_position.y)
+	add_to_group("essence_nodes")
 
 
 func _build_visuals() -> void:
 	_visual = Node2D.new()
 	add_child(_visual)
-	FX.add_soft_shadow(_visual, 20, 9, 14)
+	if VisualStyle:
+		VisualStyle.make_blob_shadow(_visual, 20, 9, 14)
+	else:
+		FX.add_soft_shadow(_visual, 20, 9, 14)
 
-	_ring = FX.make_ellipse_poly(28, 16, 28, Color(0.3, 0.7, 0.8, 0.2))
-	_ring.position = Vector2(0, 6)
-	_visual.add_child(_ring)
-
-	var pool := FX.make_ellipse_poly(18, 10, 24, Color(0.15, 0.35, 0.4, 0.7))
-	pool.position = Vector2(0, 8)
-	_visual.add_child(pool)
-
-	_crystal = Polygon2D.new()
-	_crystal.polygon = PackedVector2Array([
-		Vector2(0, -22), Vector2(12, -4), Vector2(6, 12), Vector2(-6, 12), Vector2(-12, -4)
+	# Grass tuft base
+	var grass := Polygon2D.new()
+	grass.polygon = PackedVector2Array([
+		Vector2(-16, 10), Vector2(-8, -2), Vector2(0, 8), Vector2(8, -4), Vector2(16, 10)
 	])
-	_crystal.color = Color(0.45, 0.9, 0.95, 0.92)
-	_visual.add_child(_crystal)
+	grass.color = Color(0.35, 0.6, 0.35)
+	_visual.add_child(grass)
 
-	var facet := Polygon2D.new()
-	facet.polygon = PackedVector2Array([
-		Vector2(0, -22), Vector2(12, -4), Vector2(0, 2), Vector2(-4, -8)
+	# Stem
+	var stem := Line2D.new()
+	stem.width = 3.0
+	stem.default_color = Color(0.3, 0.5, 0.28)
+	stem.points = PackedVector2Array([Vector2(0, 6), Vector2(0, -8)])
+	_visual.add_child(stem)
+
+	_leaf = Polygon2D.new()
+	_leaf.polygon = PackedVector2Array([
+		Vector2(2, -4), Vector2(14, -12), Vector2(4, 2)
 	])
-	facet.color = Color(0.85, 1.0, 1.0, 0.45)
-	_visual.add_child(facet)
+	_leaf.color = Color(0.4, 0.7, 0.4)
+	_visual.add_child(_leaf)
 
-	_particles = FX.spark_particles(_visual, Color(0.5, 0.95, 1.0, 0.85), 14)
-	_particles.position = Vector2(0, -8)
+	# Glowing fruit (essence)
+	_fruit = Polygon2D.new()
+	_fruit.polygon = PackedVector2Array([
+		Vector2(0, -28), Vector2(12, -16), Vector2(10, -2), Vector2(0, 4),
+		Vector2(-10, -2), Vector2(-12, -16)
+	])
+	_fruit.color = Color(0.45, 0.95, 0.92)
+	_visual.add_child(_fruit)
+	var hi := Polygon2D.new()
+	hi.polygon = PackedVector2Array([
+		Vector2(-4, -22), Vector2(2, -20), Vector2(-2, -12)
+	])
+	hi.color = Color(0.9, 1.0, 1.0, 0.7)
+	_visual.add_child(hi)
+
+	var glow := FX.make_ellipse_poly(18, 16, 20, Color(0.5, 0.95, 0.9, 0.18))
+	glow.position = Vector2(0, -12)
+	glow.z_index = -1
+	_visual.add_child(glow)
+
+	_particles = FX.spark_particles(_visual, Color(0.55, 1.0, 0.95, 0.85), 14, "glow")
+	_particles.position = Vector2(0, -12)
 
 
 func _process(delta: float) -> void:
-	var t := Time.get_ticks_msec() * 0.001
-	if _crystal and not _depleted:
-		_crystal.position.y = sin(t * 2.4) * 2.5
-		_crystal.rotation = sin(t * 1.1) * 0.08
-		_ring.modulate.a = 0.5 + 0.5 * sin(t * 3.0)
+	_bob += delta
+	if _fruit and not _depleted:
+		_fruit.position.y = sin(_bob * 2.6) * 2.8
+		_fruit.rotation = sin(_bob * 1.2) * 0.08
+		if _leaf:
+			_leaf.rotation = sin(_bob * 1.5) * 0.12
 
 	if _depleted:
 		_respawn_left -= delta
@@ -95,8 +121,8 @@ func contribute_gather(delta: float) -> void:
 		return
 	_progress += GameState.GATHER_PROGRESS_RATE * delta
 	_bar.value = _progress
-	if _crystal:
-		_crystal.modulate = Color(1.4, 1.5, 1.6)
+	if _fruit:
+		_fruit.modulate = Color(1.4, 1.5, 1.5)
 	if _progress >= GameState.GATHER_NEED:
 		_complete_gather()
 
@@ -107,11 +133,11 @@ func _complete_gather() -> void:
 	if Sfx:
 		Sfx.gather()
 	if FX:
-		FX.burst_particles(self, global_position, Color(0.5, 0.95, 1.0, 0.9), 10, "glow", 0.4)
+		FX.burst_particles(self, global_position + Vector2(0, -12), Color(0.5, 0.95, 0.9), 14, "glow", 0.45)
 	_depleted = true
 	_respawn_left = respawn_time
 	if _visual:
-		_visual.modulate = Color(0.35, 0.4, 0.45)
+		_visual.modulate = Color(0.45, 0.5, 0.48)
 	if _particles:
 		_particles.emitting = false
 	_bar.visible = false

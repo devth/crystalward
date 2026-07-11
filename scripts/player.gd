@@ -13,6 +13,8 @@ class_name Warden
 
 var _attack_cd: float = 0.0
 var _facing: Vector2 = Vector2.DOWN
+## Horizontal facing for visuals only — kept separate so squash/stretch never fights flip.
+var _face_sign: float = 1.0
 var _near_gather: Array[Node] = []
 var _near_build: Array[Node] = []
 var _visual_root: Node2D
@@ -42,10 +44,13 @@ func _ready() -> void:
 
 	_build_visuals()
 	_label.text = "P%d" % (player_index + 1)
-	_label.add_theme_color_override("font_color", body_color.lightened(0.25))
-	_label.add_theme_color_override("font_outline_color", Color(0.05, 0.04, 0.1, 0.9))
-	_label.add_theme_constant_override("outline_size", 4)
-	_label.position = Vector2(-18, -52)
+	if VisualStyle:
+		VisualStyle.style_game_label(_label, 15, true)
+		_label.add_theme_color_override("font_color", body_color.lightened(0.35))
+	else:
+		_label.add_theme_color_override("font_color", body_color.lightened(0.25))
+		_label.add_theme_constant_override("outline_size", 5)
+	_label.position = Vector2(-18, -58)
 	_label.z_index = 10
 
 
@@ -82,11 +87,15 @@ func _build_visuals() -> void:
 
 	if not _skin_frames.is_empty() and _skin_frames[0] != null:
 		_use_sprite = true
-		_body_sprite = AssetPaths.make_pixel_sprite(_skin_frames[0], scale_mul)
+		# PJ Monsters–scale readability: bigger, outlined sprites
+		_body_sprite = AssetPaths.make_pixel_sprite(_skin_frames[0], scale_mul * 1.25)
 		_body_sprite.modulate = _skin_modulate
-		_body_sprite.position = Vector2(0, -6)
+		_body_sprite.position = Vector2(0, -8)
 		_body_sprite.name = "BodySprite"
 		_visual_root.add_child(_body_sprite)
+		# Outline after enter-tree so material sticks on all renderers
+		if VisualStyle:
+			VisualStyle.apply_sprite_outline(_body_sprite, 1.35)
 	else:
 		_use_sprite = false
 		_build_polygon_fallback()
@@ -142,18 +151,14 @@ func _physics_process(delta: float) -> void:
 
 	_attack_cd = maxf(0.0, _attack_cd - delta)
 	_bob_t += delta * (8.0 if velocity.length() > 10.0 else 3.0)
-	if _visual_root:
-		_visual_root.position.y = sin(_bob_t) * (2.2 if velocity.length() > 10.0 else 1.0)
-		if has_node("Visual/StaffGem"):
-			var gem: Polygon2D = $Visual/StaffGem
-			gem.modulate = Color(1, 1, 1, 0.75 + 0.25 * sin(_bob_t * 1.3))
 
 	var dir := _read_move()
 	if dir.length_squared() > 0.01:
 		_facing = dir.normalized()
+		# Only update face sign on meaningful horizontal input (don't flip on pure up/down)
+		if absf(_facing.x) > 0.15:
+			_face_sign = -1.0 if _facing.x < 0.0 else 1.0
 		velocity = velocity.move_toward(dir.normalized() * move_speed, move_accel * delta)
-		if _visual_root:
-			_visual_root.scale.x = -1.0 if _facing.x < -0.15 else 1.0
 		if _use_sprite and _skin_frames.size() > 1 and _body_sprite:
 			_frame_flip_t += delta
 			if _frame_flip_t >= 0.16:
@@ -169,6 +174,16 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 	global_position = GameState.clamp_world_position(global_position)
 	z_index = int(global_position.y)
+
+	# Single scale write: facing sign × squash (never set flip_h / scale elsewhere)
+	if _visual_root:
+		var moving := velocity.length() > 12.0
+		_visual_root.position.y = sin(_bob_t) * (3.0 if moving else 1.2)
+		var squash := 1.0 + sin(_bob_t * 2.0) * (0.06 if moving else 0.02)
+		_visual_root.scale = Vector2(_face_sign * squash, 1.0 / squash)
+		if has_node("Visual/StaffGem"):
+			var gem: Polygon2D = $Visual/StaffGem
+			gem.modulate = Color(1, 1, 1, 0.75 + 0.25 * sin(_bob_t * 1.3))
 
 	if _action_pressed("gather"):
 		_try_gather(delta)

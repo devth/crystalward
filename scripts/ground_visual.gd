@@ -3,7 +3,7 @@ extends Node2D
 ## Large ritual forest — props and landmarks across the full playable map.
 
 
-const FOREST_MODULATE := Color(0.75, 0.7, 0.95)
+const FOREST_MODULATE := Color(0.85, 0.92, 0.78)  # lush green lift (PJ readability)
 const FLOOR_EXTENT := 2200.0
 
 
@@ -26,28 +26,36 @@ func _build() -> void:
 	])
 	floor_poly.color = Color.WHITE
 	var fm := ShaderMaterial.new()
-	fm.shader = load("res://shaders/ground_moss.gdshader") as Shader
+	var lush := load("res://shaders/lush_ground.gdshader") as Shader
+	fm.shader = lush if lush else load("res://shaders/ground_moss.gdshader") as Shader
 	floor_poly.material = fm
 	add_child(floor_poly)
 
-	# Larger ritual diamond around the lightwell
+	# Island-style ritual diamond (brighter plaza like PJ clearings)
 	var diamond := Polygon2D.new()
 	diamond.polygon = PackedVector2Array([
 		Vector2(0, -520), Vector2(920, 50), Vector2(0, 620), Vector2(-920, 50)
 	])
-	diamond.color = Color(0.14, 0.2, 0.18, 0.92)
+	diamond.color = Color(0.32, 0.48, 0.34, 0.95)
 	diamond.z_index = -40
 	add_child(diamond)
+	var diamond_rim := Polygon2D.new()
+	diamond_rim.polygon = PackedVector2Array([
+		Vector2(0, -540), Vector2(950, 50), Vector2(0, 640), Vector2(-950, 50)
+	])
+	diamond_rim.color = Color(0.55, 0.45, 0.75, 0.12)
+	diamond_rim.z_index = -41
+	add_child(diamond_rim)
 
-	var ring := FX.make_ellipse_poly(160, 95, 48, Color(0.45, 0.3, 0.7, 0.12))
+	var ring := FX.make_ellipse_poly(180, 105, 48, Color(0.95, 0.85, 0.45, 0.1))
 	ring.position = Vector2(0, 40)
 	ring.z_index = -35
 	add_child(ring)
-	var ring2 := FX.make_ellipse_poly(110, 64, 40, Color(0.35, 0.55, 0.45, 0.1))
+	var ring2 := FX.make_ellipse_poly(120, 70, 40, Color(0.55, 0.85, 0.7, 0.12))
 	ring2.position = Vector2(0, 40)
 	ring2.z_index = -34
 	add_child(ring2)
-	var ring3 := FX.make_ellipse_poly(280, 170, 48, Color(0.3, 0.22, 0.4, 0.06))
+	var ring3 := FX.make_ellipse_poly(300, 180, 48, Color(0.7, 0.5, 0.9, 0.06))
 	ring3.position = Vector2(0, 40)
 	ring3.z_index = -36
 	add_child(ring3)
@@ -279,55 +287,53 @@ func _add_path_strip(from: Vector2, to: Vector2, width: float) -> void:
 		return
 	var n := dir.normalized()
 	var perp := Vector2(-n.y, n.x) * (width * 0.5)
-	var glow := Polygon2D.new()
-	glow.polygon = PackedVector2Array([
-		from + perp * 1.35, from - perp * 1.35, to - perp * 1.35, to + perp * 1.35
-	])
-	glow.color = Color(0.45, 0.25, 0.7, 0.12)
-	glow.z_index = -39
-	add_child(glow)
-
+	# Warm dirt path (PJ-style readable lanes)
 	var poly := Polygon2D.new()
 	poly.polygon = PackedVector2Array([
-		from + perp, from - perp, to - perp, to + perp
+		from + perp * 1.1, from - perp * 1.1, to - perp * 1.1, to + perp * 1.1
 	])
-	poly.color = Color(0.16, 0.1, 0.22, 0.88)
+	poly.color = Color(0.42, 0.3, 0.2, 0.92)
 	poly.z_index = -38
 	add_child(poly)
+	var poly_in := Polygon2D.new()
+	poly_in.polygon = PackedVector2Array([
+		from + perp * 0.65, from - perp * 0.65, to - perp * 0.65, to + perp * 0.65
+	])
+	poly_in.color = Color(0.55, 0.4, 0.26, 0.85)
+	poly_in.z_index = -37
+	add_child(poly_in)
 
 	var edge := Line2D.new()
-	edge.width = 2.5
-	edge.default_color = Color(0.65, 0.4, 0.9, 0.4)
-	edge.points = PackedVector2Array([from + perp * 0.92, to + perp * 0.92])
-	edge.z_index = -37
+	edge.width = 3.0
+	edge.default_color = Color(0.35, 0.55, 0.35, 0.55)
+	edge.points = PackedVector2Array([from + perp * 1.05, to + perp * 1.05])
+	edge.z_index = -36
 	add_child(edge)
 	var edge2 := Line2D.new()
-	edge2.width = 2.5
-	edge2.default_color = Color(0.3, 0.65, 0.5, 0.32)
-	edge2.points = PackedVector2Array([from - perp * 0.92, to - perp * 0.92])
-	edge2.z_index = -37
+	edge2.width = 3.0
+	edge2.default_color = Color(0.35, 0.55, 0.35, 0.55)
+	edge2.points = PackedVector2Array([from - perp * 1.05, to - perp * 1.05])
+	edge2.z_index = -36
 	add_child(edge2)
 
+	# Soft magical center vein
 	var vein := Line2D.new()
-	vein.width = 4.0
-	vein.default_color = Color(0.75, 0.55, 1.0, 0.22)
+	vein.width = 3.5
+	vein.default_color = Color(0.85, 0.7, 1.0, 0.28)
 	vein.begin_cap_mode = Line2D.LINE_CAP_ROUND
 	vein.end_cap_mode = Line2D.LINE_CAP_ROUND
 	vein.points = PackedVector2Array([from, to])
-	vein.z_index = -36
+	vein.z_index = -35
 	add_child(vein)
 
-	var steps := maxi(2, int(len / 90.0))
+	var steps := maxi(2, int(len / 100.0))
 	for s in steps:
 		var t := float(s) / float(steps)
-		var p: Vector2 = from.lerp(to, t)
-		var tick := Polygon2D.new()
-		tick.polygon = PackedVector2Array([
-			p + n * 6.0, p + perp * 0.12, p - n * 4.0, p - perp * 0.12
-		])
-		tick.color = Color(0.55, 0.2, 0.45, 0.22)
-		tick.z_index = -35
-		add_child(tick)
+		var p: Vector2 = from.lerp(to, t) + perp.normalized() * randf_range(-width * 0.15, width * 0.15)
+		var pebble := FX.make_ellipse_poly(randf_range(2.0, 4.0), randf_range(1.5, 2.5), 8, Color(0.35, 0.28, 0.2, 0.5))
+		pebble.position = p
+		pebble.z_index = -34
+		add_child(pebble)
 
 
 func _add_spawn_portal(pos: Vector2) -> void:
@@ -335,12 +341,15 @@ func _add_spawn_portal(pos: Vector2) -> void:
 	root.position = pos
 	root.z_index = int(pos.y)
 	add_child(root)
-	var ring := FX.make_ellipse_poly(36, 22, 28, Color(0.55, 0.15, 0.4, 0.35))
+	# Friendly-readable “dark gate” — bold silhouette like PJ spawn points
+	var outer := FX.make_ellipse_poly(42, 26, 28, Color(0.2, 0.1, 0.22, 0.75))
+	root.add_child(outer)
+	var ring := FX.make_ellipse_poly(34, 20, 28, Color(0.75, 0.35, 0.55, 0.55))
 	root.add_child(ring)
-	var core := FX.make_ellipse_poly(16, 10, 18, Color(0.85, 0.25, 0.45, 0.45))
+	var core := FX.make_ellipse_poly(16, 10, 18, Color(1.0, 0.7, 0.85, 0.65))
 	root.add_child(core)
 	if FX:
-		FX.spark_particles(root, Color(0.8, 0.3, 0.55, 0.7), 10, "magic")
+		FX.spark_particles(root, Color(0.95, 0.55, 0.85, 0.8), 12, "magic")
 
 
 func _add_standing_stone(pos: Vector2, scale: float) -> void:

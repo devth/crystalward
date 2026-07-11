@@ -19,6 +19,7 @@ FX="*res://scripts/fx.gd"
 PathNetwork="*res://scripts/path_network.gd"
 Juice="*res://scripts/juice.gd"
 Sfx="*res://scripts/audio_bus.gd"
+VisualStyle="*res://scripts/visual_style.gd"
 
 [display]
 
@@ -136,4 +137,5 @@ pause={
 [rendering]
 
 textures/canvas_textures/default_texture_filter=0
-environment/defaults/default_clear_color=Color(0.08, 0.06, 0.12, 1)
+environment/defaults/default_clear_color=Color(0.14, 0.16, 0.18, 1)
+textures/canvas_textures/default_texture_filter=0

@@ -155,7 +155,12 @@ func _build_atmosphere() -> void:
 		ray.position = Vector2(0, 40)
 		add_child(ray)
 
-	# Canvas dusk grade
+	# Warm lush grade (PJ Monsters readability — not pure purple night)
 	var grade := CanvasModulate.new()
-	grade.color = Color(0.88, 0.82, 0.95)
+	grade.color = Color(1.02, 0.98, 0.95)
 	add_child(grade)
+
+	# Soft bloom / vignette post
+	var post := CanvasLayer.new()
+	post.set_script(load("res://scripts/post_fx.gd"))
+	add_child(post)

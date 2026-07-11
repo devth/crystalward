@@ -2,7 +2,8 @@
 
 Local co-op **action tower defense** — wardens protect a sacred crystal from the soft dark.
 
-Tone: *The Dark Crystal* × *Legend* (1980s dark fantasy). Pacing: action RTS (high APM).
+Tone: *The Dark Crystal* × *Legend* (1980s dark fantasy). Pacing: action RTS (high APM).  
+**Look:** PixelJunk-inspired — bold sprite outlines, lush moss ground, living tree-towers, soft bloom/vignette, readable cream UI.
 
 **Players:** 1–2 local in v0 (pad slots ready for more) · **any player can do any job**  
 **Stack:** Godot 4 · isometric-ish 2.5D presentation · shared bank

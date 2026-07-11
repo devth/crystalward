@@ -19,13 +19,21 @@ var _msg_tween: Tween
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	# Style panels with Kenney UI nine-patch when available (falls back to flat boxes).
-	if has_node("Root/TopBar"):
-		FX.style_panel_kenney($Root/TopBar as PanelContainer, Color(0.42, 0.38, 0.58, 0.92))
-	if has_node("Root/PauseLayer/Panel"):
-		FX.style_panel_kenney($Root/PauseLayer/Panel as PanelContainer, Color(0.48, 0.42, 0.68, 0.96))
-	if has_node("Root/EndPanel"):
-		FX.style_panel_kenney($Root/EndPanel as PanelContainer, Color(0.5, 0.4, 0.7, 0.95))
+	# Polished indie HUD panels
+	if VisualStyle:
+		if has_node("Root/TopBar"):
+			VisualStyle.style_hud_panel($Root/TopBar as PanelContainer)
+		if has_node("Root/PauseLayer/Panel"):
+			VisualStyle.style_hud_panel($Root/PauseLayer/Panel as PanelContainer)
+		if has_node("Root/EndPanel"):
+			VisualStyle.style_hud_panel($Root/EndPanel as PanelContainer)
+	else:
+		if has_node("Root/TopBar"):
+			FX.style_panel_kenney($Root/TopBar as PanelContainer, Color(0.42, 0.38, 0.58, 0.92))
+		if has_node("Root/PauseLayer/Panel"):
+			FX.style_panel_kenney($Root/PauseLayer/Panel as PanelContainer, Color(0.48, 0.42, 0.68, 0.96))
+		if has_node("Root/EndPanel"):
+			FX.style_panel_kenney($Root/EndPanel as PanelContainer, Color(0.5, 0.4, 0.7, 0.95))
 
 	GameState.essence_changed.connect(_on_essence)
 	GameState.crystal_dust_changed.connect(_on_dust)

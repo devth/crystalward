@@ -26,6 +26,7 @@ var _lane: PackedVector2Array = PackedVector2Array()
 var _wp_index: int = 0
 var _lateral: float = 0.0
 var _is_elite: bool = false
+var _face_sign: float = 1.0
 
 @onready var _bar: ProgressBar = $HpBar
 
@@ -72,6 +73,16 @@ func make_elite() -> void:
 	move_speed *= 0.85
 	crystal_damage = int(crystal_damage * 1.8)
 	scale = Vector2(1.35, 1.35)
+	# Elite tint + thicker outline (visuals already built in _ready before this runs)
+	if _body_sprite:
+		_skin_modulate = _skin_modulate.lightened(0.15)
+		_skin_modulate.r = minf(1.0, _skin_modulate.r + 0.2)
+		_body_sprite.modulate = _skin_modulate
+		_apply_outline()
+	if _visual:
+		var ring := FX.make_ellipse_poly(22, 14, 20, Color(0.95, 0.5, 0.3, 0.25))
+		ring.z_index = -1
+		_visual.add_child(ring)
 
 
 func _build_visuals() -> void:
@@ -98,10 +109,11 @@ func _build_visuals() -> void:
 
 	if not _skin_frames.is_empty() and _skin_frames[0] != null:
 		_use_sprite = true
-		_body_sprite = AssetPaths.make_pixel_sprite(_skin_frames[0], scale_mul)
+		_body_sprite = AssetPaths.make_pixel_sprite(_skin_frames[0], scale_mul * 1.25)
 		_body_sprite.modulate = _skin_modulate
-		_body_sprite.position = Vector2(0, -4)
+		_body_sprite.position = Vector2(0, -6)
 		_visual.add_child(_body_sprite)
+		_apply_outline()
 		return
 
 	_body_poly = Polygon2D.new()
@@ -111,6 +123,16 @@ func _build_visuals() -> void:
 	])
 	_body_poly.color = Color(0.42, 0.12, 0.28)
 	_visual.add_child(_body_poly)
+
+
+func _apply_outline() -> void:
+	if _body_sprite == null or VisualStyle == null:
+		return
+	var w := 1.35 if _is_elite else 1.25
+	VisualStyle.apply_sprite_outline(_body_sprite, w)
+	# Retry next frame if material didn't stick (edge case on some render paths)
+	if _body_sprite.material == null:
+		VisualStyle.call_deferred("apply_sprite_outline", _body_sprite, w)
 
 
 func _physics_process(delta: float) -> void:
@@ -161,13 +183,14 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 	z_index = int(global_position.y)
 
-	# Animate
+	# Animate — single scale write (face sign only; never fight sprite flip_h)
 	if _visual:
 		_visual.position.y = sin(_anim_t * 10.0) * 1.5
 		if to.x < -2.0:
-			_visual.scale.x = -absf(_visual.scale.x) if _visual.scale.x != 0 else -1.0
+			_face_sign = -1.0
 		elif to.x > 2.0:
-			_visual.scale.x = absf(_visual.scale.x) if _visual.scale.x != 0 else 1.0
+			_face_sign = 1.0
+		_visual.scale = Vector2(_face_sign, 1.0)
 	if _use_sprite and _body_sprite and _skin_frames.size() > 1 and _frame_t > 0.18:
 		_frame_t = 0.0
 		_frame_idx = (_frame_idx + 1) % _skin_frames.size()
