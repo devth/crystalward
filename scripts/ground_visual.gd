@@ -4,7 +4,10 @@ extends Node2D
 
 # Spec: Dark Crystal + Legend — cool canopy under violet night, not dull lime
 const FOREST_MODULATE := Color(0.52, 0.84, 0.62)
-const FLOOR_EXTENT := 2800.0
+const FLOOR_EXTENT := 3200.0
+## Soft dirt-road gradient texture (V = across road width). Cached once.
+static var _dirt_tex: Texture2D
+static var _dirt_edge_tex: Texture2D
 
 const Z_FLOOR := 0
 const Z_WATER := 2
@@ -645,14 +648,16 @@ func _place_sprite(tex: Texture2D, pos: Vector2, scale_mul: float, alpha: float 
 	return s
 
 
-## Ethereal path: mossy verge + bark dirt + amber crystal vein.
+## Soft dirt road — continuous gradient body, no hard stripes / ruts / veins.
 func _add_path_ribbon(pts: PackedVector2Array, half_width: float) -> void:
 	if pts.size() < 2:
 		return
-	# Soft moss verge under the road
+	_ensure_dirt_textures()
+
+	# Soft grass/moss blend under the road (fades into biome)
 	var moss := Line2D.new()
-	moss.width = half_width * 2.85
-	moss.default_color = Color(0.12, 0.22, 0.16, 0.55)
+	moss.width = half_width * 2.55
+	moss.default_color = Color(0.14, 0.24, 0.16, 0.42)
 	moss.begin_cap_mode = Line2D.LINE_CAP_ROUND
 	moss.end_cap_mode = Line2D.LINE_CAP_ROUND
 	moss.joint_mode = Line2D.LINE_JOINT_ROUND
@@ -661,71 +666,108 @@ func _add_path_ribbon(pts: PackedVector2Array, half_width: float) -> void:
 	moss.z_index = Z_PATH_EDGE - 2
 	add_child(moss)
 
-	var bed := Line2D.new()
-	bed.width = half_width * 2.45
-	bed.default_color = Color(0.10, 0.07, 0.12, 1.0)
-	bed.begin_cap_mode = Line2D.LINE_CAP_ROUND
-	bed.end_cap_mode = Line2D.LINE_CAP_ROUND
-	bed.joint_mode = Line2D.LINE_JOINT_ROUND
-	bed.antialiased = true
-	bed.points = pts
-	bed.z_index = Z_PATH_EDGE
-	add_child(bed)
+	# Outer earth shoulder — soft dark rim (gradient tex fades edges)
+	var shoulder := Line2D.new()
+	shoulder.width = half_width * 2.2
+	shoulder.default_color = Color(1, 1, 1, 1)
+	shoulder.begin_cap_mode = Line2D.LINE_CAP_ROUND
+	shoulder.end_cap_mode = Line2D.LINE_CAP_ROUND
+	shoulder.joint_mode = Line2D.LINE_JOINT_ROUND
+	shoulder.antialiased = true
+	shoulder.points = pts
+	shoulder.texture = _dirt_edge_tex
+	shoulder.texture_mode = Line2D.LINE_TEXTURE_STRETCH
+	shoulder.z_index = Z_PATH_EDGE
+	add_child(shoulder)
 
+	# Main dirt body — warm continuous gradient (center lighter, edges darker)
 	var dirt := Line2D.new()
-	dirt.width = half_width * 1.95
-	dirt.default_color = Color(0.42, 0.30, 0.24, 1.0)
+	dirt.width = half_width * 1.85
+	dirt.default_color = Color(1, 1, 1, 1)
 	dirt.begin_cap_mode = Line2D.LINE_CAP_ROUND
 	dirt.end_cap_mode = Line2D.LINE_CAP_ROUND
 	dirt.joint_mode = Line2D.LINE_JOINT_ROUND
 	dirt.antialiased = true
 	dirt.points = pts
+	dirt.texture = _dirt_tex
+	dirt.texture_mode = Line2D.LINE_TEXTURE_STRETCH
 	dirt.z_index = Z_PATH
 	add_child(dirt)
 
-	var track := Line2D.new()
-	track.width = half_width * 0.95
-	track.default_color = Color(0.55, 0.42, 0.32, 1.0)
-	track.begin_cap_mode = Line2D.LINE_CAP_ROUND
-	track.end_cap_mode = Line2D.LINE_CAP_ROUND
-	track.joint_mode = Line2D.LINE_JOINT_ROUND
-	track.antialiased = true
-	track.points = pts
-	track.z_index = Z_PATH_DETAIL
-	add_child(track)
+	# Very soft amber well-glow only near the crystal (not a full-path stripe)
+	_add_path_well_glow(pts)
 
-	# Twin wheel ruts
-	var rut := Line2D.new()
-	rut.width = 2.5
-	rut.default_color = Color(0.22, 0.14, 0.12, 0.55)
-	rut.begin_cap_mode = Line2D.LINE_CAP_ROUND
-	rut.end_cap_mode = Line2D.LINE_CAP_ROUND
-	rut.joint_mode = Line2D.LINE_JOINT_ROUND
-	rut.antialiased = true
-	rut.points = pts
-	rut.z_index = Z_PATH_DETAIL + 1
-	add_child(rut)
 
-	var vein := Line2D.new()
-	vein.width = 5.0
-	vein.default_color = Color(0.92, 0.70, 0.35, 0.5)
-	vein.begin_cap_mode = Line2D.LINE_CAP_ROUND
-	vein.end_cap_mode = Line2D.LINE_CAP_ROUND
-	vein.joint_mode = Line2D.LINE_JOINT_ROUND
-	vein.antialiased = true
-	vein.points = pts
-	vein.z_index = Z_PATH_DETAIL + 2
-	add_child(vein)
+func _ensure_dirt_textures() -> void:
+	if _dirt_tex != null and _dirt_edge_tex != null:
+		return
+	_dirt_tex = _make_dirt_gradient_tex(false)
+	_dirt_edge_tex = _make_dirt_gradient_tex(true)
 
+
+func _make_dirt_gradient_tex(for_edge: bool) -> Texture2D:
+	## V axis = across road width. Soft continuous dirt, not bands.
+	var w := 16
+	var h := 96
+	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	for y in h:
+		var v := float(y) / float(h - 1)  # 0..1 across width
+		var edge := absf(v - 0.5) * 2.0   # 0 center → 1 edge
+		# Smooth falloff (no hard steps)
+		var e2 := edge * edge
+		var e_smooth := e2 * e2 * (1.0 - 0.15 * edge)  # softer mid, gentle rim
+
+		var col: Color
+		if for_edge:
+			# Dark earth shoulder that fades to transparent at outer rim
+			var soil := Color(0.18, 0.12, 0.09, 1.0)
+			var mid := Color(0.28, 0.20, 0.14, 0.95)
+			col = mid.lerp(soil, clampf(e_smooth * 1.1, 0.0, 1.0))
+			col.a = clampf(0.75 - e_smooth * 0.55, 0.15, 0.8)
+		else:
+			# Warm packed dirt: soft light crown → medium → dark rim
+			var crown := Color(0.58, 0.44, 0.30, 1.0)
+			var body := Color(0.44, 0.32, 0.22, 1.0)
+			var rim := Color(0.30, 0.21, 0.15, 1.0)
+			if edge < 0.45:
+				col = crown.lerp(body, edge / 0.45)
+			else:
+				col = body.lerp(rim, (edge - 0.45) / 0.55)
+			# Soft alpha only at extreme edges so road blends into moss
+			col.a = clampf(1.0 - pow(edge, 2.8) * 0.22, 0.78, 1.0)
+
+		# Fine grain — subtle, not stripes
+		for x in w:
+			var n := fposmod(sin(float(x) * 12.9898 + float(y) * 78.233) * 43758.5453, 1.0)
+			var grain := (n - 0.5) * 0.04
+			var c := Color(
+				clampf(col.r + grain, 0.0, 1.0),
+				clampf(col.g + grain * 0.85, 0.0, 1.0),
+				clampf(col.b + grain * 0.7, 0.0, 1.0),
+				col.a
+			)
+			img.set_pixel(x, y, c)
+	var tex := ImageTexture.create_from_image(img)
+	return tex
+
+
+func _add_path_well_glow(pts: PackedVector2Array) -> void:
+	## Soft amber wash only on the final approach to the Lightwell — not a full-length stripe.
+	var near: PackedVector2Array = PackedVector2Array()
+	for p in pts:
+		if p.distance_to(Vector2(0, 40)) < 280.0:
+			near.append(p)
+	if near.size() < 2:
+		return
 	var glow := Line2D.new()
-	glow.width = 18.0
-	glow.default_color = Color(0.58, 0.42, 0.9, 0.14)
+	glow.width = 28.0
+	glow.default_color = Color(0.92, 0.72, 0.38, 0.1)
 	glow.begin_cap_mode = Line2D.LINE_CAP_ROUND
 	glow.end_cap_mode = Line2D.LINE_CAP_ROUND
 	glow.joint_mode = Line2D.LINE_JOINT_ROUND
 	glow.antialiased = true
-	glow.points = pts
-	glow.z_index = Z_PATH_EDGE - 1
+	glow.points = near
+	glow.z_index = Z_PATH_DETAIL
 	add_child(glow)
 
 
