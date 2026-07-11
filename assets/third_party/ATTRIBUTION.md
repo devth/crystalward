@@ -224,17 +224,17 @@ Nested demo Godot project / duplicates stripped; textures only + license.
 
 ## Music (original / CC0)
 
-Original procedural ambient beds synthesized for Crystalward — dark, ethereal soft-fantasy (drones, crystalline bells, slow LFO pads). Not derived from third-party audio files.
+Original procedural ambient beds synthesized for Crystalward — dark, ethereal soft-fantasy with **mid-80s synth-score** color (detuned Juno-style pads, soft arpeggios, FM bells, slapback delay, filter sweeps). Not derived from third-party audio files.
 
 | File | Role | Author | License | Notes |
 |---|---|---|---|---|
-| `music/title.ogg` | Title screen (~48s loop) | Crystalward project | Original work | Deep A1-ish sacred drone + high crystal bells |
-| `music/map_select.ogg` | Campaign map select (~40s) | Crystalward project | Original work | Soft exploration pad, minor-mode intervals |
-| `music/battle.ogg` | In-battle bed (~56s) | Crystalward project | Original work | Low ominous swell, tension partials, no rock/percussion |
-| `music/victory.ogg` | Victory bed (~36s) | Crystalward project | Original work | Lifted soft major-ish glow, still ethereal |
+| `music/title.ogg` | Title screen (~52s loop) | Crystalward project | Original work | Phrygian sacred pad + haunting motif + crystal FM bells |
+| `music/map_select.ogg` | Campaign map select (~44s) | Crystalward project | Original work | Dorian exploration, gentle arp + string machine |
+| `music/battle.ogg` | In-battle bed (~60s) | Crystalward project | Original work | Lower phrygian tension, soft gated swell, no rock drums |
+| `music/victory.ogg` | Victory bed (~40s) | Crystalward project | Original work | Soft mixolydian lift, still ethereal 80s glow |
 
 **Vendor path:** `music/`  
-**How used:** Autoload `Music` (`scripts/music.gd`) loads these Ogg Vorbis loops when present; otherwise falls back to a layered procedural ethereal bed (same aesthetic).
+**How used:** Autoload `Music` (`scripts/music.gd`) loads these Ogg Vorbis loops when present; otherwise falls back to a layered procedural ethereal/80s bed (same aesthetic).
 
 ---
 
