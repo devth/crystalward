@@ -69,7 +69,10 @@ func _path_edge_flowers(parent: Node2D, a: Vector2, b: Vector2, rng: RandomNumbe
 			if rng.randf() < 0.55:
 				continue
 			var side: float = float(side_f)
-			var pos: Vector2 = base + n * side * rng.randf_range(42.0, 78.0)
+			var pos: Vector2 = base + n * side * rng.randf_range(48.0, 88.0)
+			# Keep flowers on the verge, not on the dirt
+			if PathNetwork and PathNetwork.dist_to_path(pos) < 36.0:
+				continue
 			if rng.randf() < 0.45:
 				_flower(parent, pos, _rand_bloom(rng), rng.randf_range(0.65, 1.1))
 			else:

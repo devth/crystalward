@@ -1,5 +1,6 @@
 extends Node
 ## Authored path lanes per campaign map. Autoloaded as PathNetwork.
+## Lanes are curvy polylines that wind around forest / mountain features.
 
 signal paths_rebuilt
 
@@ -8,10 +9,11 @@ const CRYSTAL := Vector2(0, 40)
 var lanes: Array = []
 var spawn_anchors: Array[Vector2] = []
 var active_lane_set: String = "full"
+## Named landmarks for ground art to plant forests/mountains that roads bend around.
+var features: Array[Dictionary] = []  # { "id", "pos", "kind", "radius" }
 
 
 func _ready() -> void:
-	# Campaign may not be ready first frame
 	call_deferred("_init_from_campaign")
 
 
@@ -27,6 +29,8 @@ func rebuild(lane_set: String = "full") -> void:
 	active_lane_set = lane_set
 	lanes.clear()
 	spawn_anchors.clear()
+	features.clear()
+	_place_shared_features()
 	match lane_set:
 		"simple":
 			_add_simple()
@@ -41,55 +45,187 @@ func rebuild(lane_set: String = "full") -> void:
 	paths_rebuilt.emit()
 
 
+func _place_shared_features() -> void:
+	# Forests and peaks — roads are authored to arc around these.
+	_feature("north_peak", Vector2(-40, -720), "mountain", 160.0)
+	_feature("south_ridge", Vector2(80, 780), "mountain", 150.0)
+	_feature("west_wood", Vector2(-720, -40), "forest", 200.0)
+	_feature("east_wood", Vector2(760, 60), "forest", 190.0)
+	_feature("nw_grove", Vector2(-520, -480), "forest", 140.0)
+	_feature("ne_grove", Vector2(560, -420), "forest", 130.0)
+	_feature("sw_bogwood", Vector2(-480, 520), "forest", 150.0)
+	_feature("se_grove", Vector2(540, 560), "forest", 140.0)
+	_feature("west_crag", Vector2(-900, 280), "mountain", 120.0)
+	_feature("east_crag", Vector2(920, -260), "mountain", 120.0)
+
+
+func _feature(id: String, pos: Vector2, kind: String, radius: float) -> void:
+	features.append({"id": id, "pos": pos, "kind": kind, "radius": radius})
+
+
 func _add_simple() -> void:
-	_add_lane([Vector2(0, -1200), Vector2(0, -600), Vector2(0, -200), CRYSTAL])
-	_add_lane([Vector2(0, 1200), Vector2(0, 600), Vector2(0, 250), CRYSTAL])
-	_add_lane([Vector2(1200, 40), Vector2(600, 40), Vector2(250, 40), CRYSTAL])
-	_add_lane([Vector2(-1200, 40), Vector2(-600, 40), Vector2(-250, 40), CRYSTAL])
+	# Four approach roads that curve around woods and peaks into the Lightwell.
+	# North: from far north, slips west of the peak, then into the well.
+	_add_curved_lane([
+		Vector2(40, -1350),
+		Vector2(-220, -1050),
+		Vector2(-320, -780),
+		Vector2(-180, -520),
+		Vector2(60, -300),
+		Vector2(20, -120),
+		CRYSTAL,
+	])
+	# South: from far south, arcs east of the ridge.
+	_add_curved_lane([
+		Vector2(-60, 1350),
+		Vector2(240, 1050),
+		Vector2(300, 780),
+		Vector2(160, 500),
+		Vector2(-40, 300),
+		Vector2(10, 160),
+		CRYSTAL,
+	])
+	# East: from far east, dips south around east wood then in.
+	_add_curved_lane([
+		Vector2(1350, 20),
+		Vector2(1050, 220),
+		Vector2(780, 280),
+		Vector2(520, 160),
+		Vector2(300, 40),
+		Vector2(160, 50),
+		CRYSTAL,
+	])
+	# West: from far west, bows north around west wood.
+	_add_curved_lane([
+		Vector2(-1350, 80),
+		Vector2(-1050, -180),
+		Vector2(-780, -260),
+		Vector2(-500, -120),
+		Vector2(-280, 20),
+		Vector2(-150, 50),
+		CRYSTAL,
+	])
 
 
 func _add_cross() -> void:
 	_add_simple()
-	_add_lane([Vector2(900, -900), Vector2(450, -450), Vector2(200, -150), CRYSTAL])
-	_add_lane([Vector2(-900, 900), Vector2(-450, 450), Vector2(-200, 180), CRYSTAL])
-	_add_lane([Vector2(800, 700), Vector2(400, 200), Vector2(150, 80), CRYSTAL])
-	_add_lane([Vector2(-800, -700), Vector2(-400, -200), Vector2(-150, 0), CRYSTAL])
+	# Diagonals threading between groves
+	_add_curved_lane([
+		Vector2(1100, -1100), Vector2(700, -780), Vector2(420, -400),
+		Vector2(280, -160), Vector2(100, 0), CRYSTAL,
+	])
+	_add_curved_lane([
+		Vector2(-1100, 1100), Vector2(-720, 760), Vector2(-400, 420),
+		Vector2(-220, 200), Vector2(-80, 100), CRYSTAL,
+	])
+	_add_curved_lane([
+		Vector2(1000, 900), Vector2(620, 560), Vector2(340, 280),
+		Vector2(160, 120), CRYSTAL,
+	])
+	_add_curved_lane([
+		Vector2(-1000, -900), Vector2(-640, -560), Vector2(-360, -280),
+		Vector2(-160, -60), CRYSTAL,
+	])
 
 
 func _add_diagonal() -> void:
-	_add_lane([Vector2(1200, -1200), Vector2(700, -600), Vector2(300, -200), CRYSTAL])
-	_add_lane([Vector2(-1200, -1200), Vector2(-700, -600), Vector2(-300, -200), CRYSTAL])
-	_add_lane([Vector2(1200, 1200), Vector2(700, 600), Vector2(300, 220), CRYSTAL])
-	_add_lane([Vector2(-1200, 1200), Vector2(-700, 600), Vector2(-300, 220), CRYSTAL])
-	_add_lane([Vector2(0, -1400), Vector2(100, -700), Vector2(-50, -300), CRYSTAL])
-	_add_lane([Vector2(1400, 0), Vector2(700, 100), Vector2(300, 20), CRYSTAL])
+	_add_curved_lane([
+		Vector2(1300, -1300), Vector2(900, -900), Vector2(500, -500),
+		Vector2(280, -220), Vector2(100, 0), CRYSTAL,
+	])
+	_add_curved_lane([
+		Vector2(-1300, -1300), Vector2(-860, -860), Vector2(-480, -420),
+		Vector2(-240, -160), Vector2(-80, 20), CRYSTAL,
+	])
+	_add_curved_lane([
+		Vector2(1300, 1300), Vector2(880, 880), Vector2(480, 480),
+		Vector2(260, 240), Vector2(90, 100), CRYSTAL,
+	])
+	_add_curved_lane([
+		Vector2(-1300, 1300), Vector2(-900, 900), Vector2(-500, 500),
+		Vector2(-260, 260), Vector2(-90, 120), CRYSTAL,
+	])
+	_add_curved_lane([
+		Vector2(120, -1450), Vector2(-200, -900), Vector2(160, -500),
+		Vector2(-40, -220), CRYSTAL,
+	])
+	_add_curved_lane([
+		Vector2(1450, 80), Vector2(900, -120), Vector2(500, 160),
+		Vector2(240, 40), CRYSTAL,
+	])
 
 
 func _add_winding() -> void:
-	_add_lane([
-		Vector2(600, -1400), Vector2(900, -900), Vector2(400, -600), Vector2(600, -300),
-		Vector2(200, -200), CRYSTAL
+	_add_curved_lane([
+		Vector2(520, -1400), Vector2(900, -1000), Vector2(620, -700),
+		Vector2(820, -400), Vector2(360, -280), Vector2(140, -80), CRYSTAL,
 	])
-	_add_lane([
-		Vector2(-1400, 500), Vector2(-900, 200), Vector2(-1000, -200), Vector2(-500, -100),
-		Vector2(-220, 60), CRYSTAL
+	_add_curved_lane([
+		Vector2(-1450, 420), Vector2(-1000, 120), Vector2(-1100, -260),
+		Vector2(-620, -180), Vector2(-320, 40), CRYSTAL,
 	])
-	_add_lane([
-		Vector2(1400, -400), Vector2(1000, 100), Vector2(800, 400), Vector2(400, 250),
-		Vector2(180, 100), CRYSTAL
+	_add_curved_lane([
+		Vector2(1450, -360), Vector2(1000, 80), Vector2(860, 420),
+		Vector2(480, 300), Vector2(200, 120), CRYSTAL,
 	])
-	_add_lane([
-		Vector2(-700, 1400), Vector2(-200, 1000), Vector2(300, 800), Vector2(100, 400),
-		Vector2(40, 200), CRYSTAL
+	_add_curved_lane([
+		Vector2(-620, 1450), Vector2(-160, 1050), Vector2(320, 860),
+		Vector2(120, 480), Vector2(40, 220), CRYSTAL,
 	])
-	_add_lane([Vector2(0, 1300), Vector2(-150, 700), Vector2(80, 350), CRYSTAL])
-	_add_lane([Vector2(-1300, -200), Vector2(-600, 50), Vector2(-280, 40), CRYSTAL])
+	_add_curved_lane([
+		Vector2(-40, 1350), Vector2(-220, 800), Vector2(120, 420), CRYSTAL,
+	])
+	_add_curved_lane([
+		Vector2(-1350, -160), Vector2(-720, 80), Vector2(-300, 30), CRYSTAL,
+	])
 
 
 func _add_full() -> void:
 	_add_simple()
 	_add_diagonal()
 	_add_winding()
+
+
+## Control points → dense Catmull-Rom polyline so roads look smoothly curved.
+func _add_curved_lane(control: Array, samples_per_span: int = 10) -> void:
+	var pts: Array[Vector2] = []
+	for p in control:
+		pts.append(p as Vector2)
+	if pts.size() < 2:
+		return
+	if pts.size() == 2:
+		_add_lane(pts)
+		return
+	var dense: Array[Vector2] = []
+	# Pad ends for Catmull-Rom
+	var padded: Array[Vector2] = []
+	padded.append(pts[0] - (pts[1] - pts[0]) * 0.25)
+	for p in pts:
+		padded.append(p)
+	padded.append(pts[pts.size() - 1] + (pts[pts.size() - 1] - pts[pts.size() - 2]) * 0.25)
+
+	for i in range(1, padded.size() - 2):
+		var p0: Vector2 = padded[i - 1]
+		var p1: Vector2 = padded[i]
+		var p2: Vector2 = padded[i + 1]
+		var p3: Vector2 = padded[i + 2]
+		var steps := samples_per_span
+		for s in range(steps):
+			var t := float(s) / float(steps)
+			dense.append(_catmull(p0, p1, p2, p3, t))
+	dense.append(pts[pts.size() - 1])
+	_add_lane(dense)
+
+
+func _catmull(p0: Vector2, p1: Vector2, p2: Vector2, p3: Vector2, t: float) -> Vector2:
+	var t2 := t * t
+	var t3 := t2 * t
+	return 0.5 * (
+		(2.0 * p1)
+		+ (-p0 + p2) * t
+		+ (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3) * t2
+		+ (-p0 + 3.0 * p1 - 3.0 * p2 + p3) * t3
+	)
 
 
 func _add_lane(points: Array) -> void:
@@ -118,7 +254,6 @@ func lane_length(lane: PackedVector2Array) -> float:
 	return total
 
 
-## Sample a point along a lane polyline. Returns { pos, tangent, normal, dist, length, at_end }.
 func sample_lane(lane: PackedVector2Array, dist: float) -> Dictionary:
 	var empty := {
 		"pos": CRYSTAL,
@@ -186,6 +321,10 @@ func nearest_on_network(world_pos: Vector2) -> Vector2:
 				best_d = d
 				best = proj
 	return best
+
+
+func dist_to_path(world_pos: Vector2) -> float:
+	return world_pos.distance_to(nearest_on_network(world_pos))
 
 
 func _project_point(p: Vector2, a: Vector2, b: Vector2) -> Vector2:

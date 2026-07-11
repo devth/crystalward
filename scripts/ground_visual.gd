@@ -38,6 +38,7 @@ func _build() -> void:
 	_build_floor()
 	_build_plaza()
 	_build_paths()  # must be after floor, higher z
+	_build_terrain_features()  # forests / mountains roads curve around
 	_build_landmarks()
 	_scatter_forest_props()
 	_build_botanicals()
@@ -91,26 +92,99 @@ func _build_paths() -> void:
 		if pts.size() < 2:
 			continue
 		n_lanes += 1
-		for i in range(pts.size() - 1):
-			var width := 78.0 if i == 0 else 64.0
-			if i >= pts.size() - 2:
-				width = 52.0
-			_add_path_strip(pts[i], pts[i + 1], width)
+		_add_path_ribbon(pts, 58.0)
 		_add_spawn_portal(pts[0])
 	if n_lanes == 0:
 		push_warning("ground_visual: PathNetwork has no lanes — roads not drawn")
 
 
+func _build_terrain_features() -> void:
+	if PathNetwork == null:
+		return
+	var tree_tex: Texture2D = AssetPaths.load_texture(AssetPaths.FOREST_TREES) if AssetPaths else null
+	var round_tree: Texture2D = null
+	var pine_tree: Texture2D = null
+	if tree_tex and tree_tex.get_width() >= 64 and tree_tex.get_height() >= 128:
+		round_tree = _atlas(tree_tex, Rect2(0, 0, 64, 64))
+		pine_tree = _atlas(tree_tex, Rect2(0, 64, 64, 64))
+
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 9001
+	for f in PathNetwork.features:
+		var pos: Vector2 = f.get("pos", Vector2.ZERO)
+		var kind: String = str(f.get("kind", "forest"))
+		var radius: float = float(f.get("radius", 120.0))
+		if kind == "mountain":
+			_add_mountain_cluster(pos, radius, rng)
+		else:
+			_add_forest_cluster(pos, radius, round_tree, pine_tree, rng)
+
+
+func _add_mountain_cluster(center: Vector2, radius: float, rng: RandomNumberGenerator) -> void:
+	# Layered rock peaks — roads bend around these.
+	var base := _ellipse(center + Vector2(0, 12), radius * 0.85, radius * 0.45, Color(0.18, 0.16, 0.2, 0.75), Z_DECOR - 5)
+	add_child(base)
+	for i in 5:
+		var ang := TAU * float(i) / 5.0 + rng.randf() * 0.3
+		var o := Vector2(cos(ang), sin(ang) * 0.7) * radius * rng.randf_range(0.15, 0.55)
+		var peak := Polygon2D.new()
+		var h := rng.randf_range(48.0, 90.0)
+		var w := rng.randf_range(22.0, 40.0)
+		peak.polygon = PackedVector2Array([
+			Vector2(-w, 10), Vector2(-w * 0.4, -h * 0.55), Vector2(0, -h),
+			Vector2(w * 0.35, -h * 0.5), Vector2(w, 10)
+		])
+		peak.color = Color(0.28, 0.26, 0.32).darkened(rng.randf() * 0.15)
+		peak.position = center + o
+		peak.z_index = Z_DECOR + clampi(int((center.y + o.y) / 40.0), -10, 40)
+		add_child(peak)
+		# Snow / crystal cap
+		var cap := Polygon2D.new()
+		cap.polygon = PackedVector2Array([
+			Vector2(0, -h), Vector2(-w * 0.22, -h * 0.72), Vector2(w * 0.18, -h * 0.7)
+		])
+		cap.color = Color(0.75, 0.78, 0.85, 0.85)
+		cap.position = peak.position
+		cap.z_index = peak.z_index + 1
+		add_child(cap)
+	# A few standing stones on the slope
+	for j in 3:
+		var a2 := rng.randf() * TAU
+		_add_standing_stone(center + Vector2(cos(a2), sin(a2) * 0.7) * radius * 0.7, rng.randf_range(0.7, 1.1))
+
+
+func _add_forest_cluster(
+	center: Vector2,
+	radius: float,
+	round_tree: Texture2D,
+	pine_tree: Texture2D,
+	rng: RandomNumberGenerator
+) -> void:
+	var count := int(clampf(radius / 18.0, 6.0, 16.0))
+	for i in count:
+		var ang := rng.randf() * TAU
+		var r := radius * sqrt(rng.randf()) * 0.9
+		var pos := center + Vector2(cos(ang), sin(ang) * 0.78) * r
+		# Stay off the roads
+		if PathNetwork and PathNetwork.dist_to_path(pos) < 70.0:
+			continue
+		var tex: Texture2D = pine_tree if (pine_tree and rng.randf() < 0.45) else round_tree
+		if tex == null:
+			continue
+		_place_sprite(tex, pos, rng.randf_range(1.9, 2.9), 0.96)
+	# Undergrowth thicket at center
+	_add_thicket(center + Vector2(rng.randf_range(-20, 20), rng.randf_range(-10, 10)), rng.randf_range(-0.2, 0.2))
+
+
 func _build_landmarks() -> void:
+	# Plaza ring stones only — big forests/mountains come from features.
 	var stones: Array = [
-		[Vector2(-260, -100), 1.0], [Vector2(250, -80), 0.85], [Vector2(-300, 160), 0.9],
-		[Vector2(280, 140), 1.1], [Vector2(-100, -200), 0.7], [Vector2(120, 220), 0.75],
-		[Vector2(-480, 40), 1.2], [Vector2(500, -20), 1.05],
+		[Vector2(-200, -80), 0.9], [Vector2(210, -60), 0.85],
+		[Vector2(-220, 140), 0.9], [Vector2(200, 130), 0.95],
 	]
 	for s in stones:
-		_add_standing_stone(s[0], s[1])
-	for t in [Vector2(-400, 40), Vector2(400, 60), Vector2(0, -340), Vector2(-60, 340)]:
-		_add_thicket(t, randf_range(-0.3, 0.3))
+		if PathNetwork == null or PathNetwork.dist_to_path(s[0]) > 55.0:
+			_add_standing_stone(s[0], s[1])
 
 
 func _build_botanicals() -> void:
@@ -153,52 +227,44 @@ func _ellipse(pos: Vector2, rx: float, ry: float, col: Color, z: int) -> Polygon
 
 
 func _scatter_forest_props() -> void:
-	## Whole sprites only — never fake-grid-slice packed sheets.
+	## Sparse filler only — main mass is feature clusters. No DawnLike (black tiles).
 	var tree_tex: Texture2D = AssetPaths.load_texture(AssetPaths.FOREST_TREES) if AssetPaths else null
-	var stone_tex: Texture2D = AssetPaths.load_texture(AssetPaths.FOREST_STONES) if AssetPaths else null
 	var bush_tex: Texture2D = AssetPaths.load_texture(AssetPaths.FOREST_BUSHES) if AssetPaths else null
-	var dawn_tree: Texture2D = AssetPaths.load_texture(AssetPaths.DAWNLIKE_TREE0) if AssetPaths else null
+	var stone_tex: Texture2D = AssetPaths.load_texture(AssetPaths.FOREST_STONES) if AssetPaths else null
 
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 4242
 
 	var tree_sprites: Array[Texture2D] = []
 	if tree_tex and tree_tex.get_width() >= 64 and tree_tex.get_height() >= 128:
-		# seasons trees.png: two full trees stacked 64×64
 		tree_sprites.append(_atlas(tree_tex, Rect2(0, 0, 64, 64)))
 		tree_sprites.append(_atlas(tree_tex, Rect2(0, 64, 64, 64)))
 	elif tree_tex:
 		tree_sprites.append(tree_tex)
 
-	if dawn_tree and dawn_tree.get_width() >= 48:
-		# Known full-ish 16×16 tree cells (not random empty)
-		for cell in [Vector2i(1, 0), Vector2i(2, 0), Vector2i(3, 0), Vector2i(1, 1), Vector2i(2, 1)]:
-			tree_sprites.append(_atlas(dawn_tree, Rect2(cell.x * 16, cell.y * 16, 16, 16)))
-
-	for i in 55:
-		var pos := _rand_map_pos(rng, 260, 1900)
-		if pos.length() < 320.0:
+	for i in 28:
+		var pos := _rand_map_pos(rng, 380, 1900)
+		if pos.length() < 360.0:
+			continue
+		if PathNetwork and PathNetwork.dist_to_path(pos) < 85.0:
 			continue
 		if tree_sprites.is_empty():
 			break
-		var tex: Texture2D = tree_sprites[i % tree_sprites.size()]
-		var is_small := tex.get_width() <= 16
-		var sc := rng.randf_range(3.5, 5.0) if is_small else rng.randf_range(2.0, 3.0)
-		_place_sprite(tex, pos, sc, 0.95)
+		_place_sprite(tree_sprites[i % tree_sprites.size()], pos, rng.randf_range(1.8, 2.7), 0.94)
 
 	if bush_tex:
-		for i in 16:
-			var pos := _rand_map_pos(rng, 240, 1750)
-			if pos.length() < 280.0:
+		for i in 12:
+			var pos := _rand_map_pos(rng, 300, 1700)
+			if PathNetwork and PathNetwork.dist_to_path(pos) < 75.0:
 				continue
-			_place_sprite(bush_tex, pos, rng.randf_range(2.0, 2.8), 0.92)
+			_place_sprite(bush_tex, pos, rng.randf_range(1.8, 2.6), 0.9)
 
 	if stone_tex:
-		for i in 12:
-			var pos := _rand_map_pos(rng, 240, 1700)
-			if pos.length() < 260.0:
+		for i in 8:
+			var pos := _rand_map_pos(rng, 320, 1600)
+			if PathNetwork and PathNetwork.dist_to_path(pos) < 70.0:
 				continue
-			_place_sprite(stone_tex, pos, rng.randf_range(1.5, 2.2), 0.9)
+			_place_sprite(stone_tex, pos, rng.randf_range(1.4, 2.0), 0.88)
 
 
 func _rand_map_pos(rng: RandomNumberGenerator, min_r: float, max_r: float) -> Vector2:
@@ -237,63 +303,59 @@ func _place_sprite(tex: Texture2D, pos: Vector2, scale_mul: float, alpha: float 
 	return s
 
 
+## Continuous curved dirt ribbon along a dense polyline (not a rigid cross).
+func _add_path_ribbon(pts: PackedVector2Array, half_width: float) -> void:
+	if pts.size() < 2:
+		return
+	# Smooth width taper near crystal
+	for i in range(pts.size() - 1):
+		var t := float(i) / float(maxi(1, pts.size() - 2))
+		var w := lerpf(half_width * 1.15, half_width * 0.75, t)
+		_add_path_strip(pts[i], pts[i + 1], w * 2.0)
+
+	# Continuous center line for curve readability
+	var vein := Line2D.new()
+	vein.width = 3.0
+	vein.default_color = Color(0.72, 0.58, 0.9, 0.4)
+	vein.begin_cap_mode = Line2D.LINE_CAP_ROUND
+	vein.end_cap_mode = Line2D.LINE_CAP_ROUND
+	vein.joint_mode = Line2D.LINE_JOINT_ROUND
+	vein.points = pts
+	vein.z_index = Z_PATH_DETAIL + 1
+	add_child(vein)
+
+
 func _add_path_strip(from: Vector2, to: Vector2, width: float) -> void:
 	var dir := to - from
 	var len := dir.length()
-	if len < 1.0:
+	if len < 0.5:
 		return
 	var n := dir.normalized()
 	var perp := Vector2(-n.y, n.x) * (width * 0.5)
 
-	# Dark outer bed
 	var outer := Polygon2D.new()
 	outer.polygon = PackedVector2Array([
-		from + perp * 1.2, from - perp * 1.2, to - perp * 1.2, to + perp * 1.2
+		from + perp * 1.15, from - perp * 1.15, to - perp * 1.15, to + perp * 1.15
 	])
 	outer.color = Color(0.22, 0.14, 0.08, 1.0)
 	outer.z_index = Z_PATH_EDGE
 	add_child(outer)
 
-	# Main dirt
 	var mid := Polygon2D.new()
 	mid.polygon = PackedVector2Array([
-		from + perp * 1.0, from - perp * 1.0, to - perp * 1.0, to + perp * 1.0
+		from + perp * 0.95, from - perp * 0.95, to - perp * 0.95, to + perp * 0.95
 	])
-	mid.color = Color(0.48, 0.34, 0.20, 1.0)
+	mid.color = Color(0.5, 0.36, 0.22, 1.0)
 	mid.z_index = Z_PATH
 	add_child(mid)
 
-	# Lighter center track
 	var inner := Polygon2D.new()
 	inner.polygon = PackedVector2Array([
-		from + perp * 0.45, from - perp * 0.45, to - perp * 0.45, to + perp * 0.45
+		from + perp * 0.4, from - perp * 0.4, to - perp * 0.4, to + perp * 0.4
 	])
-	inner.color = Color(0.62, 0.46, 0.28, 1.0)
+	inner.color = Color(0.64, 0.48, 0.3, 1.0)
 	inner.z_index = Z_PATH_DETAIL
 	add_child(inner)
-
-	# Soft moss edge lines (readable without noise)
-	var edge := Line2D.new()
-	edge.width = 4.0
-	edge.default_color = Color(0.25, 0.4, 0.22, 0.65)
-	edge.begin_cap_mode = Line2D.LINE_CAP_ROUND
-	edge.end_cap_mode = Line2D.LINE_CAP_ROUND
-	edge.points = PackedVector2Array([from + perp * 1.05, to + perp * 1.05])
-	edge.z_index = Z_PATH_DETAIL
-	add_child(edge)
-	var edge2 := edge.duplicate() as Line2D
-	edge2.points = PackedVector2Array([from - perp * 1.05, to - perp * 1.05])
-	add_child(edge2)
-
-	# Center guide (subtle crystal dust)
-	var vein := Line2D.new()
-	vein.width = 2.5
-	vein.default_color = Color(0.75, 0.65, 0.95, 0.35)
-	vein.begin_cap_mode = Line2D.LINE_CAP_ROUND
-	vein.end_cap_mode = Line2D.LINE_CAP_ROUND
-	vein.points = PackedVector2Array([from, to])
-	vein.z_index = Z_PATH_DETAIL
-	add_child(vein)
 
 
 func _add_spawn_portal(pos: Vector2) -> void:
