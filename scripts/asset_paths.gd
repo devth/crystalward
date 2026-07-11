@@ -18,6 +18,7 @@ const HAUNTED_DIR := "res://assets/third_party/haunted_forest_trees/"
 const BOTANICAL_DIR := "res://assets/third_party/oga_plants/"
 const LIMBO_DIR := "res://assets/third_party/limbo_land_monsters/"
 const KENNEY_TDS_DIR := "res://assets/third_party/kenney_top_down_shooter/"
+const KENNEY_CHAR_DIR := "res://assets/third_party/kenney_platformer_characters/"
 
 # Kenney Particle Pack — soft FX stamps
 const PARTICLE_CIRCLE_SOFT := PARTICLE_DIR + "circle_05.png"
@@ -161,116 +162,91 @@ func dawnlike_frames(path0: String, path1: String, col: int, row: int) -> Array[
 	return out
 
 
-## Organic / puppet-like warden skins (Dark Crystal–esque). Prefer elemental/plant/weird over cute humans.
+## Load a Kenney platformer character pose (80×110, 2.5D side view).
+func kenney_pose(folder: String, prefix: String, pose: String) -> Texture2D:
+	return load_texture("%s%s/%s_%s.png" % [KENNEY_CHAR_DIR, folder, prefix, pose])
+
+
+func _kenney_anim_set(folder: String, prefix: String) -> Dictionary:
+	var stand := kenney_pose(folder, prefix, "stand")
+	var idle := kenney_pose(folder, prefix, "idle")
+	var w1 := kenney_pose(folder, prefix, "walk1")
+	var w2 := kenney_pose(folder, prefix, "walk2")
+	var jump := kenney_pose(folder, prefix, "jump")
+	var fall := kenney_pose(folder, prefix, "fall")
+	var a1 := kenney_pose(folder, prefix, "action1")
+	var a2 := kenney_pose(folder, prefix, "action2")
+	var idle_frames: Array[Texture2D] = []
+	if stand:
+		idle_frames.append(stand)
+	if idle and idle != stand:
+		idle_frames.append(idle)
+	if idle_frames.is_empty() and w1:
+		idle_frames.append(w1)
+	var walk_frames: Array[Texture2D] = []
+	if w1:
+		walk_frames.append(w1)
+	if w2:
+		walk_frames.append(w2)
+	if walk_frames.is_empty():
+		walk_frames = idle_frames.duplicate()
+	return {
+		"idle": idle_frames,
+		"walk": walk_frames,
+		"jump": [jump] if jump else idle_frames,
+		"fall": [fall] if fall else ([jump] if jump else idle_frames),
+		"attack": ([a1, a2] if a1 and a2 else (idle_frames)),
+		# Backward-compat: simple frame flip list = walk
+		"frames": walk_frames if not walk_frames.is_empty() else idle_frames,
+	}
+
+
+## 2.5D warden skins (Kenney Platformer Characters — CC0).
+## Returns anim dict: idle/walk/jump/fall/attack arrays + scale + modulate.
 func warden_skin(player_index: int) -> Dictionary:
-	# Returns { "frames": Array[Texture2D], "modulate": Color, "scale": float }
-	var frames: Array[Texture2D] = []
-	var modulate := Color(0.6, 0.9, 0.78)
-	var scale_mul := 4.4
+	var folder := "Adventurer"
+	var prefix := "adventurer"
+	var modulate := Color(1.0, 1.0, 1.0)
 	if player_index == 0:
-		# Living moss / crystal-flesh elemental
-		modulate = Color(0.6, 0.9, 0.78)
-		frames = dawnlike_frames(DAWNLIKE_ELEMENTAL0, DAWNLIKE_ELEMENTAL1, 1, 2)
-		if frames.is_empty():
-			frames = dawnlike_frames(DAWNLIKE_PLANT0, DAWNLIKE_PLANT1, 0, 0)
-		if frames.is_empty():
-			frames = dawnlike_frames(DAWNLIKE_HUMANOID0, DAWNLIKE_HUMANOID1, 2, 3)
+		folder = "Soldier"
+		prefix = "soldier"
+		modulate = Color(0.85, 1.0, 0.92)  # slight teal-iron tint for P1
 	else:
-		# Dark crystalline / gelfling-shadow humanoid
-		modulate = Color(0.92, 0.65, 0.95)
-		frames = dawnlike_frames(DAWNLIKE_ELEMENTAL0, DAWNLIKE_ELEMENTAL1, 3, 1)
-		if frames.is_empty():
-			frames = dawnlike_frames(DAWNLIKE_HUMANOID0, DAWNLIKE_HUMANOID1, 4, 2)
-		if frames.is_empty():
-			frames = dawnlike_frames(DAWNLIKE_MISC0, DAWNLIKE_MISC1, 1, 0)
-	return {"frames": frames, "modulate": modulate, "scale": scale_mul}
+		folder = "Adventurer"
+		prefix = "adventurer"
+		modulate = Color(1.0, 0.92, 0.88)  # warm for P2
+	var anim := _kenney_anim_set(folder, prefix)
+	# Fallback to Female if missing
+	if (anim.get("frames") as Array).is_empty():
+		anim = _kenney_anim_set("Female", "female")
+		modulate = Color(0.95, 0.9, 1.0)
+	anim["modulate"] = modulate
+	anim["scale"] = 1.05  # 80×110 art — readable without becoming a blob
+	anim["style"] = "kenney_25d"
+	return anim
 
 
-## Random nightspawn skin — demon/undead/pest/quad/slime/plant + optional packs.
+## Nightspawn skins — zombie 2.5D walk cycle + tint variants.
 func random_enemy_skin() -> Dictionary:
+	var anim := _kenney_anim_set("Zombie", "zombie")
+	var modulate := Color(0.85, 0.75, 0.9)
 	var roll := randi() % 100
-	var frames: Array[Texture2D] = []
-	var modulate := Color(0.72, 0.42, 0.62)
-	var scale_mul := 3.4
-
-	if roll < 22:
-		var c := randi() % 6
-		var r := randi() % 4
-		frames = dawnlike_frames(DAWNLIKE_DEMON0, DAWNLIKE_DEMON1, c, r)
-		modulate = Color(0.7, 0.35, 0.55)
-	elif roll < 40:
-		var c2 := randi() % 4
-		var r2 := randi() % 3
-		frames = dawnlike_frames(DAWNLIKE_UNDEAD0, DAWNLIKE_UNDEAD1, c2, r2)
-		modulate = Color(0.55, 0.45, 0.7)
-	elif roll < 55:
-		var c3 := randi() % 6
-		var r3 := randi() % 3
-		frames = dawnlike_frames(DAWNLIKE_PEST0, DAWNLIKE_PEST1, c3, r3)
-		modulate = Color(0.65, 0.4, 0.5)
-		scale_mul = 3.0
-	elif roll < 68:
-		var c4 := randi() % 6
-		var r4 := randi() % 4
-		frames = dawnlike_frames(DAWNLIKE_QUADRAPED0, DAWNLIKE_QUADRAPED1, c4, r4)
-		modulate = Color(0.6, 0.35, 0.48)
-	elif roll < 78:
-		var c5 := randi() % 4
-		var r5 := randi() % 2
-		frames = dawnlike_frames(DAWNLIKE_SLIME0, DAWNLIKE_SLIME1, c5, r5)
-		modulate = Color(0.55, 0.3, 0.55)
-	elif roll < 86:
-		var c6 := randi() % 4
-		var r6 := randi() % 2
-		frames = dawnlike_frames(DAWNLIKE_PLANT0, DAWNLIKE_PLANT1, c6, r6)
-		modulate = Color(0.45, 0.55, 0.4)
-	elif roll < 92:
-		# Assorted 32×32 organic critters (CC0)
-		var sheet := ASSORTED_CREATURES if has_file(ASSORTED_CREATURES) else ASSORTED_CREATURES_HI
-		var cell := 32 if sheet == ASSORTED_CREATURES else 64
-		var cols := 9 if cell == 32 else 9
-		var col := randi() % cols
-		var row := randi() % cols
-		var tex := atlas_region(sheet, Rect2(col * cell, row * cell, cell, cell))
-		if tex:
-			frames = [tex] as Array[Texture2D]
-		modulate = Color(0.75, 0.5, 0.65)
-		scale_mul = 2.4 if cell == 32 else 1.4
-	elif roll < 96:
-		# Monochrome critters — dark recolor
-		var ctex := atlas_region(CRITTERS_SHEET, Rect2((randi() % 6) * 32, (randi() % 8) * 32, 32, 32))
-		if ctex:
-			frames = [ctex] as Array[Texture2D]
-		modulate = Color(0.85, 0.35, 0.55)
-		scale_mul = 2.2
+	if roll < 35:
+		modulate = Color(0.75, 0.9, 0.7)  # moss thrall
+	elif roll < 60:
+		modulate = Color(0.9, 0.55, 0.55)  # blood thrall
+	elif roll < 80:
+		modulate = Color(0.65, 0.7, 0.95)  # night thrall
 	else:
-		# Rare grotesque / limbo organic boss-feel (scaled down)
-		if has_file(LIMBO_IDLE_1) and randf() < 0.55:
-			var l1 := load_texture(LIMBO_IDLE_1)
-			var l2 := load_texture(LIMBO_IDLE_2)
-			if l1:
-				frames = [l1] as Array[Texture2D]
-			if l2:
-				frames.append(l2)
-			modulate = Color(0.65, 0.4, 0.7)
-			scale_mul = 0.09
-		elif has_file(GROTESQUE_CREATURE):
-			var g := load_texture(GROTESQUE_CREATURE)
-			if g:
-				frames = [g] as Array[Texture2D]
-			modulate = Color(0.7, 0.45, 0.6)
-			scale_mul = 0.055
-
-	if frames.is_empty():
-		frames = dawnlike_frames(DAWNLIKE_DEMON0, DAWNLIKE_DEMON1, 0, 0)
-		if frames.is_empty():
-			var fb := dawnlike_cell(DAWNLIKE_UNDEAD0, 1, 0)
-			if fb:
-				frames = [fb] as Array[Texture2D]
-		modulate = Color(0.7, 0.35, 0.55)
-		scale_mul = 3.4
-
-	return {"frames": frames, "modulate": modulate, "scale": scale_mul}
+		modulate = Color(0.95, 0.85, 0.55)  # cursed thrall
+	if (anim.get("frames") as Array).is_empty():
+		# Last resort: dawnlike (tiny) so something shows
+		var frames := dawnlike_frames(DAWNLIKE_DEMON0, DAWNLIKE_DEMON1, 0, 0)
+		return {"frames": frames, "walk": frames, "idle": frames, "modulate": modulate, "scale": 3.2, "style": "dawnlike"}
+	anim["modulate"] = modulate
+	anim["scale"] = 0.85
+	anim["style"] = "kenney_25d"
+	return anim
 
 
 func particle_texture(kind: String = "circle_soft") -> Texture2D:

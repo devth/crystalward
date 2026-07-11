@@ -18,9 +18,12 @@ var _wings: Array[Polygon2D] = []
 var _anim_t: float = 0.0
 var _use_sprite: bool = false
 var _skin_frames: Array[Texture2D] = []
+var _anim_walk: Array[Texture2D] = []
+var _anim_idle: Array[Texture2D] = []
 var _skin_modulate: Color = Color(0.72, 0.42, 0.62)
 var _frame_idx: int = 0
 var _frame_t: float = 0.0
+var _sprite_scale: float = 0.85
 
 var _lane: PackedVector2Array = PackedVector2Array()
 var _path_dist: float = 0.0
@@ -101,30 +104,38 @@ func make_elite() -> void:
 func _build_visuals() -> void:
 	_visual = Node2D.new()
 	add_child(_visual)
-	FX.add_soft_shadow(_visual, 14, 6, 10)
+	FX.add_soft_shadow(_visual, 16, 7, 12)
 
 	var skin: Dictionary = AssetPaths.random_enemy_skin()
-	_skin_frames = skin.get("frames", []) as Array[Texture2D]
 	_skin_modulate = skin.get("modulate", Color(0.72, 0.42, 0.62)) as Color
-	var scale_mul: float = float(skin.get("scale", 3.4))
+	_sprite_scale = float(skin.get("scale", 0.85))
+	_anim_walk = []
+	_anim_idle = []
+	for t in skin.get("walk", skin.get("frames", [])):
+		if t is Texture2D:
+			_anim_walk.append(t as Texture2D)
+	for t in skin.get("idle", skin.get("frames", [])):
+		if t is Texture2D:
+			_anim_idle.append(t as Texture2D)
+	if _anim_walk.is_empty():
+		_anim_walk = _anim_idle.duplicate()
+	_skin_frames = _anim_walk
 	if _is_elite:
-		_skin_modulate = _skin_modulate.lightened(0.15)
-		_skin_modulate.r = minf(1.0, _skin_modulate.r + 0.2)
-		scale_mul *= 1.15
+		_skin_modulate = _skin_modulate.lightened(0.12)
+		_sprite_scale *= 1.2
 
-	var aura := FX.make_ellipse_poly(16, 10, 16, Color(0.55, 0.1, 0.25, 0.22))
-	aura.z_index = -1
-	_visual.add_child(aura)
 	if _is_elite:
-		var ring := FX.make_ellipse_poly(22, 14, 20, Color(0.95, 0.5, 0.3, 0.25))
+		var ring := FX.make_ellipse_poly(20, 12, 18, Color(0.95, 0.5, 0.3, 0.22))
 		ring.z_index = -1
 		_visual.add_child(ring)
 
 	if not _skin_frames.is_empty() and _skin_frames[0] != null:
 		_use_sprite = true
-		_body_sprite = AssetPaths.make_pixel_sprite(_skin_frames[0], scale_mul * 1.25)
+		_body_sprite = AssetPaths.make_pixel_sprite(_skin_frames[0], _sprite_scale)
 		_body_sprite.modulate = _skin_modulate
-		_body_sprite.position = Vector2(0, -6)
+		_body_sprite.centered = true
+		_body_sprite.offset = Vector2(0, -float(_skin_frames[0].get_height()) * 0.42)
+		_body_sprite.position = Vector2.ZERO
 		_visual.add_child(_body_sprite)
 		_apply_outline()
 		return
@@ -248,17 +259,24 @@ func _leak() -> void:
 func _finish_frame() -> void:
 	z_index = int(global_position.y)
 	if _visual:
-		_visual.position.y = sin(_anim_t * 10.0) * 1.5
-		if _move_dir.x < -0.15:
+		_visual.position.y = 0.0
+		if _move_dir.x < -0.12:
 			_face_sign = -1.0
-		elif _move_dir.x > 0.15:
+		elif _move_dir.x > 0.12:
 			_face_sign = 1.0
 		_visual.scale = Vector2(_face_sign, 1.0)
-	if _use_sprite and _body_sprite and _skin_frames.size() > 1 and _frame_t > 0.18:
-		_frame_t = 0.0
-		_frame_idx = (_frame_idx + 1) % _skin_frames.size()
-		if _skin_frames[_frame_idx]:
-			_body_sprite.texture = _skin_frames[_frame_idx]
+	# 2.5D walk cycle while moving along path
+	if _use_sprite and _body_sprite and _anim_walk.size() > 0:
+		var moving := _move_dir.length() > 0.05
+		var frames: Array[Texture2D] = _anim_walk if moving else (_anim_idle if not _anim_idle.is_empty() else _anim_walk)
+		var rate := 0.16 if moving else 0.4
+		if frames.size() == 1:
+			_body_sprite.texture = frames[0]
+		elif _frame_t > rate:
+			_frame_t = 0.0
+			_frame_idx = (_frame_idx + 1) % frames.size()
+			if frames[_frame_idx]:
+				_body_sprite.texture = frames[_frame_idx]
 
 
 func apply_slow(amount: float, duration: float) -> void:

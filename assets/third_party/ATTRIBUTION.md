@@ -6,6 +6,20 @@ Paths are under `assets/third_party/`.
 
 ---
 
+## Kenney Platformer Characters
+
+| | |
+|---|---|
+| **Author** | Kenney Vleugels ([kenney.nl](https://kenney.nl)) |
+| **License** | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) |
+| **Source** | https://kenney.nl/assets/platformer-characters |
+| **Vendor path** | `kenney_platformer_characters/` |
+| **How used** | 2.5D wardens (Soldier / Adventurer) and nightspawn (Zombie) with idle, walk, jump, fall, attack poses. Driven by `AssetPaths.warden_skin` / `random_enemy_skin` + player/enemy anim state. |
+
+Poses only (stand, idle, walk1/2, jump, fall, action1/2, hurt) kept per character.
+
+---
+
 ## Kenney Particle Pack
 
 | | |

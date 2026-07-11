@@ -21,11 +21,19 @@ var _visual_root: Node2D
 var _body_sprite: Sprite2D
 var _attack_arc: Polygon2D
 var _bob_t: float = 0.0
-var _skin_frames: Array[Texture2D] = []
 var _skin_modulate: Color = Color.WHITE
 var _frame_flip_t: float = 0.0
 var _frame_idx: int = 0
 var _use_sprite: bool = false
+## 2.5D anim sets from Kenney platformer characters
+var _anim_idle: Array[Texture2D] = []
+var _anim_walk: Array[Texture2D] = []
+var _anim_jump: Array[Texture2D] = []
+var _anim_fall: Array[Texture2D] = []
+var _anim_attack: Array[Texture2D] = []
+var _anim_name: String = "idle"
+var _attack_anim_t: float = 0.0
+var _sprite_base_scale: float = 1.05
 
 ## Hop / double-jump (top-down height sim)
 var _height: float = 0.0
@@ -80,68 +88,44 @@ func _build_visuals() -> void:
 	_visual_root = Node2D.new()
 	_visual_root.name = "Visual"
 	add_child(_visual_root)
-	FX.add_soft_shadow(_visual_root, 16, 7, 12)
 
 	var skin: Dictionary = AssetPaths.warden_skin(player_index)
-	_skin_frames = skin.get("frames", []) as Array[Texture2D]
 	_skin_modulate = skin.get("modulate", body_color) as Color
 	body_color = _skin_modulate
-	var scale_mul: float = float(skin.get("scale", 3.6))
+	_sprite_base_scale = float(skin.get("scale", 1.05))
+	_anim_idle = _tex_array(skin.get("idle", []))
+	_anim_walk = _tex_array(skin.get("walk", skin.get("frames", [])))
+	_anim_jump = _tex_array(skin.get("jump", []))
+	_anim_fall = _tex_array(skin.get("fall", []))
+	_anim_attack = _tex_array(skin.get("attack", []))
+	if _anim_walk.is_empty():
+		_anim_walk = _anim_idle.duplicate()
+	if _anim_idle.is_empty():
+		_anim_idle = _anim_walk.duplicate()
 
-	# Ground shadow (shrinks while jumping)
+	# Ground shadow only (no aura blobs)
 	if VisualStyle:
-		_shadow = VisualStyle.make_blob_shadow(_visual_root, 16, 7, 12)
+		_shadow = VisualStyle.make_blob_shadow(_visual_root, 18, 8, 14)
 	else:
-		_shadow = FX.add_soft_shadow(_visual_root, 16, 7, 12)
+		_shadow = FX.add_soft_shadow(_visual_root, 18, 8, 14)
+	_aura_poly = null
 
-	# Soft organic aura — living crystal flesh vibe
-	var aura := FX.make_ellipse_poly(22, 26, 24, Color(_skin_modulate.r, _skin_modulate.g, _skin_modulate.b, 0.16))
-	aura.z_index = -2
-	_visual_root.add_child(aura)
-	_aura_poly = aura
-	var aura2 := FX.make_ellipse_poly(14, 16, 18, Color(_skin_modulate.r * 0.7, _skin_modulate.g, _skin_modulate.b * 0.9, 0.12))
-	aura2.z_index = -1
-	_visual_root.add_child(aura2)
-
-	var mote := FX.spark_particles(_visual_root, Color(_skin_modulate.r, _skin_modulate.g, _skin_modulate.b, 0.55), 8, "glow")
-	mote.position = Vector2(0, -6)
-	mote.z_index = -1
-	var pm := mote.process_material as ParticleProcessMaterial
-	if pm:
-		pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
-		pm.emission_sphere_radius = 14.0
-		pm.gravity = Vector3(0, -6, 0)
-		pm.initial_velocity_min = 2.0
-		pm.initial_velocity_max = 8.0
-
-	if not _skin_frames.is_empty() and _skin_frames[0] != null:
+	var start_tex: Texture2D = _anim_idle[0] if not _anim_idle.is_empty() else null
+	if start_tex:
 		_use_sprite = true
-		# PJ Monsters–scale readability: bigger, outlined sprites
-		_body_sprite = AssetPaths.make_pixel_sprite(_skin_frames[0], scale_mul * 1.25)
+		_body_sprite = AssetPaths.make_pixel_sprite(start_tex, _sprite_base_scale)
 		_body_sprite.modulate = _skin_modulate
-		_body_sprite.position = Vector2(0, -8)
+		# Feet at origin for clean 2.5D contact with ground
+		_body_sprite.centered = true
+		_body_sprite.offset = Vector2(0, -float(start_tex.get_height()) * 0.42)
+		_body_sprite.position = Vector2.ZERO
 		_body_sprite.name = "BodySprite"
 		_visual_root.add_child(_body_sprite)
-		# Outline after enter-tree so material sticks on all renderers
 		if VisualStyle:
-			VisualStyle.apply_sprite_outline(_body_sprite, 1.35)
+			VisualStyle.apply_sprite_outline(_body_sprite, 1.1)
 	else:
 		_use_sprite = false
 		_build_polygon_fallback()
-
-	# Staff crystal (kept for Dark Crystal ritual staff vibe)
-	var staff := Line2D.new()
-	staff.width = 2.5
-	staff.default_color = Color(0.35, 0.3, 0.28)
-	staff.points = PackedVector2Array([Vector2(12, 8), Vector2(16, -18)])
-	_visual_root.add_child(staff)
-	var gem := Polygon2D.new()
-	gem.polygon = PackedVector2Array([
-		Vector2(16, -26), Vector2(20, -18), Vector2(16, -14), Vector2(12, -18)
-	])
-	gem.color = Color(0.65, 0.9, 0.8, 0.95).lerp(_skin_modulate, 0.35)
-	gem.name = "StaffGem"
-	_visual_root.add_child(gem)
 
 	_attack_arc = Polygon2D.new()
 	_attack_arc.polygon = PackedVector2Array([
@@ -150,6 +134,67 @@ func _build_visuals() -> void:
 	_attack_arc.color = Color(_skin_modulate.r, _skin_modulate.g, _skin_modulate.b, 0.55)
 	_attack_arc.visible = false
 	_visual_root.add_child(_attack_arc)
+
+
+func _tex_array(v: Variant) -> Array[Texture2D]:
+	var out: Array[Texture2D] = []
+	if v is Array:
+		for t in v:
+			if t is Texture2D:
+				out.append(t as Texture2D)
+	return out
+
+
+func _update_sprite_anim(delta: float) -> void:
+	if not _use_sprite or _body_sprite == null:
+		return
+	if _attack_anim_t > 0.0:
+		_attack_anim_t -= delta
+	var desired := "idle"
+	if _attack_anim_t > 0.0:
+		desired = "attack"
+	elif is_airborne():
+		desired = "jump" if _height_vel > 40.0 else "fall"
+	elif velocity.length() > 18.0:
+		desired = "walk"
+	else:
+		desired = "idle"
+
+	var frames: Array[Texture2D] = _anim_idle
+	var rate := 0.28
+	match desired:
+		"walk":
+			frames = _anim_walk
+			rate = 0.14
+		"jump":
+			frames = _anim_jump
+			rate = 0.2
+		"fall":
+			frames = _anim_fall
+			rate = 0.2
+		"attack":
+			frames = _anim_attack
+			rate = 0.1
+		_:
+			frames = _anim_idle
+			rate = 0.35
+
+	if frames.is_empty():
+		return
+	if desired != _anim_name:
+		_anim_name = desired
+		_frame_idx = 0
+		_frame_flip_t = 0.0
+		_body_sprite.texture = frames[0]
+		return
+	if frames.size() == 1:
+		_body_sprite.texture = frames[0]
+		return
+	_frame_flip_t += delta
+	if _frame_flip_t >= rate:
+		_frame_flip_t = 0.0
+		_frame_idx = (_frame_idx + 1) % frames.size()
+		_body_sprite.texture = frames[_frame_idx]
 
 
 func _build_polygon_fallback() -> void:
@@ -199,41 +244,28 @@ func _physics_process(delta: float) -> void:
 			dir.normalized() * move_speed * air_control * speed_mult,
 			move_accel * air_control * delta
 		)
-		if _use_sprite and _skin_frames.size() > 1 and _body_sprite and not is_airborne():
-			_frame_flip_t += delta
-			if _frame_flip_t >= 0.16:
-				_frame_flip_t = 0.0
-				_frame_idx = (_frame_idx + 1) % _skin_frames.size()
-				_body_sprite.texture = _skin_frames[_frame_idx]
 	else:
 		velocity = velocity.move_toward(Vector2.ZERO, move_friction * delta)
-		if _use_sprite and not _skin_frames.is_empty() and _body_sprite and not is_airborne():
-			_body_sprite.texture = _skin_frames[0]
-			_frame_idx = 0
 
 	# Free roam on paths and open land (no path snap, no solid world colliders).
 	move_and_slide()
 	global_position = GameState.clamp_world_position(global_position)
 	z_index = int(global_position.y - _height * 0.15)
 
+	_update_sprite_anim(delta)
+
 	if _visual_root:
-		var moving := velocity.length() > 12.0 and not is_airborne()
-		_ground_y_bob = sin(_bob_t) * (3.0 if moving else 1.2)
-		# Height is upward on screen (negative y)
-		_visual_root.position.y = _ground_y_bob - _height
+		# Height only — no bobbing that fights 2.5D walk cycle
+		_visual_root.position.y = -_height
+		# Face flip via scale.x; light air squash only
 		var squash := 1.0
 		if is_airborne():
-			squash = 1.0 - clampf(_height_vel / 600.0, -0.15, 0.12)
-		else:
-			squash = 1.0 + sin(_bob_t * 2.0) * (0.06 if moving else 0.02)
-		_visual_root.scale = Vector2(_face_sign * squash, 1.0 / maxf(0.7, squash))
+			squash = 1.0 - clampf(_height_vel / 700.0, -0.12, 0.1)
+		_visual_root.scale = Vector2(_face_sign * squash, 1.0 / maxf(0.75, squash))
 		if _shadow:
 			var s := clampf(1.0 - _height / 120.0, 0.35, 1.0)
-			_shadow.scale = Vector2(s, s)
+			_shadow.scale = Vector2(s * absf(_face_sign), s)
 			_shadow.modulate.a = 0.25 + 0.35 * s
-		if has_node("Visual/StaffGem"):
-			var gem: Polygon2D = $Visual/StaffGem
-			gem.modulate = Color(1, 1, 1, 0.75 + 0.25 * sin(_bob_t * 1.3))
 
 	if _action_just_pressed("jump"):
 		_try_jump()
@@ -539,6 +571,8 @@ func _try_attack() -> void:
 	if _attack_cd > 0.0:
 		return
 	_attack_cd = attack_cooldown
+	_attack_anim_t = 0.22
+	_anim_name = ""  # force anim refresh
 	_flash_attack()
 	if Sfx:
 		Sfx.attack()
