@@ -261,7 +261,7 @@ func _end_game(victory: bool) -> void:
 		if Sfx:
 			Sfx.win()
 		if Juice:
-			Juice.flash(Color(0.55, 0.78, 0.9, 0.4), 0.4)
+			Juice.flash(Color(0.85, 0.75, 1.0, 0.45), 0.4)
 			Juice.shake(12.0)
 	else:
 		message.emit("Defeat — the light is gone")

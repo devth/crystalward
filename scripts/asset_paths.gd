@@ -165,19 +165,19 @@ func dawnlike_frames(path0: String, path1: String, col: int, row: int) -> Array[
 func warden_skin(player_index: int) -> Dictionary:
 	# Returns { "frames": Array[Texture2D], "modulate": Color, "scale": float }
 	var frames: Array[Texture2D] = []
-	var modulate := Color(0.45, 0.72, 0.58)
+	var modulate := Color(0.6, 0.9, 0.78)
 	var scale_mul := 4.4
 	if player_index == 0:
-		# Moss / ironwood warden
-		modulate = Color(0.45, 0.72, 0.58)
+		# Living moss / crystal-flesh elemental
+		modulate = Color(0.6, 0.9, 0.78)
 		frames = dawnlike_frames(DAWNLIKE_ELEMENTAL0, DAWNLIKE_ELEMENTAL1, 1, 2)
 		if frames.is_empty():
 			frames = dawnlike_frames(DAWNLIKE_PLANT0, DAWNLIKE_PLANT1, 0, 0)
 		if frames.is_empty():
 			frames = dawnlike_frames(DAWNLIKE_HUMANOID0, DAWNLIKE_HUMANOID1, 2, 3)
 	else:
-		# Burnt amber / ember warden
-		modulate = Color(0.78, 0.48, 0.28)
+		# Dark crystalline / gelfling-shadow humanoid
+		modulate = Color(0.92, 0.65, 0.95)
 		frames = dawnlike_frames(DAWNLIKE_ELEMENTAL0, DAWNLIKE_ELEMENTAL1, 3, 1)
 		if frames.is_empty():
 			frames = dawnlike_frames(DAWNLIKE_HUMANOID0, DAWNLIKE_HUMANOID1, 4, 2)

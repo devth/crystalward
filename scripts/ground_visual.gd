@@ -345,7 +345,7 @@ func _add_path_strip(from: Vector2, to: Vector2, width: float) -> void:
 	# Soft magical center vein
 	var vein := Line2D.new()
 	vein.width = 3.5
-	vein.default_color = Color(0.45, 0.75, 0.85, 0.28)
+	vein.default_color = Color(0.85, 0.7, 1.0, 0.28)
 	vein.begin_cap_mode = Line2D.LINE_CAP_ROUND
 	vein.end_cap_mode = Line2D.LINE_CAP_ROUND
 	vein.points = PackedVector2Array([from, to])
@@ -375,7 +375,7 @@ func _add_spawn_portal(pos: Vector2) -> void:
 	var core := FX.make_ellipse_poly(16, 10, 18, Color(1.0, 0.7, 0.85, 0.65))
 	root.add_child(core)
 	if FX:
-		FX.spark_particles(root, Color(0.85, 0.4, 0.25, 0.75), 12, "magic")
+		FX.spark_particles(root, Color(0.95, 0.55, 0.85, 0.8), 12, "magic")
 
 
 func _add_standing_stone(pos: Vector2, scale: float) -> void:

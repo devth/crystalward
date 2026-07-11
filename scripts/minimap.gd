@@ -26,7 +26,7 @@ func _draw() -> void:
 				draw_line(a, b, Color(0.55, 0.35, 0.75, 0.35), 1.5)
 
 	# Crystal
-	draw_circle(_world_to_mini(PathNetwork.CRYSTAL if PathNetwork else Vector2.ZERO, center), 4.0, Color(0.55, 0.82, 0.95, 0.95))
+	draw_circle(_world_to_mini(PathNetwork.CRYSTAL if PathNetwork else Vector2.ZERO, center), 4.0, Color(0.85, 0.7, 1.0, 0.95))
 
 	# Enemies / wardens / fairies
 	var tree := get_tree()
@@ -36,7 +36,7 @@ func _draw() -> void:
 				draw_circle(_world_to_mini(e.global_position, center), 2.0, Color(0.9, 0.25, 0.4, 0.85))
 		for w in GameState.wardens:
 			if is_instance_valid(w):
-				var c := Color(0.45, 0.78, 0.62) if w.get("player_index") == 0 else Color(0.85, 0.55, 0.28)
+				var c := Color(0.5, 0.85, 0.95) if w.get("player_index") == 0 else Color(0.95, 0.55, 0.75)
 				draw_circle(_world_to_mini(w.global_position, center), 3.0, c)
 		for f in tree.get_nodes_in_group("helper_fairies"):
 			if f is Node2D:

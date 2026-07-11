@@ -46,7 +46,7 @@ func _build_visuals() -> void:
 	add_child(_visual)
 	if VisualStyle:
 		VisualStyle.make_blob_shadow(_visual, 8, 4, 6)
-	var col := Color(0.35, 0.78, 0.72) if kind == Kind.ESSENCE else Color(0.75, 0.65, 0.35)
+	var col := Color(0.45, 0.95, 0.9) if kind == Kind.ESSENCE else Color(0.85, 0.7, 1.0)
 	var glow := FX.make_ellipse_poly(12, 12, 14, Color(col.r, col.g, col.b, 0.3))
 	glow.z_index = -1
 	_visual.add_child(glow)
@@ -134,7 +134,7 @@ func collect() -> bool:
 			FloatingText.spawn(get_parent(), global_position, "+%d" % amount, Color(1.0, 0.9, 0.35))
 		Kind.DUST:
 			GameState.add_crystal_dust(amount)
-			FloatingText.spawn(get_parent(), global_position, "+dust", Color(0.85, 0.7, 0.35))
+			FloatingText.spawn(get_parent(), global_position, "+dust", Color(0.85, 0.7, 1.0))
 	if Sfx:
 		Sfx.gather()
 	if FX:
