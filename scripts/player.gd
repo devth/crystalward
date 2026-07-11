@@ -94,6 +94,7 @@ func _build_visuals() -> void:
 	_skin_modulate = skin.get("modulate", body_color) as Color
 	body_color = _skin_modulate
 	_sprite_base_scale = float(skin.get("scale", 1.05))
+	var glow_col: Color = skin.get("glow", Color(_skin_modulate.r, _skin_modulate.g, _skin_modulate.b, 0.35)) as Color
 	_anim_idle = _tex_array(skin.get("idle", []))
 	_anim_walk = _tex_array(skin.get("walk", skin.get("frames", [])))
 	_anim_jump = _tex_array(skin.get("jump", []))
@@ -104,16 +105,36 @@ func _build_visuals() -> void:
 	if _anim_idle.is_empty():
 		_anim_idle = _anim_walk.duplicate()
 
-	# Soft ground shadow + ethereal aura (Dark Crystal living crystal)
+	# Soft ground shadow + layered ethereal aura (Dark Crystal living crystal)
 	if VisualStyle:
-		_shadow = VisualStyle.make_blob_shadow(_visual_root, 14, 6, 10)
+		_shadow = VisualStyle.make_blob_shadow(_visual_root, 18, 8, 12)
 	else:
-		_shadow = FX.add_soft_shadow(_visual_root, 14, 6, 10)
+		_shadow = FX.add_soft_shadow(_visual_root, 18, 8, 12)
 
-	var aura := FX.make_ellipse_poly(20, 24, 22, Color(_skin_modulate.r, _skin_modulate.g, _skin_modulate.b, 0.2))
+	var aura_outer := FX.make_ellipse_poly(28, 32, 28, Color(glow_col.r, glow_col.g, glow_col.b, 0.12))
+	aura_outer.z_index = -3
+	_visual_root.add_child(aura_outer)
+	var aura := FX.make_ellipse_poly(20, 24, 24, Color(_skin_modulate.r, _skin_modulate.g, _skin_modulate.b, 0.28))
 	aura.z_index = -2
 	_visual_root.add_child(aura)
 	_aura_poly = aura
+	var aura_core := FX.make_ellipse_poly(10, 12, 16, Color(1.0, 0.95, 0.85, 0.18))
+	aura_core.z_index = -1
+	_visual_root.add_child(aura_core)
+
+	# Floating crystal shards around the warden
+	for i in 3:
+		var ang := TAU * float(i) / 3.0 - PI * 0.5
+		var shard := Polygon2D.new()
+		shard.polygon = PackedVector2Array([
+			Vector2(0, -7), Vector2(3.5, -1), Vector2(0, 4), Vector2(-3.5, -1)
+		])
+		shard.color = _skin_modulate.lightened(0.25)
+		shard.color.a = 0.75
+		shard.position = Vector2(cos(ang), sin(ang) * 0.75) * 18.0 + Vector2(0, -10)
+		shard.z_index = 2
+		shard.name = "OrbitShard%d" % i
+		_visual_root.add_child(shard)
 
 	var start_tex: Texture2D = _anim_idle[0] if not _anim_idle.is_empty() else null
 	if start_tex:
@@ -121,22 +142,31 @@ func _build_visuals() -> void:
 		_body_sprite = AssetPaths.make_pixel_sprite(start_tex, _sprite_base_scale)
 		_body_sprite.modulate = _skin_modulate
 		_body_sprite.centered = true
-		# Top-down sprite: slight lift so feet sit on ground
-		_body_sprite.offset = Vector2(0, -float(start_tex.get_height()) * 0.15)
+		_body_sprite.offset = Vector2(0, -float(start_tex.get_height()) * 0.18)
 		_body_sprite.position = Vector2.ZERO
 		_body_sprite.name = "BodySprite"
 		_visual_root.add_child(_body_sprite)
 		if VisualStyle:
-			VisualStyle.apply_sprite_outline(_body_sprite, 1.2)
+			VisualStyle.apply_sprite_outline(_body_sprite, 1.45)
 	else:
 		_use_sprite = false
 		_build_polygon_fallback()
 
+	# Crystal crest above head
+	var crest := Polygon2D.new()
+	crest.polygon = PackedVector2Array([
+		Vector2(0, -38), Vector2(5, -30), Vector2(2, -26), Vector2(0, -32),
+		Vector2(-2, -26), Vector2(-5, -30)
+	])
+	crest.color = Color(0.95, 0.88, 0.55, 0.9) if player_index == 0 else Color(0.85, 0.7, 1.0, 0.9)
+	crest.z_index = 3
+	_visual_root.add_child(crest)
+
 	_attack_arc = Polygon2D.new()
 	_attack_arc.polygon = PackedVector2Array([
-		Vector2(6, -14), Vector2(46, -6), Vector2(44, 8), Vector2(6, 12)
+		Vector2(8, -16), Vector2(52, -10), Vector2(50, 10), Vector2(8, 14), Vector2(4, 0)
 	])
-	_attack_arc.color = Color(_skin_modulate.r, _skin_modulate.g, _skin_modulate.b, 0.55)
+	_attack_arc.color = Color(_skin_modulate.r, _skin_modulate.g, _skin_modulate.b, 0.65)
 	_attack_arc.visible = false
 	_visual_root.add_child(_attack_arc)
 
@@ -264,9 +294,7 @@ func _physics_process(delta: float) -> void:
 	_update_sprite_anim(delta)
 
 	if _visual_root:
-		# Height only — no bobbing that fights 2.5D walk cycle
 		_visual_root.position.y = -_height
-		# Face flip via scale.x; light air squash only
 		var squash := 1.0
 		if is_airborne():
 			squash = 1.0 - clampf(_height_vel / 700.0, -0.12, 0.1)
@@ -274,7 +302,18 @@ func _physics_process(delta: float) -> void:
 		if _shadow:
 			var s := clampf(1.0 - _height / 120.0, 0.35, 1.0)
 			_shadow.scale = Vector2(s * absf(_face_sign), s)
-			_shadow.modulate.a = 0.25 + 0.35 * s
+			_shadow.modulate.a = 0.28 + 0.4 * s
+		# Pulse aura + orbit crystal shards
+		if _aura_poly:
+			var pulse := 0.9 + 0.12 * sin(_bob_t * 1.6)
+			_aura_poly.scale = Vector2(pulse, pulse)
+			_aura_poly.modulate.a = 0.85 + 0.15 * sin(_bob_t * 2.2)
+		for c in _visual_root.get_children():
+			if str(c.name).begins_with("OrbitShard") and c is Node2D:
+				var sh := c as Node2D
+				var base_ang := float(str(c.name).substr(10).to_int()) * TAU / 3.0 - PI * 0.5
+				var ang := base_ang + _bob_t * 1.1
+				sh.position = Vector2(cos(ang), sin(ang) * 0.72) * 18.0 + Vector2(0, -10 + sin(_bob_t * 2.0 + ang) * 2.0)
 
 	if _action_just_pressed("jump"):
 		_try_jump()

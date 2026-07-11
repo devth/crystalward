@@ -202,32 +202,35 @@ func _kenney_anim_set(folder: String, prefix: String) -> Dictionary:
 
 
 ## Ethereal Dark Crystal wardens — top-down DawnLike elementals (walk flip frames).
-## Side-view Kenney soldiers looked wrong on this camera; these match the forest angle.
 func warden_skin(player_index: int) -> Dictionary:
 	var frames: Array[Texture2D] = []
 	var modulate := Color(0.55, 0.95, 0.9)
-	# Hand-picked elemental cells that read as living crystal beings (not empty/black).
+	var glow := Color(0.5, 0.95, 0.9, 0.35)
+	# Prefer multi-cell elemental picks that read as living crystal beings.
 	if player_index == 0:
-		# Cyan / aqua crystal guardian
-		modulate = Color(0.55, 0.98, 0.92)
-		frames = dawnlike_frames(DAWNLIKE_ELEMENTAL0, DAWNLIKE_ELEMENTAL1, 1, 0)
-		if frames.is_empty():
-			frames = dawnlike_frames(DAWNLIKE_ELEMENTAL0, DAWNLIKE_ELEMENTAL1, 0, 1)
+		modulate = Color(0.52, 1.0, 0.94)
+		glow = Color(0.45, 0.95, 0.92, 0.4)
+		# Try several aqua elemental cells
+		for cell in [[1, 0], [0, 1], [1, 1], [0, 0], [2, 0]]:
+			frames = dawnlike_frames(DAWNLIKE_ELEMENTAL0, DAWNLIKE_ELEMENTAL1, cell[0], cell[1])
+			if not frames.is_empty():
+				break
 		if frames.is_empty():
 			frames = dawnlike_frames(DAWNLIKE_PLANT0, DAWNLIKE_PLANT1, 1, 0)
 	else:
-		# Violet / amethyst shadow warden
-		modulate = Color(0.82, 0.55, 0.98)
-		frames = dawnlike_frames(DAWNLIKE_ELEMENTAL0, DAWNLIKE_ELEMENTAL1, 2, 0)
-		if frames.is_empty():
-			frames = dawnlike_frames(DAWNLIKE_ELEMENTAL0, DAWNLIKE_ELEMENTAL1, 3, 1)
+		modulate = Color(0.88, 0.52, 1.0)
+		glow = Color(0.75, 0.45, 0.98, 0.4)
+		for cell in [[2, 0], [3, 0], [2, 1], [3, 1], [1, 2]]:
+			frames = dawnlike_frames(DAWNLIKE_ELEMENTAL0, DAWNLIKE_ELEMENTAL1, cell[0], cell[1])
+			if not frames.is_empty():
+				break
 		if frames.is_empty():
 			frames = dawnlike_frames(DAWNLIKE_HUMANOID0, DAWNLIKE_HUMANOID1, 1, 0)
 	if frames.is_empty():
-		# Last resort Kenney (side view) so something renders
 		var anim := _kenney_anim_set("Adventurer", "adventurer")
 		anim["modulate"] = modulate
-		anim["scale"] = 1.1
+		anim["glow"] = glow
+		anim["scale"] = 1.15
 		anim["style"] = "kenney_25d"
 		return anim
 	return {
@@ -238,38 +241,60 @@ func warden_skin(player_index: int) -> Dictionary:
 		"attack": frames,
 		"frames": frames,
 		"modulate": modulate,
-		"scale": 4.2,
+		"glow": glow,
+		"scale": 4.8,
 		"style": "ethereal_topdown",
 	}
 
 
-## Nightspawn — demonic / undead thralls (top-down walk flip).
+## Nightspawn — demonic / undead thralls with role tags for VFX.
 func random_enemy_skin() -> Dictionary:
 	var frames: Array[Texture2D] = []
-	var modulate := Color(0.7, 0.4, 0.55)
-	var scale_mul := 3.6
+	var modulate := Color(0.78, 0.38, 0.55)
+	var scale_mul := 4.0
+	var kind := "demon"
+	var aura := Color(0.7, 0.25, 0.45, 0.28)
 	var roll := randi() % 100
-	if roll < 40:
-		frames = dawnlike_frames(DAWNLIKE_DEMON0, DAWNLIKE_DEMON1, randi() % 4, randi() % 3)
-		modulate = Color(0.75, 0.35, 0.5)
-	elif roll < 70:
-		frames = dawnlike_frames(DAWNLIKE_UNDEAD0, DAWNLIKE_UNDEAD1, randi() % 3, randi() % 2)
-		modulate = Color(0.55, 0.45, 0.7)
+	if roll < 32:
+		kind = "demon"
+		frames = dawnlike_frames(DAWNLIKE_DEMON0, DAWNLIKE_DEMON1, randi() % 5, randi() % 3)
+		modulate = Color(0.88, 0.32, 0.48)
+		aura = Color(0.9, 0.2, 0.35, 0.3)
+		scale_mul = 4.1
+	elif roll < 55:
+		kind = "undead"
+		frames = dawnlike_frames(DAWNLIKE_UNDEAD0, DAWNLIKE_UNDEAD1, randi() % 4, randi() % 3)
+		modulate = Color(0.62, 0.52, 0.82)
+		aura = Color(0.5, 0.35, 0.85, 0.28)
+		scale_mul = 4.0
+	elif roll < 72:
+		kind = "beast"
+		frames = dawnlike_frames(DAWNLIKE_QUADRAPED0, DAWNLIKE_QUADRAPED1, randi() % 4, randi() % 2)
+		if frames.is_empty():
+			frames = dawnlike_frames(DAWNLIKE_REPTILE0, DAWNLIKE_REPTILE1, randi() % 3, 0)
+		modulate = Color(0.55, 0.42, 0.38)
+		aura = Color(0.45, 0.3, 0.25, 0.22)
+		scale_mul = 3.9
 	elif roll < 88:
-		frames = dawnlike_frames(DAWNLIKE_PEST0, DAWNLIKE_PEST1, randi() % 4, randi() % 2)
-		modulate = Color(0.5, 0.35, 0.55)
-		scale_mul = 3.2
+		kind = "pest"
+		frames = dawnlike_frames(DAWNLIKE_PEST0, DAWNLIKE_PEST1, randi() % 5, randi() % 2)
+		modulate = Color(0.55, 0.4, 0.62)
+		aura = Color(0.55, 0.3, 0.65, 0.25)
+		scale_mul = 3.5
 	else:
-		frames = dawnlike_frames(DAWNLIKE_SLIME0, DAWNLIKE_SLIME1, randi() % 3, 0)
-		modulate = Color(0.45, 0.3, 0.55)
-		scale_mul = 3.0
+		kind = "slime"
+		frames = dawnlike_frames(DAWNLIKE_SLIME0, DAWNLIKE_SLIME1, randi() % 4, 0)
+		modulate = Color(0.48, 0.35, 0.62)
+		aura = Color(0.4, 0.55, 0.35, 0.28)
+		scale_mul = 3.6
 	if frames.is_empty():
 		frames = dawnlike_frames(DAWNLIKE_DEMON0, DAWNLIKE_DEMON1, 0, 0)
-	# Filter out empty/black-looking frames is hard; prefer known cells if empty
 	if frames.is_empty():
 		var anim := _kenney_anim_set("Zombie", "zombie")
 		anim["modulate"] = modulate
-		anim["scale"] = 0.9
+		anim["aura"] = aura
+		anim["kind"] = kind
+		anim["scale"] = 1.0
 		anim["style"] = "kenney_25d"
 		return anim
 	return {
@@ -277,6 +302,8 @@ func random_enemy_skin() -> Dictionary:
 		"walk": frames,
 		"frames": frames,
 		"modulate": modulate,
+		"aura": aura,
+		"kind": kind,
 		"scale": scale_mul,
 		"style": "ethereal_topdown",
 	}

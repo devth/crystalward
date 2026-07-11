@@ -106,11 +106,12 @@ func make_elite() -> void:
 func _build_visuals() -> void:
 	_visual = Node2D.new()
 	add_child(_visual)
-	FX.add_soft_shadow(_visual, 16, 7, 12)
+	FX.add_soft_shadow(_visual, 18, 8, 12)
 
 	var skin: Dictionary = AssetPaths.random_enemy_skin()
 	_skin_modulate = skin.get("modulate", Color(0.72, 0.42, 0.62)) as Color
 	_sprite_scale = float(skin.get("scale", 0.85))
+	var aura_col: Color = skin.get("aura", Color(0.7, 0.3, 0.5, 0.25)) as Color
 	_anim_walk = []
 	_anim_idle = []
 	for t in skin.get("walk", skin.get("frames", [])):
@@ -123,20 +124,36 @@ func _build_visuals() -> void:
 		_anim_walk = _anim_idle.duplicate()
 	_skin_frames = _anim_walk
 	if _is_elite:
-		_skin_modulate = _skin_modulate.lightened(0.12)
-		_sprite_scale *= 1.2
+		_skin_modulate = _skin_modulate.lightened(0.15)
+		_sprite_scale *= 1.28
+		aura_col = Color(1.0, 0.55, 0.25, 0.38)
+
+	# Soft corruption aura under feet
+	var aura := FX.make_ellipse_poly(22 if not _is_elite else 28, 14 if not _is_elite else 18, 22, aura_col)
+	aura.z_index = -2
+	aura.name = "CorruptAura"
+	_visual.add_child(aura)
 
 	if _is_elite:
-		var ring := FX.make_ellipse_poly(20, 12, 18, Color(0.95, 0.5, 0.3, 0.22))
+		var ring := FX.make_ellipse_poly(26, 16, 22, Color(1.0, 0.55, 0.25, 0.28))
 		ring.z_index = -1
 		_visual.add_child(ring)
+		# Horn crowns for elite read
+		for sx in [-1.0, 1.0]:
+			var horn := Polygon2D.new()
+			horn.polygon = PackedVector2Array([
+				Vector2(0, -22), Vector2(sx * 6, -34), Vector2(sx * 3, -18)
+			])
+			horn.color = Color(0.95, 0.5, 0.3, 0.9)
+			horn.z_index = 2
+			_visual.add_child(horn)
 
 	if not _skin_frames.is_empty() and _skin_frames[0] != null:
 		_use_sprite = true
 		_body_sprite = AssetPaths.make_pixel_sprite(_skin_frames[0], _sprite_scale)
 		_body_sprite.modulate = _skin_modulate
 		_body_sprite.centered = true
-		_body_sprite.offset = Vector2(0, -float(_skin_frames[0].get_height()) * 0.15)
+		_body_sprite.offset = Vector2(0, -float(_skin_frames[0].get_height()) * 0.18)
 		_body_sprite.position = Vector2.ZERO
 		_visual.add_child(_body_sprite)
 		_apply_outline()
@@ -144,17 +161,17 @@ func _build_visuals() -> void:
 
 	_body_poly = Polygon2D.new()
 	_body_poly.polygon = PackedVector2Array([
-		Vector2(0, -16), Vector2(10, -6), Vector2(12, 6), Vector2(4, 14),
-		Vector2(-4, 14), Vector2(-12, 6), Vector2(-10, -6)
+		Vector2(0, -18), Vector2(12, -8), Vector2(14, 6), Vector2(5, 16),
+		Vector2(-5, 16), Vector2(-14, 6), Vector2(-12, -8)
 	])
-	_body_poly.color = Color(0.42, 0.12, 0.28)
+	_body_poly.color = Color(0.48, 0.12, 0.3)
 	_visual.add_child(_body_poly)
 
 
 func _apply_outline() -> void:
 	if _body_sprite == null or VisualStyle == null:
 		return
-	var w := 1.35 if _is_elite else 1.25
+	var w := 1.55 if _is_elite else 1.35
 	VisualStyle.apply_sprite_outline(_body_sprite, w)
 	if _body_sprite.material == null:
 		VisualStyle.call_deferred("apply_sprite_outline", _body_sprite, w)
@@ -273,7 +290,19 @@ func _finish_frame() -> void:
 			_face_sign = -1.0
 		elif _move_dir.x > 0.12:
 			_face_sign = 1.0
-		_visual.scale = Vector2(_face_sign, 1.0)
+		# Rooted: squash + green tint; normal face flip
+		var ys := 1.0
+		if _root_t > 0.0:
+			ys = 0.82
+			if _body_sprite:
+				_body_sprite.modulate = _skin_modulate.lerp(Color(0.35, 0.75, 0.4), 0.45)
+		elif _body_sprite and _body_sprite.modulate != _skin_modulate:
+			_body_sprite.modulate = _body_sprite.modulate.lerp(_skin_modulate, 0.2)
+		_visual.scale = Vector2(_face_sign, ys)
+		var aura := _visual.get_node_or_null("CorruptAura")
+		if aura is Node2D:
+			var p := 0.92 + 0.1 * sin(_anim_t * 3.0)
+			(aura as Node2D).scale = Vector2(p, p)
 	# Walk flip while moving along path
 	if _use_sprite and _body_sprite and _anim_walk.size() > 0:
 		var moving := _move_dir.length() > 0.05

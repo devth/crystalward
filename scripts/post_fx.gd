@@ -38,10 +38,10 @@ func _try_soft_bloom() -> bool:
 	var mat := ShaderMaterial.new()
 	mat.shader = sh
 	# Soft ethereal grade — amber lift + violet night (spec art dir)
-	mat.set_shader_parameter("bloom_intensity", 0.16)
-	mat.set_shader_parameter("saturation", 1.1)
-	mat.set_shader_parameter("contrast", 1.04)
-	mat.set_shader_parameter("tint", Color(1.02, 0.98, 1.05, 1.0))
+	mat.set_shader_parameter("bloom_intensity", 0.22)
+	mat.set_shader_parameter("saturation", 1.16)
+	mat.set_shader_parameter("contrast", 1.06)
+	mat.set_shader_parameter("tint", Color(1.03, 0.98, 1.06, 1.0))
 	rect.material = mat
 	add_child(rect)
 	return true

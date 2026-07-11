@@ -263,18 +263,25 @@ func _too_close_to_existing_sites(pos: Vector2, min_dist: float) -> bool:
 
 
 func _build_atmosphere() -> void:
-	# Spec: cold violet night + warm amber Lightwell shafts
-	var ambient := FX.spark_particles(self, Color(0.6, 0.45, 0.9, 0.35), 28, "star")
+	# Spec: cold violet night + warm amber Lightwell shafts — denser fireflies
+	var ambient := FX.spark_particles(self, Color(0.65, 0.5, 0.95, 0.4), 42, "star")
 	ambient.position = Vector2(0, 40)
 	var pm := ambient.process_material as ParticleProcessMaterial
 	if pm:
 		pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
-		pm.emission_sphere_radius = 480.0
-		pm.gravity = Vector3(0, -1.5, 0)
-		pm.initial_velocity_min = 1.5
-		pm.initial_velocity_max = 9.0
-		pm.scale_min = 0.4
-		pm.scale_max = 1.4
+		pm.emission_sphere_radius = 560.0
+		pm.gravity = Vector3(0, -1.2, 0)
+		pm.initial_velocity_min = 1.2
+		pm.initial_velocity_max = 10.0
+		pm.scale_min = 0.35
+		pm.scale_max = 1.5
+	var amber_motes := FX.spark_particles(self, Color(0.95, 0.75, 0.4, 0.35), 18, "glow")
+	amber_motes.position = Vector2(0, 40)
+	var pm2 := amber_motes.process_material as ParticleProcessMaterial
+	if pm2:
+		pm2.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+		pm2.emission_sphere_radius = 220.0
+		pm2.gravity = Vector3(0, -0.8, 0)
 
 	# Amber god-rays from the well (warm crystal light)
 	for i in 4:

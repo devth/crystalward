@@ -286,194 +286,243 @@ func _add_level_ornaments() -> void:
 			_visual.add_child(butt)
 
 
-func _build_thornspire() -> void:
-	var base_r := 18.0 + (level - 1) * 5.0
-	var base := FX.make_ellipse_poly(base_r, 10 + level * 2, 20, Color(0.28, 0.26, 0.24, 0.95))
+func _add_plinth(rx: float = 20.0, ry: float = 11.0) -> void:
+	var outer := FX.make_ellipse_poly(rx + 4, ry + 2, 24, Color(0.12, 0.1, 0.14, 0.9))
+	outer.position = Vector2(0, 10)
+	_visual.add_child(outer)
+	var base := FX.make_ellipse_poly(rx, ry, 22, Color(0.26, 0.22, 0.28, 0.95))
 	base.position = Vector2(0, 8)
 	_visual.add_child(base)
-	var trunk_w := 9.0 + (level - 1) * 2.5
+	var glow := FX.make_ellipse_poly(rx * 0.55, ry * 0.5, 16, Color(_def_color.r, _def_color.g, _def_color.b, 0.25))
+	glow.position = Vector2(0, 6)
+	_visual.add_child(glow)
+
+
+## DPS — briar spire bristling with thorns (reads as rapid fire).
+func _build_thornspire() -> void:
+	_add_plinth(20.0 + level * 2, 11.0)
 	var trunk := Polygon2D.new()
 	trunk.polygon = PackedVector2Array([
-		Vector2(-trunk_w, 10), Vector2(trunk_w, 10),
-		Vector2(trunk_w - 2, -22 - level * 6), Vector2(-(trunk_w - 2), -22 - level * 6)
+		Vector2(-10, 10), Vector2(10, 10), Vector2(7, -28), Vector2(-7, -28)
 	])
-	trunk.color = Color(0.38, 0.26, 0.16)
+	trunk.color = Color(0.32, 0.2, 0.12)
 	_visual.add_child(trunk)
-	if level >= 2:
-		var vine := Polygon2D.new()
-		vine.polygon = PackedVector2Array([Vector2(-6, 4), Vector2(-1, -28), Vector2(3, 6)])
-		vine.color = Color(0.25, 0.5, 0.3, 0.85)
-		_visual.add_child(vine)
-	var h := 56.0 + (level - 1) * 14.0
-	var w := 18.0 + (level - 1) * 5.0
+	var h := 58.0 + (level - 1) * 14.0
+	var w := 16.0 + (level - 1) * 4.0
 	_body = Polygon2D.new()
 	_body.polygon = PackedVector2Array([
-		Vector2(0, -h), Vector2(w, -h * 0.68), Vector2(w * 0.78, -h * 0.28),
-		Vector2(0, -h * 0.2), Vector2(-w * 0.78, -h * 0.28), Vector2(-w, -h * 0.68)
+		Vector2(0, -h), Vector2(w, -h * 0.7), Vector2(w * 0.7, -h * 0.25),
+		Vector2(0, -h * 0.15), Vector2(-w * 0.7, -h * 0.25), Vector2(-w, -h * 0.7)
 	])
 	_body.color = _def_color
 	_visual.add_child(_body)
-	var hi := Polygon2D.new()
-	hi.polygon = PackedVector2Array([
-		Vector2(-w * 0.35, -h * 0.86), Vector2(w * 0.1, -h * 0.75),
-		Vector2(-w * 0.1, -h * 0.5), Vector2(-w * 0.55, -h * 0.64)
-	])
-	hi.color = _def_color.lightened(0.25)
-	_visual.add_child(hi)
+	# Dense thorn ring — visual "swarm DPS"
+	for i in (6 + level * 2):
+		var ang := TAU * float(i) / float(6 + level * 2)
+		var thorn := Polygon2D.new()
+		var len := 12.0 + level * 3.0
+		thorn.polygon = PackedVector2Array([
+			Vector2(0, 0), Vector2(3, -len * 0.4), Vector2(0, -len), Vector2(-3, -len * 0.4)
+		])
+		thorn.color = _def_color.lightened(0.15) if i % 2 == 0 else _def_color.darkened(0.1)
+		thorn.position = Vector2(cos(ang), sin(ang) * 0.7) * (14.0 + level * 2.0) + Vector2(0, -h * 0.45)
+		thorn.rotation = ang + PI * 0.5
+		_visual.add_child(thorn)
 	_accent = Polygon2D.new()
 	_accent.polygon = PackedVector2Array([
-		Vector2(0, -h * 0.93), Vector2(7 + level, -h * 0.68), Vector2(0, -h * 0.54), Vector2(-(7 + level), -h * 0.68)
+		Vector2(0, -h - 4), Vector2(6, -h * 0.85), Vector2(0, -h * 0.75), Vector2(-6, -h * 0.85)
 	])
-	_accent.color = Color(0.95, 0.85, 0.45)
+	_accent.color = Color(0.95, 0.85, 0.4)
 	_visual.add_child(_accent)
-	if level >= 2:
-		for sx in [-1.0, 1.0]:
-			var thorn := Polygon2D.new()
-			thorn.polygon = PackedVector2Array([
-				Vector2(0, -h * 0.55), Vector2(sx * 14, -h * 0.4), Vector2(sx * 4, -h * 0.35)
-			])
-			thorn.color = _def_color.darkened(0.1)
-			_visual.add_child(thorn)
 
 
+## SNIPE — tall crystal bow with nocked bolt (reads as long-range).
 func _build_shardbow() -> void:
-	var base := Polygon2D.new()
-	base.polygon = PackedVector2Array([
-		Vector2(-14 - level * 3, 12), Vector2(14 + level * 3, 12),
-		Vector2(10 + level * 2, 0), Vector2(-(10 + level * 2), 0)
-	])
-	base.color = Color(0.35, 0.3, 0.28)
-	_visual.add_child(base)
-	var h := 50.0 + (level - 1) * 12.0
+	_add_plinth(16.0, 9.0)
+	var h := 62.0 + (level - 1) * 14.0
+	# Tall post
 	_body = Polygon2D.new()
 	_body.polygon = PackedVector2Array([
-		Vector2(-4 - level, 0), Vector2(4 + level, 0), Vector2(2, -h), Vector2(-2, -h)
+		Vector2(-5, 8), Vector2(5, 8), Vector2(3, -h * 0.85), Vector2(-3, -h * 0.85)
 	])
-	_body.color = Color(0.55, 0.5, 0.45)
+	_body.color = Color(0.45, 0.4, 0.38)
 	_visual.add_child(_body)
-	var bow_w := 18.0 + (level - 1) * 8.0
+	# Bow limbs (wide C silhouette = range)
+	var bow_w := 26.0 + level * 6.0
 	_accent = Polygon2D.new()
 	_accent.polygon = PackedVector2Array([
-		Vector2(0, -h - 6), Vector2(bow_w, -h * 0.72), Vector2(0, -h * 0.6), Vector2(-bow_w, -h * 0.72)
+		Vector2(-bow_w, -h * 0.55), Vector2(-bow_w * 0.4, -h * 0.95), Vector2(0, -h - 6),
+		Vector2(bow_w * 0.4, -h * 0.95), Vector2(bow_w, -h * 0.55),
+		Vector2(bow_w * 0.55, -h * 0.5), Vector2(0, -h * 0.72), Vector2(-bow_w * 0.55, -h * 0.5)
 	])
 	_accent.color = _def_color
 	_visual.add_child(_accent)
-	if level >= 2:
-		var string_line := Line2D.new()
-		string_line.width = 1.5
-		string_line.default_color = Color(0.95, 0.9, 0.7, 0.8)
-		string_line.points = PackedVector2Array([Vector2(-bow_w * 0.85, -h * 0.72), Vector2(bow_w * 0.85, -h * 0.72)])
-		_visual.add_child(string_line)
-	if level >= 3:
-		var arrow := Polygon2D.new()
-		arrow.polygon = PackedVector2Array([Vector2(0, -h - 18), Vector2(4, -h - 4), Vector2(-4, -h - 4)])
-		arrow.color = Color(0.95, 0.85, 0.4)
-		_visual.add_child(arrow)
-
-
-func _build_mistvent() -> void:
-	var br := 28.0 + (level - 1) * 6.0
-	_body = FX.make_ellipse_poly(br, 16 + level * 2, 24, Color(0.25, 0.18, 0.3, 0.85))
-	_body.position = Vector2(0, 4)
-	_visual.add_child(_body)
-	_accent = FX.make_ellipse_poly(22 + level * 4, 28 + level * 6, 20, Color(_def_color.r, _def_color.g, _def_color.b, 0.35))
-	_accent.position = Vector2(0, -18 - level * 4)
-	_visual.add_child(_accent)
-	var mist := FX.make_ellipse_poly(minf(fire_range * 0.28, 90.0), minf(fire_range * 0.18, 58.0), 32, Color(0.6, 0.4, 0.9, 0.1))
-	mist.z_index = -1
-	mist.name = "MistAura"
-	_visual.add_child(mist)
-	if level >= 2:
-		for i in level:
-			var puff := FX.make_ellipse_poly(10, 14, 12, Color(0.65, 0.45, 0.9, 0.22))
-			puff.position = Vector2((i - level * 0.5) * 12.0, -30 - i * 8)
-			_visual.add_child(puff)
-
-
-func _build_hex() -> void:
-	var pole_h := 40.0 + (level - 1) * 10.0
-	var pole := Polygon2D.new()
-	pole.polygon = PackedVector2Array([
-		Vector2(-3 - level, 12), Vector2(3 + level, 12), Vector2(2, -pole_h), Vector2(-2, -pole_h)
+	# String
+	var string_line := Line2D.new()
+	string_line.width = 1.8
+	string_line.default_color = Color(0.98, 0.92, 0.7, 0.85)
+	string_line.points = PackedVector2Array([Vector2(-bow_w * 0.9, -h * 0.55), Vector2(bow_w * 0.9, -h * 0.55)])
+	_visual.add_child(string_line)
+	# Drawn bolt (long = snipe)
+	var bolt := Polygon2D.new()
+	bolt.polygon = PackedVector2Array([
+		Vector2(0, -h - 20 - level * 4), Vector2(3, -h * 0.55), Vector2(0, -h * 0.5), Vector2(-3, -h * 0.55)
 	])
-	pole.color = Color(0.3, 0.25, 0.35)
-	_visual.add_child(pole)
-	var h := 55.0 + (level - 1) * 12.0
-	var w := 14.0 + (level - 1) * 4.0
+	bolt.color = Color(0.95, 0.9, 0.55)
+	_visual.add_child(bolt)
+	var tip := Polygon2D.new()
+	tip.polygon = PackedVector2Array([
+		Vector2(0, -h - 28 - level * 4), Vector2(5, -h - 16 - level * 2), Vector2(-5, -h - 16 - level * 2)
+	])
+	tip.color = Color(1.0, 0.95, 0.7)
+	_visual.add_child(tip)
+
+
+## SLOW — cauldron vent with heavy mist plume.
+func _build_mistvent() -> void:
+	_add_plinth(24.0 + level * 2, 13.0)
+	# Bowl / cauldron
 	_body = Polygon2D.new()
 	_body.polygon = PackedVector2Array([
-		Vector2(0, -h), Vector2(w, -h * 0.76), Vector2(w * 0.7, -h * 0.5),
-		Vector2(0, -h * 0.4), Vector2(-w * 0.7, -h * 0.5), Vector2(-w, -h * 0.76)
+		Vector2(-20 - level * 2, 6), Vector2(20 + level * 2, 6),
+		Vector2(16, -8), Vector2(10, -18), Vector2(-10, -18), Vector2(-16, -8)
+	])
+	_body.color = Color(0.28, 0.18, 0.35)
+	_visual.add_child(_body)
+	var rim := FX.make_ellipse_poly(18 + level * 2, 7, 20, Color(0.45, 0.3, 0.55, 0.9))
+	rim.position = Vector2(0, -16)
+	_visual.add_child(rim)
+	# Rising mist column (reads as aura slow)
+	_accent = FX.make_ellipse_poly(16 + level * 3, 28 + level * 8, 22, Color(_def_color.r, _def_color.g, _def_color.b, 0.4))
+	_accent.position = Vector2(0, -36 - level * 4)
+	_visual.add_child(_accent)
+	for i in (3 + level):
+		var puff := FX.make_ellipse_poly(12 + i * 2, 10 + i, 14, Color(0.65, 0.45, 0.95, 0.18 - i * 0.02))
+		puff.position = Vector2((i - 1.5) * 8.0, -48 - i * 10)
+		_visual.add_child(puff)
+	var mist_pool := FX.make_ellipse_poly(minf(70.0, fire_range * 0.22), minf(42.0, fire_range * 0.14), 28, Color(0.55, 0.35, 0.9, 0.12))
+	mist_pool.z_index = -1
+	mist_pool.name = "MistAura"
+	_visual.add_child(mist_pool)
+
+
+## MARK — hanging lantern with witch-glow runes.
+func _build_hex() -> void:
+	_add_plinth(14.0, 8.0)
+	var pole_h := 48.0 + level * 10.0
+	var pole := Polygon2D.new()
+	pole.polygon = PackedVector2Array([
+		Vector2(-3, 10), Vector2(3, 10), Vector2(2.5, -pole_h), Vector2(-2.5, -pole_h)
+	])
+	pole.color = Color(0.25, 0.2, 0.3)
+	_visual.add_child(pole)
+	# Lantern body (hex silhouette)
+	var h := 28.0 + level * 4.0
+	_body = Polygon2D.new()
+	_body.polygon = PackedVector2Array([
+		Vector2(0, -pole_h - h), Vector2(12 + level, -pole_h - h * 0.65),
+		Vector2(10, -pole_h - h * 0.2), Vector2(0, -pole_h),
+		Vector2(-10, -pole_h - h * 0.2), Vector2(-(12 + level), -pole_h - h * 0.65)
 	])
 	_body.color = _def_color
 	_visual.add_child(_body)
-	_accent = FX.make_ellipse_poly(6 + level * 2, 6 + level * 2, 12, Color(1, 0.9, 0.5, 0.9))
-	_accent.position = Vector2(0, -h * 0.72)
+	# Bright core flame
+	_accent = FX.make_ellipse_poly(5 + level, 7 + level, 12, Color(1.0, 0.92, 0.55, 0.95))
+	_accent.position = Vector2(0, -pole_h - h * 0.55)
 	_visual.add_child(_accent)
-	if level >= 2:
-		for i in 3:
-			var ang := TAU * float(i) / 3.0
-			var rune := FX.make_ellipse_poly(3, 3, 8, Color(1, 0.85, 0.5, 0.75))
-			rune.position = Vector2(cos(ang), sin(ang)) * (16.0 + level * 4.0) + Vector2(0, -h * 0.55)
-			_visual.add_child(rune)
-
-
-func _build_hearth() -> void:
-	var bw := 18.0 + (level - 1) * 5.0
-	_body = Polygon2D.new()
-	_body.polygon = PackedVector2Array([
-		Vector2(-bw, 10), Vector2(bw, 10), Vector2(bw - 2, -8),
-		Vector2(bw * 0.45, -28 - level * 6), Vector2(-bw * 0.45, -28 - level * 6), Vector2(-(bw - 2), -8)
-	])
-	_body.color = Color(0.4, 0.28, 0.22)
-	_visual.add_child(_body)
-	_accent = FX.make_ellipse_poly(14 + level * 3, 12 + level * 2, 16, _def_color)
-	_accent.position = Vector2(0, -18 - level * 3)
-	_visual.add_child(_accent)
-	var glow := FX.make_ellipse_poly(minf(fire_range * 0.25, 80.0), minf(fire_range * 0.16, 50.0), 28, Color(1, 0.5, 0.25, 0.08))
-	glow.z_index = -1
-	_visual.add_child(glow)
-	if level >= 2:
-		var flame := Polygon2D.new()
-		flame.polygon = PackedVector2Array([
-			Vector2(0, -40 - level * 8), Vector2(8, -28), Vector2(0, -20), Vector2(-8, -28)
+	# Orbiting mark runes
+	for i in (3 + level):
+		var ang := TAU * float(i) / float(3 + level)
+		var rune := Polygon2D.new()
+		rune.polygon = PackedVector2Array([
+			Vector2(0, -5), Vector2(4, 0), Vector2(0, 5), Vector2(-4, 0)
 		])
-		flame.color = Color(1.0, 0.7, 0.3, 0.9)
-		_visual.add_child(flame)
+		rune.color = Color(1.0, 0.85, 0.5, 0.85)
+		rune.position = Vector2(cos(ang), sin(ang)) * (18.0 + level * 3.0) + Vector2(0, -pole_h - h * 0.45)
+		_visual.add_child(rune)
+	# Chain to lantern
+	var chain := Line2D.new()
+	chain.width = 1.5
+	chain.default_color = Color(0.6, 0.55, 0.7, 0.8)
+	chain.points = PackedVector2Array([Vector2(0, -pole_h + 4), Vector2(0, -pole_h - 4)])
+	_visual.add_child(chain)
 
 
-func _build_bonehowl() -> void:
-	var h := 52.0 + (level - 1) * 12.0
-	var w := 12.0 + (level - 1) * 3.0
+## BUFF — hearth with warm flames radiating outward.
+func _build_hearth() -> void:
+	_add_plinth(22.0 + level * 2, 12.0)
+	# Stone hearth
 	_body = Polygon2D.new()
 	_body.polygon = PackedVector2Array([
-		Vector2(0, -h), Vector2(w, -h * 0.38), Vector2(w * 0.65, 12),
-		Vector2(-w * 0.65, 12), Vector2(-w, -h * 0.38)
+		Vector2(-22 - level * 2, 10), Vector2(22 + level * 2, 10),
+		Vector2(18, -6), Vector2(12, -22 - level * 4), Vector2(-12, -22 - level * 4), Vector2(-18, -6)
 	])
-	_body.color = Color(0.85, 0.82, 0.78)
+	_body.color = Color(0.38, 0.26, 0.2)
 	_visual.add_child(_body)
+	# Warmth aura disc
+	var warmth := FX.make_ellipse_poly(minf(72.0, fire_range * 0.22), minf(44.0, fire_range * 0.14), 28, Color(1.0, 0.55, 0.25, 0.12))
+	warmth.z_index = -1
+	_visual.add_child(warmth)
+	# Layered flames (reads as buff/heat)
+	for i in (2 + level):
+		var flame := Polygon2D.new()
+		var fh := 22.0 + i * 8.0 + level * 4.0
+		flame.polygon = PackedVector2Array([
+			Vector2(-6 + i, -8), Vector2(0, -fh - 12), Vector2(6 - i, -8), Vector2(0, -16)
+		])
+		flame.color = Color(1.0, 0.55 + i * 0.1, 0.2, 0.85 - i * 0.1)
+		flame.position = Vector2((i - 1) * 5.0, -18)
+		_visual.add_child(flame)
+	_accent = FX.make_ellipse_poly(10 + level * 2, 8 + level, 14, Color(1.0, 0.85, 0.4, 0.9))
+	_accent.position = Vector2(0, -20 - level * 2)
+	_visual.add_child(_accent)
+	# Ember sparks
+	for i in 4:
+		var e := FX.make_ellipse_poly(2, 2, 6, Color(1.0, 0.7, 0.3, 0.7))
+		e.position = Vector2(randf_range(-14, 14), randf_range(-40, -18))
+		_visual.add_child(e)
+
+
+## PULSE — bone horn howler (radial shockwave read).
+func _build_bonehowl() -> void:
+	_add_plinth(18.0, 10.0)
+	var h := 54.0 + (level - 1) * 12.0
+	# Skull body
+	_body = Polygon2D.new()
+	_body.polygon = PackedVector2Array([
+		Vector2(0, -h), Vector2(14, -h * 0.55), Vector2(12, -h * 0.2),
+		Vector2(8, 8), Vector2(-8, 8), Vector2(-12, -h * 0.2), Vector2(-14, -h * 0.55)
+	])
+	_body.color = Color(0.9, 0.86, 0.82)
+	_visual.add_child(_body)
+	# Eye sockets
+	for sx in [-1.0, 1.0]:
+		var eye := FX.make_ellipse_poly(3.5, 4.0, 10, Color(0.55, 0.7, 0.95, 0.9))
+		eye.position = Vector2(sx * 6, -h * 0.55)
+		_visual.add_child(eye)
+	# Huge horns (howl / pulse)
 	_accent = Polygon2D.new()
 	_accent.polygon = PackedVector2Array([
-		Vector2(-16 - level * 3, -h * 0.7), Vector2(-4, -h * 0.92), Vector2(-6, -h * 0.54)
+		Vector2(-8, -h * 0.7), Vector2(-22 - level * 4, -h - 8), Vector2(-4, -h * 0.5)
 	])
 	_accent.color = _def_color
 	_visual.add_child(_accent)
 	var horn2 := _accent.duplicate() as Polygon2D
 	horn2.scale.x = -1
 	_visual.add_child(horn2)
+	# Concentric pulse rings at base
+	for i in (2 + mini(level, 2)):
+		var ring := FX.make_ellipse_poly(20 + i * 10, 12 + i * 5, 20, Color(_def_color.r, _def_color.g, _def_color.b, 0.12 - i * 0.02))
+		ring.position = Vector2(0, 4)
+		ring.z_index = -1
+		_visual.add_child(ring)
 	if level >= 2:
 		var jaw := Polygon2D.new()
 		jaw.polygon = PackedVector2Array([
-			Vector2(-10, -h * 0.25), Vector2(10, -h * 0.25), Vector2(8, 4), Vector2(-8, 4)
+			Vector2(-10, -h * 0.25), Vector2(10, -h * 0.25), Vector2(8, 2), Vector2(-8, 2)
 		])
-		jaw.color = Color(0.75, 0.72, 0.7)
+		jaw.color = Color(0.78, 0.74, 0.72)
 		_visual.add_child(jaw)
-	if level >= 3:
-		var ribs := Line2D.new()
-		ribs.width = 2.0
-		ribs.default_color = Color(0.9, 0.88, 0.92, 0.7)
-		ribs.points = PackedVector2Array([Vector2(-14, -20), Vector2(0, -8), Vector2(14, -20)])
-		_visual.add_child(ribs)
 
 
 func _process(delta: float) -> void:
@@ -743,57 +792,92 @@ func _chain_arc(from: Vector2, to: Vector2) -> void:
 	tw.tween_callback(line.queue_free)
 
 
+## ROOT — arched root gate binding the path (reads as snare).
 func _build_rootgate() -> void:
-	var base := FX.make_ellipse_poly(22 + level * 3, 12, 20, Color(0.2, 0.28, 0.16, 0.9))
-	base.position = Vector2(0, 8)
-	_visual.add_child(base)
+	_add_plinth(24.0 + level * 2, 12.0)
+	var h := 50.0 + level * 10.0
+	# Arch of roots
+	for sx in [-1.0, 1.0]:
+		var pillar := Polygon2D.new()
+		pillar.polygon = PackedVector2Array([
+			Vector2(sx * 8, 8), Vector2(sx * 18, 6), Vector2(sx * 16, -h * 0.55),
+			Vector2(sx * 6, -h * 0.85), Vector2(sx * 4, -h * 0.4)
+		])
+		pillar.color = Color(0.32, 0.42, 0.24)
+		_visual.add_child(pillar)
+	# Keystone / crown root
 	_body = Polygon2D.new()
-	var h := 48.0 + (level - 1) * 12.0
 	_body.polygon = PackedVector2Array([
-		Vector2(-10, 8), Vector2(10, 8), Vector2(8, -h * 0.4), Vector2(0, -h), Vector2(-8, -h * 0.4)
+		Vector2(-14, -h * 0.75), Vector2(0, -h - 8), Vector2(14, -h * 0.75),
+		Vector2(8, -h * 0.55), Vector2(0, -h * 0.65), Vector2(-8, -h * 0.55)
 	])
-	_body.color = Color(0.35, 0.48, 0.28)
+	_body.color = Color(0.38, 0.52, 0.28)
 	_visual.add_child(_body)
+	# Grasping roots spreading outward (snare read)
 	_accent = Polygon2D.new()
 	_accent.polygon = PackedVector2Array([
-		Vector2(-18, -10), Vector2(-6, -h * 0.55), Vector2(-2, -8)
+		Vector2(-6, 4), Vector2(-28 - level * 4, 2), Vector2(-20, -8), Vector2(-4, -2)
 	])
 	_accent.color = _def_color
 	_visual.add_child(_accent)
 	var root2 := _accent.duplicate() as Polygon2D
 	root2.scale.x = -1
 	_visual.add_child(root2)
-	if level >= 2:
-		for i in 3:
-			var vine := Line2D.new()
-			vine.width = 2.0
-			vine.default_color = Color(0.3, 0.55, 0.28, 0.85)
-			var a := TAU * float(i) / 3.0
-			vine.points = PackedVector2Array([
-				Vector2(cos(a) * 6, 4), Vector2(cos(a) * 20, -20 - level * 4)
-			])
-			_visual.add_child(vine)
+	for i in (3 + level):
+		var vine := Line2D.new()
+		vine.width = 2.2
+		vine.default_color = Color(0.3, 0.55, 0.28, 0.8)
+		var a := -0.4 + float(i) * 0.35
+		vine.points = PackedVector2Array([
+			Vector2(sin(a) * 4, 2), Vector2(sin(a) * 22, -16 - i * 6)
+		])
+		_visual.add_child(vine)
+	# Binding circle
+	var bind := FX.make_ellipse_poly(32 + level * 4, 18 + level * 2, 24, Color(0.35, 0.6, 0.3, 0.14))
+	bind.position = Vector2(0, 2)
+	bind.z_index = -1
+	_visual.add_child(bind)
 
 
+## CHAIN — floating skyshard constellation (reads as leaping lightning).
 func _build_skyshard() -> void:
-	var base := FX.make_ellipse_poly(16 + level * 2, 9, 16, Color(0.2, 0.28, 0.35, 0.9))
-	base.position = Vector2(0, 8)
-	_visual.add_child(base)
-	var h := 54.0 + (level - 1) * 12.0
+	_add_plinth(16.0, 9.0)
+	var h := 56.0 + level * 10.0
+	# Central crystal column
 	_body = Polygon2D.new()
 	_body.polygon = PackedVector2Array([
-		Vector2(0, -h), Vector2(10, -h * 0.55), Vector2(4, 6), Vector2(-4, 6), Vector2(-10, -h * 0.55)
+		Vector2(0, -h), Vector2(11, -h * 0.55), Vector2(5, 6), Vector2(-5, 6), Vector2(-11, -h * 0.55)
 	])
-	_body.color = Color(0.55, 0.85, 0.95)
+	_body.color = Color(0.5, 0.9, 0.98)
 	_visual.add_child(_body)
-	_accent = FX.make_ellipse_poly(8 + level * 2, 8 + level * 2, 12, Color(0.95, 0.95, 1.0, 0.75))
-	_accent.position = Vector2(0, -h * 0.7)
+	var facet := Polygon2D.new()
+	facet.polygon = PackedVector2Array([
+		Vector2(-3, -h * 0.9), Vector2(4, -h * 0.7), Vector2(0, -h * 0.4)
+	])
+	facet.color = Color(0.85, 0.98, 1.0, 0.85)
+	_visual.add_child(facet)
+	_accent = FX.make_ellipse_poly(9 + level * 2, 9 + level * 2, 14, Color(0.95, 0.98, 1.0, 0.8))
+	_accent.position = Vector2(0, -h * 0.72)
 	_visual.add_child(_accent)
-	# Floating shard satellites
-	for i in (1 + level):
-		var ang := TAU * float(i) / float(1 + level)
+	# Orbiting shards linked by faint arcs (chain read)
+	var n := 3 + level
+	var pts: Array[Vector2] = []
+	for i in n:
+		var ang := TAU * float(i) / float(n) - PI * 0.5
+		var p := Vector2(cos(ang), sin(ang) * 0.7) * (24.0 + level * 5.0) + Vector2(0, -h * 0.45)
+		pts.append(p)
 		var shard := Polygon2D.new()
-		shard.polygon = PackedVector2Array([Vector2(0, -8), Vector2(4, 0), Vector2(0, 4), Vector2(-4, 0)])
-		shard.color = Color(0.7, 0.95, 1.0, 0.85)
-		shard.position = Vector2(cos(ang), sin(ang) * 0.7) * (22.0 + level * 4.0) + Vector2(0, -28)
+		shard.polygon = PackedVector2Array([
+			Vector2(0, -9), Vector2(5, 0), Vector2(0, 5), Vector2(-5, 0)
+		])
+		shard.color = Color(0.65, 0.95, 1.0, 0.9)
+		shard.position = p
 		_visual.add_child(shard)
+	for i in pts.size():
+		var a: Vector2 = pts[i]
+		var b: Vector2 = pts[(i + 1) % pts.size()]
+		var arc := Line2D.new()
+		arc.width = 1.5
+		arc.default_color = Color(0.6, 0.9, 1.0, 0.45)
+		arc.points = PackedVector2Array([a, b])
+		_visual.add_child(arc)

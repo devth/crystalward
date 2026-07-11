@@ -56,8 +56,9 @@ func _build_floor() -> void:
 	floor_poly.polygon = PackedVector2Array([
 		Vector2(-e, -e * 0.75), Vector2(e, -e * 0.75), Vector2(e, e * 0.75), Vector2(-e, e * 0.75)
 	])
+	# Tighter UV tiling so dirt/grass/rock patches read at play zoom
 	floor_poly.uv = PackedVector2Array([
-		Vector2(0, 0), Vector2(12, 0), Vector2(12, 9), Vector2(0, 9)
+		Vector2(0, 0), Vector2(22, 0), Vector2(22, 16), Vector2(0, 16)
 	])
 	floor_poly.color = Color.WHITE
 	floor_poly.z_index = Z_FLOOR
@@ -341,29 +342,39 @@ func _scatter_forest_props() -> void:
 	elif tree_tex:
 		tree_sprites.append(tree_tex)
 
-	for i in 18:
-		var pos := _rand_map_pos(rng, 420, 1900)
-		if pos.length() < 400.0:
+	for i in 28:
+		var pos := _rand_map_pos(rng, 380, 1900)
+		if pos.length() < 360.0:
 			continue
 		if PathNetwork and PathNetwork.dist_to_path(pos) < PATH_CLEAR:
 			continue
 		if tree_sprites.is_empty():
 			break
-		_place_sprite(tree_sprites[i % tree_sprites.size()], pos, rng.randf_range(2.0, 2.9), 0.95)
+		_place_sprite(tree_sprites[i % tree_sprites.size()], pos, rng.randf_range(2.1, 3.1), 0.96)
 
 	if bush_tex:
-		for i in 8:
-			var pos := _rand_map_pos(rng, 340, 1700)
+		for i in 16:
+			var pos := _rand_map_pos(rng, 300, 1700)
 			if PathNetwork and PathNetwork.dist_to_path(pos) < PATH_CLEAR:
 				continue
-			_place_sprite(bush_tex, pos, rng.randf_range(1.9, 2.6), 0.9)
+			_place_sprite(bush_tex, pos, rng.randf_range(1.8, 2.7), 0.92)
 
 	if stone_tex:
-		for i in 5:
-			var pos := _rand_map_pos(rng, 360, 1600)
+		for i in 14:
+			var pos := _rand_map_pos(rng, 320, 1650)
 			if PathNetwork and PathNetwork.dist_to_path(pos) < PATH_CLEAR:
 				continue
-			_place_sprite(stone_tex, pos, rng.randf_range(1.5, 2.1), 0.88)
+			_place_sprite(stone_tex, pos, rng.randf_range(1.4, 2.3), 0.9)
+
+	# Small rock clusters near path verge (read as dirt/rock variety)
+	for i in 12:
+		var pos := _rand_map_pos(rng, 200, 1200)
+		if PathNetwork == null:
+			break
+		var d := PathNetwork.dist_to_path(pos)
+		if d < PATH_CLEAR or d > 200.0:
+			continue
+		_add_standing_stone(pos, rng.randf_range(0.45, 0.85))
 
 
 func _rand_map_pos(rng: RandomNumberGenerator, min_r: float, max_r: float) -> Vector2:
@@ -402,13 +413,25 @@ func _place_sprite(tex: Texture2D, pos: Vector2, scale_mul: float, alpha: float 
 	return s
 
 
-## Ethereal path: bone-bark bed + warm amber glow vein (spec: amber light vs violet night).
+## Ethereal path: mossy verge + bark dirt + amber crystal vein.
 func _add_path_ribbon(pts: PackedVector2Array, half_width: float) -> void:
 	if pts.size() < 2:
 		return
+	# Soft moss verge under the road
+	var moss := Line2D.new()
+	moss.width = half_width * 2.85
+	moss.default_color = Color(0.12, 0.22, 0.16, 0.55)
+	moss.begin_cap_mode = Line2D.LINE_CAP_ROUND
+	moss.end_cap_mode = Line2D.LINE_CAP_ROUND
+	moss.joint_mode = Line2D.LINE_JOINT_ROUND
+	moss.antialiased = true
+	moss.points = pts
+	moss.z_index = Z_PATH_EDGE - 2
+	add_child(moss)
+
 	var bed := Line2D.new()
-	bed.width = half_width * 2.4
-	bed.default_color = Color(0.12, 0.08, 0.14, 1.0)
+	bed.width = half_width * 2.45
+	bed.default_color = Color(0.10, 0.07, 0.12, 1.0)
 	bed.begin_cap_mode = Line2D.LINE_CAP_ROUND
 	bed.end_cap_mode = Line2D.LINE_CAP_ROUND
 	bed.joint_mode = Line2D.LINE_JOINT_ROUND
@@ -419,7 +442,7 @@ func _add_path_ribbon(pts: PackedVector2Array, half_width: float) -> void:
 
 	var dirt := Line2D.new()
 	dirt.width = half_width * 1.95
-	dirt.default_color = Color(0.38, 0.28, 0.26, 1.0)  # warm bark-bone
+	dirt.default_color = Color(0.42, 0.30, 0.24, 1.0)
 	dirt.begin_cap_mode = Line2D.LINE_CAP_ROUND
 	dirt.end_cap_mode = Line2D.LINE_CAP_ROUND
 	dirt.joint_mode = Line2D.LINE_JOINT_ROUND
@@ -429,8 +452,8 @@ func _add_path_ribbon(pts: PackedVector2Array, half_width: float) -> void:
 	add_child(dirt)
 
 	var track := Line2D.new()
-	track.width = half_width * 0.9
-	track.default_color = Color(0.52, 0.4, 0.32, 1.0)
+	track.width = half_width * 0.95
+	track.default_color = Color(0.55, 0.42, 0.32, 1.0)
 	track.begin_cap_mode = Line2D.LINE_CAP_ROUND
 	track.end_cap_mode = Line2D.LINE_CAP_ROUND
 	track.joint_mode = Line2D.LINE_JOINT_ROUND
@@ -439,21 +462,32 @@ func _add_path_ribbon(pts: PackedVector2Array, half_width: float) -> void:
 	track.z_index = Z_PATH_DETAIL
 	add_child(track)
 
-	# Living crystal dust vein down the road
+	# Twin wheel ruts
+	var rut := Line2D.new()
+	rut.width = 2.5
+	rut.default_color = Color(0.22, 0.14, 0.12, 0.55)
+	rut.begin_cap_mode = Line2D.LINE_CAP_ROUND
+	rut.end_cap_mode = Line2D.LINE_CAP_ROUND
+	rut.joint_mode = Line2D.LINE_JOINT_ROUND
+	rut.antialiased = true
+	rut.points = pts
+	rut.z_index = Z_PATH_DETAIL + 1
+	add_child(rut)
+
 	var vein := Line2D.new()
-	vein.width = 4.0
-	vein.default_color = Color(0.85, 0.65, 0.35, 0.45)
+	vein.width = 5.0
+	vein.default_color = Color(0.92, 0.70, 0.35, 0.5)
 	vein.begin_cap_mode = Line2D.LINE_CAP_ROUND
 	vein.end_cap_mode = Line2D.LINE_CAP_ROUND
 	vein.joint_mode = Line2D.LINE_JOINT_ROUND
 	vein.antialiased = true
 	vein.points = pts
-	vein.z_index = Z_PATH_DETAIL + 1
+	vein.z_index = Z_PATH_DETAIL + 2
 	add_child(vein)
 
 	var glow := Line2D.new()
-	glow.width = 14.0
-	glow.default_color = Color(0.55, 0.4, 0.85, 0.12)
+	glow.width = 18.0
+	glow.default_color = Color(0.58, 0.42, 0.9, 0.14)
 	glow.begin_cap_mode = Line2D.LINE_CAP_ROUND
 	glow.end_cap_mode = Line2D.LINE_CAP_ROUND
 	glow.joint_mode = Line2D.LINE_JOINT_ROUND
