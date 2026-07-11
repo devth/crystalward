@@ -49,7 +49,7 @@ func _ready() -> void:
 	_on_dust(GameState.crystal_dust)
 	_on_crystal(GameState.crystal_hp, GameState.crystal_max_hp)
 	_on_wave(GameState.current_wave, GameState.waves_to_win)
-	hint_label.text = "T / LB Call Wave · Q build/upgrade · E gather/sell · Esc pause"
+	hint_label.text = "Z/X cycle towers · Q build/up · E gather/sell · T call wave · Esc pause"
 	_ensure_minimap()
 	_ensure_call_wave_ui()
 
@@ -90,6 +90,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		_resume_if_needed()
 		GameState.reset()
 		get_tree().reload_current_scene()
+	if event.is_action_pressed("ui_accept") and GameState.is_game_over:
+		_resume_if_needed()
+		get_tree().change_scene_to_file("res://scenes/map_select.tscn")
 
 
 func toggle_pause() -> void:
@@ -184,10 +187,10 @@ func _on_game_over(won: bool) -> void:
 			star_s += "★"
 		while star_s.length() < 3:
 			star_s += "☆"
-		end_label.text = "VICTORY\n%s\nThe Crystal endures\n%d killed · %d leaked" % [
+		end_label.text = "VICTORY\n%s\nThe Crystal endures\n%d killed · %d leaked\n\nR retry · Enter map select" % [
 			star_s, GameState.enemies_killed, GameState.enemies_leaked
 		]
 		end_label.modulate = Color(1.0, 0.9, 0.45)
 	else:
-		end_label.text = "DEFEAT\nThe light is gone\nWave %d" % GameState.current_wave
+		end_label.text = "DEFEAT\nThe light is gone\nWave %d\n\nR retry · Enter map select" % GameState.current_wave
 		end_label.modulate = Color(0.95, 0.4, 0.45)

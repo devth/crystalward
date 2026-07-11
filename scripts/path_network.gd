@@ -1,50 +1,71 @@
 extends Node
-## Authored path lanes: nightspawn follow these routes to the Lightwell.
-## Autoloaded as PathNetwork.
+## Authored path lanes per campaign map. Autoloaded as PathNetwork.
 
 signal paths_rebuilt
 
 const CRYSTAL := Vector2(0, 40)
 
-## Each lane: outer spawn → … → crystal. Built in rebuild().
-var lanes: Array = []  ## Array of PackedVector2Array
+var lanes: Array = []
 var spawn_anchors: Array[Vector2] = []
+var active_lane_set: String = "full"
 
 
 func _ready() -> void:
-	rebuild()
+	# Campaign may not be ready first frame
+	call_deferred("_init_from_campaign")
 
 
-func rebuild() -> void:
+func _init_from_campaign() -> void:
+	if Campaign:
+		var m: Dictionary = Campaign.get_map(Campaign.selected_map_id)
+		rebuild(str(m.get("lane_set", "full")))
+	else:
+		rebuild("full")
+
+
+func rebuild(lane_set: String = "full") -> void:
+	active_lane_set = lane_set
 	lanes.clear()
 	spawn_anchors.clear()
-	# Eight primary approaches + four winding “dark paths”
-	_add_lane([
-		Vector2(0, -1500), Vector2(40, -1100), Vector2(-30, -700), Vector2(20, -350), CRYSTAL
-	])
-	_add_lane([
-		Vector2(0, 1500), Vector2(-50, 1100), Vector2(40, 700), Vector2(-20, 380), CRYSTAL
-	])
-	_add_lane([
-		Vector2(1500, 40), Vector2(1100, 80), Vector2(700, 20), Vector2(380, 50), CRYSTAL
-	])
-	_add_lane([
-		Vector2(-1500, 40), Vector2(-1100, -40), Vector2(-700, 30), Vector2(-380, 20), CRYSTAL
-	])
-	# Diagonals with S-curves
-	_add_lane([
-		Vector2(1200, -1200), Vector2(900, -700), Vector2(550, -450), Vector2(280, -180), CRYSTAL
-	])
-	_add_lane([
-		Vector2(-1200, -1200), Vector2(-850, -750), Vector2(-500, -400), Vector2(-260, -160), CRYSTAL
-	])
-	_add_lane([
-		Vector2(1200, 1200), Vector2(880, 720), Vector2(520, 420), Vector2(270, 200), CRYSTAL
-	])
-	_add_lane([
-		Vector2(-1200, 1200), Vector2(-900, 700), Vector2(-540, 400), Vector2(-250, 190), CRYSTAL
-	])
-	# Winding forest paths (more interesting)
+	match lane_set:
+		"simple":
+			_add_simple()
+		"cross":
+			_add_cross()
+		"diagonal":
+			_add_diagonal()
+		"winding":
+			_add_winding()
+		_:
+			_add_full()
+	paths_rebuilt.emit()
+
+
+func _add_simple() -> void:
+	_add_lane([Vector2(0, -1200), Vector2(0, -600), Vector2(0, -200), CRYSTAL])
+	_add_lane([Vector2(0, 1200), Vector2(0, 600), Vector2(0, 250), CRYSTAL])
+	_add_lane([Vector2(1200, 40), Vector2(600, 40), Vector2(250, 40), CRYSTAL])
+	_add_lane([Vector2(-1200, 40), Vector2(-600, 40), Vector2(-250, 40), CRYSTAL])
+
+
+func _add_cross() -> void:
+	_add_simple()
+	_add_lane([Vector2(900, -900), Vector2(450, -450), Vector2(200, -150), CRYSTAL])
+	_add_lane([Vector2(-900, 900), Vector2(-450, 450), Vector2(-200, 180), CRYSTAL])
+	_add_lane([Vector2(800, 700), Vector2(400, 200), Vector2(150, 80), CRYSTAL])
+	_add_lane([Vector2(-800, -700), Vector2(-400, -200), Vector2(-150, 0), CRYSTAL])
+
+
+func _add_diagonal() -> void:
+	_add_lane([Vector2(1200, -1200), Vector2(700, -600), Vector2(300, -200), CRYSTAL])
+	_add_lane([Vector2(-1200, -1200), Vector2(-700, -600), Vector2(-300, -200), CRYSTAL])
+	_add_lane([Vector2(1200, 1200), Vector2(700, 600), Vector2(300, 220), CRYSTAL])
+	_add_lane([Vector2(-1200, 1200), Vector2(-700, 600), Vector2(-300, 220), CRYSTAL])
+	_add_lane([Vector2(0, -1400), Vector2(100, -700), Vector2(-50, -300), CRYSTAL])
+	_add_lane([Vector2(1400, 0), Vector2(700, 100), Vector2(300, 20), CRYSTAL])
+
+
+func _add_winding() -> void:
 	_add_lane([
 		Vector2(600, -1400), Vector2(900, -900), Vector2(400, -600), Vector2(600, -300),
 		Vector2(200, -200), CRYSTAL
@@ -61,7 +82,14 @@ func rebuild() -> void:
 		Vector2(-700, 1400), Vector2(-200, 1000), Vector2(300, 800), Vector2(100, 400),
 		Vector2(40, 200), CRYSTAL
 	])
-	paths_rebuilt.emit()
+	_add_lane([Vector2(0, 1300), Vector2(-150, 700), Vector2(80, 350), CRYSTAL])
+	_add_lane([Vector2(-1300, -200), Vector2(-600, 50), Vector2(-280, 40), CRYSTAL])
+
+
+func _add_full() -> void:
+	_add_simple()
+	_add_diagonal()
+	_add_winding()
 
 
 func _add_lane(points: Array) -> void:
@@ -75,7 +103,7 @@ func _add_lane(points: Array) -> void:
 
 func random_lane() -> PackedVector2Array:
 	if lanes.is_empty():
-		rebuild()
+		rebuild(active_lane_set)
 	return lanes[randi() % lanes.size()]
 
 
@@ -83,7 +111,6 @@ func lane_count() -> int:
 	return lanes.size()
 
 
-## Closest point on any path polyline (for props / debug).
 func nearest_on_network(world_pos: Vector2) -> Vector2:
 	var best := world_pos
 	var best_d := INF
@@ -109,7 +136,6 @@ func _project_point(p: Vector2, a: Vector2, b: Vector2) -> Vector2:
 	return a + ab * t
 
 
-## Lateral offset direction for a path position (for visual width / unit spacing).
 func path_normal_at(lane: PackedVector2Array, index: int) -> Vector2:
 	if lane.size() < 2:
 		return Vector2.RIGHT

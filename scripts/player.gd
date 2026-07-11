@@ -202,6 +202,12 @@ func _physics_process(delta: float) -> void:
 		_try_attack()
 	if Input.is_action_just_pressed("call_wave"):
 		_try_call_wave()
+	# Cycle tower types on pad (Kingdom Rush shop feel)
+	if _near_build.size() > 0:
+		if _action_just_pressed("cycle_left") or Input.is_action_just_pressed("ui_left"):
+			_cycle_pad(-1)
+		if _action_just_pressed("cycle_right") or Input.is_action_just_pressed("ui_right"):
+			_cycle_pad(1)
 
 
 func _read_move() -> Vector2:
@@ -250,6 +256,16 @@ func _try_call_wave() -> void:
 		wm = get_tree().current_scene.get_node_or_null("WaveManager") if get_tree().current_scene else null
 	if wm and wm.has_method("call_early_wave"):
 		wm.call("call_early_wave")
+
+
+func _cycle_pad(dir: int) -> void:
+	for n in _near_build:
+		if n and n.has_method("cycle_type"):
+			n.call("cycle_type", dir)
+			return
+	if TowerTypes:
+		TowerTypes.cycle(dir)
+
 
 
 func _try_attack() -> void:

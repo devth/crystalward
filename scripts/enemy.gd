@@ -27,6 +27,10 @@ var _wp_index: int = 0
 var _lateral: float = 0.0
 var _is_elite: bool = false
 var _face_sign: float = 1.0
+var _slow: float = 0.0
+var _slow_t: float = 0.0
+var _mark_mult: float = 1.0
+var _mark_t: float = 0.0
 
 @onready var _bar: ProgressBar = $HpBar
 
@@ -176,8 +180,18 @@ func _physics_process(delta: float) -> void:
 	if sep.length() > 0.01:
 		to += sep.normalized() * 40.0
 
+	if _slow_t > 0.0:
+		_slow_t -= delta
+		if _slow_t <= 0.0:
+			_slow = 0.0
+	if _mark_t > 0.0:
+		_mark_t -= delta
+		if _mark_t <= 0.0:
+			_mark_mult = 1.0
+
+	var spd := move_speed * (1.0 - clampf(_slow, 0.0, 0.7))
 	if to.length() > 1.0:
-		velocity = to.normalized() * move_speed
+		velocity = to.normalized() * spd
 	else:
 		velocity = Vector2.ZERO
 	move_and_slide()
@@ -212,7 +226,23 @@ func _current_path_target() -> Vector2:
 	return base + n * lat
 
 
+func apply_slow(amount: float, duration: float) -> void:
+	_slow = maxf(_slow, amount)
+	_slow_t = maxf(_slow_t, duration)
+
+
+func apply_mark(mult: float, duration: float) -> void:
+	_mark_mult = maxf(_mark_mult, mult)
+	_mark_t = maxf(_mark_t, duration)
+
+
+func is_marked() -> bool:
+	return _mark_t > 0.0 and _mark_mult > 1.0
+
+
 func take_damage(amount: int) -> void:
+	if is_marked():
+		amount = int(amount * _mark_mult)
 	hp -= amount
 	_bar.value = hp
 	if _body_sprite:

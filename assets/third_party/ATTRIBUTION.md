@@ -208,6 +208,20 @@ Nested demo Godot project / duplicates stripped; textures only + license.
 
 ---
 
+## Music (CC0)
+
+| File | Role | Author | License | Source |
+|---|---|---|---|---|
+| `music/title.ogg` | Title screen | yd | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | https://opengameart.org/content/lonelyhood (*Lonelyhood*) |
+| `music/map_select.ogg` | Campaign map select | Sir Gawain (pack) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | https://opengameart.org/content/cc0-fantasy-music-sounds (*Town Theme*) |
+| `music/battle.ogg` | In-battle bed | Sir Gawain (pack) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | https://opengameart.org/content/cc0-fantasy-music-sounds (*Battle Theme*) |
+| `music/victory.ogg` | Victory stinger / bed | Sir Gawain (pack) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | https://opengameart.org/content/cc0-fantasy-music-sounds (*The Field Of Dreams*) |
+
+**Vendor path:** `music/`  
+**How used:** Autoload `Music` (`scripts/music.gd`) loads these Ogg Vorbis loops when present; otherwise falls back to a soft procedural chord bed.
+
+---
+
 ## Not found / skipped
 
 | Pack | Reason |
@@ -226,3 +240,6 @@ Nested demo Godot project / duplicates stripped; textures only + license.
 - `scripts/player.gd` — Dark Crystal–esque warden sprites + aura
 - `scripts/main.gd` — extra essence / tower / spawn markers for big map
 - `scripts/tower.gd` / `tower_site.gd` — combat / build particle bursts
+- `scripts/music.gd` (autoload `Music`) — title / map select / battle / victory tracks
+- `scripts/campaign.gd` (autoload `Campaign`) — multi-map unlock path + stars
+- `scripts/tower_types.gd` (autoload `TowerTypes`) — 6 tower definitions

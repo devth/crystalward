@@ -1,7 +1,7 @@
 # Crystalward — Tower Design
 
-> **Status:** living design (not fully implemented)  
-> **Last updated:** 2026-07-11  
+> **Status:** **6 of 8 core types implemented** in v0 code (`TowerTypes` + `tower.gd`): Thornspire, Shardbow, Mistvent, Hex Lantern, Hearthstone, Bonehowl. Rootgate + Skyshard remain design-only (T3–T4).  
+> **Last updated:** 2026-07-10  
 > **Parent:** [`SPEC.md`](SPEC.md)  
 > **How to use:** Source of truth for defense types, upgrades, auras, and matchups. Tune numbers in playtests; keep *roles* and *interactions* stable unless we deliberately rework the system.
 
@@ -605,14 +605,17 @@ No tower type is “player-only” to operate.
 
 ## 10. Implementation tiers
 
-| Tier | Content | Goal |
-|---|---|---|
-| **T0 (now)** | Generic tower in prototype | Feel queue + shoot |
-| **T1** | Thornspire, Mistvent, Shardbow | First real composition |
-| **T2** | Hex Lantern, Hearthstone | Aura engine online |
-| **T3** | Bonehowl, Rootgate | Armor / choke tools |
-| **T4** | Skyshard + flyer tag | Full matrix |
-| **T5** | Branches at II, Conjunction capstone | Depth without new bases |
+| Tier | Content | Goal | Status |
+|---|---|---|---|
+| **T0** | Generic tower in prototype | Feel queue + shoot | Done (superseded) |
+| **T1** | Thornspire, Mistvent, Shardbow | First real composition | **Done** |
+| **T2** | Hex Lantern, Hearthstone | Aura engine online | **Done** |
+| **T3a** | Bonehowl | Armor / pulse tools | **Done** |
+| **T3b** | Rootgate | Choke / block | Not yet |
+| **T4** | Skyshard + flyer tag | Full matrix | Not yet |
+| **T5** | Branches at II, Conjunction capstone | Depth without new bases | Not yet |
+
+**In code now (cycle with ←→ on empty sites):** `thornspire`, `shardbow`, `mistvent`, `hex_lantern`, `hearthstone`, `bonehowl` — see `scripts/tower_types.gd`.
 
 ---
 
@@ -639,6 +642,7 @@ No tower type is “player-only” to operate.
 | 2026-07-11 | Synergy model: passive auras + Hex mark; diminishing returns |
 | 2026-07-11 | Map sites restrict 2–3 legal towers each |
 | 2026-07-11 | Implementation order T0→T5 sketched |
+| 2026-07-10 | **v0 ships 6 types** (T1+T2+Bonehowl); free cycle on all pads for prototype speed |
 
 ---
 

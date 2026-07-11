@@ -1,5 +1,5 @@
 extends Area2D
-## Kingdom Rush build platform: circular stone pad, build / upgrade / sell.
+## Build pad: cycle tower type, build, upgrade, sell (KR + multi-type).
 
 enum State { EMPTY, QUEUED, BUILT }
 
@@ -8,8 +8,10 @@ enum State { EMPTY, QUEUED, BUILT }
 var state: State = State.EMPTY
 var _queue_left: float = 0.0
 var _tower: Node2D = null
+var _queued_type: String = "thornspire"
 var _platform: Node2D
 var _range_preview: Polygon2D
+var _type_swatch: Polygon2D
 var _players_near: int = 0
 
 @onready var _bar: ProgressBar = $Progress
@@ -24,6 +26,8 @@ func _ready() -> void:
 	collision_mask = 2
 	if has_node("Pad"):
 		$Pad.visible = false
+	if tower_scene == null:
+		tower_scene = load("res://scenes/tower.tscn") as PackedScene
 	_build_visuals()
 	FX.style_progress_bar(_bar, Color(0.55, 0.85, 0.45), Color(0.1, 0.08, 0.06, 0.85))
 	_bar.visible = false
@@ -31,10 +35,14 @@ func _ready() -> void:
 	_bar.size = Vector2(60, 9)
 	_refresh_label()
 	if VisualStyle:
-		VisualStyle.style_game_label(_label, 12, true)
-	_label.position = Vector2(-56, 30)
+		VisualStyle.style_game_label(_label, 11, true)
+	_label.position = Vector2(-70, 28)
 	z_index = int(global_position.y)
 	add_to_group("tower_sites")
+
+
+func can_sell() -> bool:
+	return state == State.BUILT and _tower != null
 
 
 func _build_visuals() -> void:
@@ -42,42 +50,48 @@ func _build_visuals() -> void:
 		VisualStyle.make_blob_shadow(self, 32, 14, 10)
 	_platform = Node2D.new()
 	add_child(_platform)
-
-	# KR-style circular stone build pad
 	var outer := FX.make_ellipse_poly(36, 22, 28, Color(0.35, 0.32, 0.3, 0.95))
 	_platform.add_child(outer)
 	var mid := FX.make_ellipse_poly(28, 16, 24, Color(0.48, 0.44, 0.4, 0.95))
 	_platform.add_child(mid)
 	var inner := FX.make_ellipse_poly(16, 9, 20, Color(0.28, 0.35, 0.28, 0.9))
 	_platform.add_child(inner)
-	# Green "available" gem
-	var gem := FX.make_ellipse_poly(5, 3, 12, Color(0.4, 0.85, 0.45, 0.9))
-	gem.position = Vector2(0, -2)
-	gem.name = "AvailGem"
-	_platform.add_child(gem)
-
-	# Range preview when player nearby (empty or built)
+	_type_swatch = FX.make_ellipse_poly(7, 4, 12, Color(0.4, 0.85, 0.45, 0.95))
+	_type_swatch.position = Vector2(0, -2)
+	_platform.add_child(_type_swatch)
 	_range_preview = FX.make_ellipse_poly(85, 52, 40, Color(0.3, 0.85, 0.4, 0.12))
 	_range_preview.z_index = -2
 	_range_preview.visible = false
 	add_child(_range_preview)
+	_sync_swatch()
+
+
+func _sync_swatch() -> void:
+	if _type_swatch and TowerTypes:
+		var d: Dictionary = TowerTypes.selected_def() if state == State.EMPTY else TowerTypes.def_for(_queued_type)
+		_type_swatch.color = d.get("color", Color.WHITE)
 
 
 func _refresh_label() -> void:
+	if TowerTypes == null:
+		_label.text = "Build"
+		return
 	match state:
 		State.EMPTY:
-			_label.text = "Build (%d)" % GameState.TOWER_COST_ESSENCE
+			var d: Dictionary = TowerTypes.selected_def()
+			_label.text = "%s %d✦  [←→]" % [d.get("name"), d.get("cost")]
 		State.QUEUED:
-			_label.text = "Building..."
+			_label.text = "Building %s..." % TowerTypes.def_for(_queued_type).get("name")
 		State.BUILT:
 			if _tower and _tower.get("level") != null:
 				var lv: int = int(_tower.level)
 				if lv >= GameState.TOWER_MAX_LEVEL:
-					_label.text = "Max · E sell (%d)" % (_tower.sell_value() if _tower.has_method("sell_value") else 0)
+					_label.text = "Max · E sell"
 				else:
-					_label.text = "Q up (%d) · E sell" % GameState.TOWER_UPGRADE_COST
+					_label.text = "Q up · E sell"
 			else:
 				_label.text = "Online"
+	_sync_swatch()
 
 
 func _process(delta: float) -> void:
@@ -86,10 +100,16 @@ func _process(delta: float) -> void:
 		_bar.value = 1.0 - (_queue_left / GameState.TOWER_QUEUE_TIME)
 		if _queue_left <= 0.0:
 			_finish_build()
-	# Pulse available gem
-	if state == State.EMPTY and _platform and _platform.has_node("AvailGem"):
-		var g: CanvasItem = _platform.get_node("AvailGem")
-		g.modulate.a = 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.005)
+	if state == State.EMPTY and _players_near > 0:
+		_refresh_label()
+
+
+func cycle_type(dir: int) -> void:
+	if state != State.EMPTY or TowerTypes == null:
+		return
+	TowerTypes.cycle(dir)
+	_refresh_label()
+	FloatingText.spawn(get_parent(), global_position + Vector2(0, -30), str(TowerTypes.selected_def().get("name")), TowerTypes.selected_def().get("color"))
 
 
 func try_queue_build() -> bool:
@@ -99,7 +119,9 @@ func try_queue_build() -> bool:
 		return try_upgrade()
 	if state != State.EMPTY:
 		return false
-	if not GameState.try_spend_essence(GameState.TOWER_COST_ESSENCE):
+	_queued_type = TowerTypes.selected_id() if TowerTypes else "thornspire"
+	var cost: int = TowerTypes.cost_for(_queued_type) if TowerTypes else GameState.TOWER_COST_ESSENCE
+	if not GameState.try_spend_essence(cost):
 		return false
 	state = State.QUEUED
 	_queue_left = GameState.TOWER_QUEUE_TIME
@@ -107,10 +129,7 @@ func try_queue_build() -> bool:
 	_bar.max_value = 1.0
 	_bar.value = 0.0
 	_refresh_label()
-	if _platform and _platform.has_node("AvailGem"):
-		_platform.get_node("AvailGem").visible = false
-	GameState.message.emit("Tower building…")
-	FloatingText.spawn(get_parent(), global_position + Vector2(0, -20), "-%d" % GameState.TOWER_COST_ESSENCE, Color(1.0, 0.7, 0.3))
+	FloatingText.spawn(get_parent(), global_position + Vector2(0, -20), "-%d" % cost, Color(1.0, 0.7, 0.3))
 	return true
 
 
@@ -125,31 +144,17 @@ func try_upgrade() -> bool:
 	return false
 
 
-func is_built() -> bool:
-	# State.EMPTY=0, QUEUED=1, BUILT=2 — expose without callers hardcoding ints.
-	return state == State.BUILT
-
-
-func can_sell() -> bool:
-	return state == State.BUILT and _tower != null
-
-
 func try_sell() -> bool:
-	if not can_sell():
+	if state != State.BUILT or _tower == null:
 		return false
 	var refund := 0
 	if _tower.has_method("sell_value"):
 		refund = int(_tower.call("sell_value"))
-	else:
-		refund = int(GameState.TOWER_COST_ESSENCE * GameState.TOWER_SELL_REFUND)
 	GameState.add_essence(refund)
 	FloatingText.spawn(get_parent(), global_position + Vector2(0, -24), "+%d sell" % refund, Color(0.5, 1.0, 0.55))
-	GameState.message.emit("Sold tower +%d Essence" % refund)
 	_tower.queue_free()
 	_tower = null
 	state = State.EMPTY
-	if _platform and _platform.has_node("AvailGem"):
-		_platform.get_node("AvailGem").visible = true
 	_refresh_label()
 	_update_range_preview()
 	if Sfx:
@@ -160,19 +165,24 @@ func try_sell() -> bool:
 func _finish_build() -> void:
 	state = State.BUILT
 	_bar.visible = false
+	var cost: int = TowerTypes.cost_for(_queued_type) if TowerTypes else 25
 	if tower_scene:
 		_tower = tower_scene.instantiate() as Node2D
-		_tower_slot.add_child(_tower)
-		# Always seed invested essence so sell refunds work from first build.
-		if _tower.has_method("set_invested"):
-			_tower.call("set_invested", GameState.TOWER_COST_ESSENCE)
-		else:
-			_tower.set("invested_essence", GameState.TOWER_COST_ESSENCE)
-	GameState.message.emit("Tower ready!")
+		if _tower:
+			# type_id BEFORE add_child so _ready applies the correct def (not default thornspire).
+			_tower.set("type_id", _queued_type)
+			if _tower.has_method("set_invested"):
+				_tower.call("set_invested", cost)
+			_tower_slot.add_child(_tower)
+			# configure after enter tree: rebuilds if needed and records investment.
+			if _tower.has_method("configure"):
+				_tower.call("configure", _queued_type, cost)
+	GameState.message.emit("%s ready!" % TowerTypes.def_for(_queued_type).get("name"))
 	_refresh_label()
 	_update_range_preview()
 	if FX:
-		FX.burst_particles(self, global_position + Vector2(0, -20), Color(0.5, 0.9, 0.45), 18, "star", 0.55)
+		var col: Color = TowerTypes.def_for(_queued_type).get("color", Color.WHITE)
+		FX.burst_particles(self, global_position + Vector2(0, -20), col, 18, "star", 0.55)
 	if Sfx:
 		Sfx.build()
 
@@ -185,8 +195,16 @@ func _update_range_preview() -> void:
 	if _tower and _tower.has_method("set_range_visible"):
 		_tower.call("set_range_visible", show)
 	if state == State.BUILT and _tower and "fire_range" in _tower:
-		var fr: float = float(_tower.fire_range)
-		_range_preview.scale = Vector2.ONE * (fr / 170.0)
+		_range_preview.scale = Vector2.ONE * (float(_tower.fire_range) / 170.0)
+	elif state == State.EMPTY and TowerTypes:
+		var r: float = float(TowerTypes.selected_def().get("range", 170.0))
+		_range_preview.color = Color(
+			TowerTypes.selected_def().get("color", Color.GREEN).r,
+			TowerTypes.selected_def().get("color", Color.GREEN).g,
+			TowerTypes.selected_def().get("color", Color.GREEN).b,
+			0.12
+		)
+		_range_preview.scale = Vector2.ONE * (r / 170.0)
 
 
 func _on_body_entered(body: Node) -> void:
@@ -195,8 +213,6 @@ func _on_body_entered(body: Node) -> void:
 		_players_near += 1
 		_update_range_preview()
 		_refresh_label()
-	if body.has_method("register_tower_site"):
-		body.register_tower_site(self)
 
 
 func _on_body_exited(body: Node) -> void:
@@ -204,5 +220,3 @@ func _on_body_exited(body: Node) -> void:
 		body.unregister_build(self)
 		_players_near = maxi(0, _players_near - 1)
 		_update_range_preview()
-	if body.has_method("unregister_tower_site"):
-		body.unregister_tower_site(self)

@@ -19,10 +19,15 @@ The ritual forest is **large**: floor ~±2200, soft player/camera bounds ~±1800
 
 ```bash
 cd ~/crystalward
-godot .   # or: open -a Godot .
+godot --path .
 ```
 
-3. Press **F5** / Play in the editor.
+3. **Title → Campaign** map select → battle. Progress saves unlocks.
+
+### Flow
+- **Title** — Play Campaign / Quick Battle / Quit (+ music)
+- **Campaign** — 6 maps, difficulty, stars, unlock path
+- **Battle** — 6 tower types, paths, call-wave, lives, co-op heroes
 
 ### Controls
 

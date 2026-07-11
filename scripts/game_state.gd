@@ -57,6 +57,7 @@ func _ready() -> void:
 
 
 func reset() -> void:
+	## Resets match state only. Does not touch Campaign progress/unlocks.
 	is_game_over = false
 	won = false
 	essence = STARTING_ESSENCE
@@ -64,6 +65,7 @@ func reset() -> void:
 	crystal_hp = CRYSTAL_MAX_HP
 	crystal_max_hp = CRYSTAL_MAX_HP
 	current_wave = 0
+	waves_to_win = WAVES_TO_WIN  # campaign map may override after reset
 	stars = 0
 	enemies_leaked = 0
 	enemies_killed = 0

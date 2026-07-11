@@ -13,14 +13,51 @@ var _site_scene: PackedScene
 
 func _ready() -> void:
 	print("Crystalward — devices: ", Input.get_connected_joypads())
+	# Fresh match state, then campaign overrides waves/essence/lanes.
+	if GameState:
+		GameState.reset()
+	_apply_campaign_map()
 	print("Path lanes: ", PathNetwork.lane_count() if PathNetwork else 0)
 	_essence_scene = load("res://scenes/essence_node.tscn") as PackedScene
 	_site_scene = load("res://scenes/tower_site.tscn") as PackedScene
 	if Juice and _camera:
 		Juice.bind_camera(_camera)
+	if Music:
+		Music.play(Music.Track.BATTLE)
+	GameState.game_over.connect(_on_game_over_music)
 	_expand_map_content()
 	_build_atmosphere()
 	_zone_labels()
+	_map_banner()
+
+
+func _apply_campaign_map() -> void:
+	if Campaign == null or PathNetwork == null:
+		return
+	var m: Dictionary = Campaign.get_map(Campaign.selected_map_id)
+	PathNetwork.rebuild(str(m.get("lane_set", "full")))
+	GameState.waves_to_win = int(m.get("waves", 8))
+	GameState.essence = int(m.get("start_essence", GameState.STARTING_ESSENCE))
+	GameState.current_wave = 0
+	GameState.wave_changed.emit(0, GameState.waves_to_win)
+
+
+func _map_banner() -> void:
+	if Campaign == null:
+		return
+	var m: Dictionary = Campaign.get_map(Campaign.selected_map_id)
+	GameState.message.emit("%s — %s" % [m.get("name"), m.get("blurb")])
+
+
+func _on_game_over_music(won: bool) -> void:
+	if won:
+		if Music:
+			Music.play(Music.Track.VICTORY)
+		if Campaign:
+			Campaign.record_victory(Campaign.selected_map_id, GameState.stars)
+	# Offer return via R restart; add menu after delay
+	await get_tree().create_timer(2.5).timeout
+	# Keep playing until R; HUD shows victory
 
 
 func _expand_map_content() -> void:
