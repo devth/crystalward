@@ -1,140 +1,121 @@
 extends Node
 ## Tower catalog + per-player pick + match unlocks.
 ## Autoloaded as TowerTypes.
-## Start small; new towers unlock each surge / campaign tier.
+## Six unique towers: ground / air / both + dedicated AOE.
 
 signal unlocks_changed
 signal selection_changed(player_index: int, type_id: String)
 
-## type_id -> definition
-## unlock_tier: 0 = always at match start on glade; higher tiers unlock with waves / maps
+## target: "ground" | "air" | "both"
+## special: single | multishot | splash | slow_aura | chain | root
 const DEFS := {
 	"thornspire": {
 		"name": "Thornspire",
 		"short": "DPS",
+		"target": "ground",
+		"target_label": "GND",
 		"cost": 25,
 		"color": Color(0.35, 0.78, 0.42),
-		"desc": "Rapid thorns. Melts thralls & blight.",
-		"damage": 16,
-		"fire_rate": 0.38,
+		"desc": "Rapid thorns. Ground only.",
+		"damage": 18,
+		"fire_rate": 0.36,
 		"range": 340.0,
 		"role": "dps",
 		"channel": "thorn",
 		"unlock_tier": 0,
-		"special": "multishot",  # hits 2 nearest
+		"special": "multishot",
+	},
+	"emberfall": {
+		"name": "Emberfall",
+		"short": "AOE",
+		"target": "ground",
+		"target_label": "GND",
+		"cost": 32,
+		"color": Color(0.95, 0.48, 0.22),
+		"desc": "Molten splash. Ground packs.",
+		"damage": 26,
+		"fire_rate": 0.95,
+		"range": 300.0,
+		"role": "aoe",
+		"channel": "shatter",
+		"splash": 120.0,
+		"unlock_tier": 0,
+		"special": "splash",
 	},
 	"shardbow": {
 		"name": "Shardbow",
 		"short": "SNIPE",
+		"target": "both",
+		"target_label": "ALL",
 		"cost": 35,
 		"color": Color(0.95, 0.82, 0.38),
-		"desc": "Long bolts. Best vs brutes & shades.",
-		"damage": 42,
-		"fire_rate": 0.82,
-		"range": 540.0,
+		"desc": "Long bolts. Hits air & ground.",
+		"damage": 48,
+		"fire_rate": 0.88,
+		"range": 560.0,
 		"role": "snipe",
 		"channel": "light",
-		"unlock_tier": 0,
-		"special": "execute",  # bonus vs low HP / elite
+		"unlock_tier": 1,
+		"special": "execute",
 	},
 	"mistvent": {
 		"name": "Mistvent",
 		"short": "SLOW",
+		"target": "both",
+		"target_label": "ALL",
 		"cost": 28,
 		"color": Color(0.62, 0.42, 0.92),
-		"desc": "Mist slow. Pins skitters.",
-		"damage": 5,
-		"fire_rate": 0.4,
+		"desc": "Mist aura slows all foes.",
+		"damage": 4,
+		"fire_rate": 0.45,
 		"range": 300.0,
 		"role": "slow",
 		"channel": "mist",
 		"aura_slow": 0.55,
-		"unlock_tier": 1,
-		"special": "aura_slow",
-	},
-	"hex_lantern": {
-		"name": "Hex Lantern",
-		"short": "MARK",
-		"cost": 32,
-		"color": Color(0.92, 0.32, 0.78),
-		"desc": "Marks foes. Burns shades & blight.",
-		"damage": 9,
-		"fire_rate": 0.52,
-		"range": 380.0,
-		"role": "mark",
-		"channel": "hex",
-		"mark_mult": 1.45,
 		"unlock_tier": 2,
-		"special": "mark",
+		"special": "slow_aura",
 	},
-	"hearthstone": {
-		"name": "Hearthstone",
-		"short": "BUFF",
-		"cost": 30,
-		"color": Color(0.98, 0.55, 0.28),
-		"desc": "Amber warmth. Allies attack faster.",
-		"damage": 6,
-		"fire_rate": 0.7,
-		"range": 320.0,
-		"role": "buff",
+	"skyshard": {
+		"name": "Skyshard",
+		"short": "AIR",
+		"target": "air",
+		"target_label": "AIR",
+		"cost": 38,
+		"color": Color(0.55, 0.9, 0.95),
+		"desc": "Chain light. Flyers only.",
+		"damage": 24,
+		"fire_rate": 0.62,
+		"range": 480.0,
+		"role": "air",
 		"channel": "light",
-		"aura_haste": 0.32,
+		"chain_count": 3,
+		"chain_falloff": 0.72,
 		"unlock_tier": 3,
-		"special": "haste",
-	},
-	"bonehowl": {
-		"name": "Bonehowl",
-		"short": "PULSE",
-		"cost": 36,
-		"color": Color(0.72, 0.78, 0.98),
-		"desc": "Shatter pulse. Cracks ironclad packs.",
-		"damage": 28,
-		"fire_rate": 1.0,
-		"range": 320.0,
-		"role": "pulse",
-		"channel": "shatter",
-		"splash": 100.0,
-		"unlock_tier": 4,
-		"special": "splash",
+		"special": "chain",
 	},
 	"rootgate": {
 		"name": "Rootgate",
 		"short": "ROOT",
-		"cost": 38,
+		"target": "ground",
+		"target_label": "GND",
+		"cost": 36,
 		"color": Color(0.42, 0.58, 0.32),
-		"desc": "Roots. Best vs skitters & thralls.",
-		"damage": 12,
-		"fire_rate": 0.9,
-		"range": 300.0,
-		"role": "root",
+		"desc": "Root pulse AOE. Ground only.",
+		"damage": 14,
+		"fire_rate": 1.0,
+		"range": 290.0,
+		"role": "control",
 		"channel": "thorn",
-		"root_duration": 1.1,
-		"splash": 70.0,
-		"unlock_tier": 5,
+		"root_duration": 1.15,
+		"splash": 90.0,
+		"unlock_tier": 4,
 		"special": "root",
-	},
-	"skyshard": {
-		"name": "Skyshard",
-		"short": "ARC",
-		"cost": 40,
-		"color": Color(0.55, 0.9, 0.95),
-		"desc": "Chain light. Melts wraiths & shades.",
-		"damage": 20,
-		"fire_rate": 0.7,
-		"range": 400.0,
-		"role": "chain",
-		"channel": "light",
-		"chain_count": 3,
-		"chain_falloff": 0.7,
-		"unlock_tier": 6,
-		"special": "chain",
 	},
 }
 
 ## Unlock order (campaign / wave progression)
 const ORDER: Array[String] = [
-	"thornspire", "shardbow", "mistvent", "hex_lantern",
-	"hearthstone", "bonehowl", "rootgate", "skyshard"
+	"thornspire", "emberfall", "shardbow", "mistvent", "skyshard", "rootgate"
 ]
 
 ## Match-scoped unlocks (reset each battle)
@@ -156,9 +137,8 @@ func begin_match(map_difficulty: int = 1) -> void:
 	if Campaign and Campaign.has_method("tower_unlock_tier"):
 		campaign_tier = int(Campaign.tower_unlock_tier())
 	var start_tier := mini(campaign_tier, ORDER.size() - 1)
-	# Map difficulty also opens the next tier early on harder stages
 	start_tier = mini(ORDER.size() - 1, maxi(start_tier, map_difficulty - 1))
-	# Always at least Thornspire + Shardbow
+	# Always at least Thornspire + Emberfall
 	start_tier = maxi(1, start_tier)
 	_reset_match_unlocks(start_tier)
 	unlocks_changed.emit()
@@ -178,11 +158,7 @@ func _reset_match_unlocks(max_tier: int) -> void:
 
 func on_wave_started(wave: int) -> void:
 	## Each new surge can unlock the next tower in the catalog.
-	# Wave 1: starter set already. Wave 2+ unlocks next if available.
-	var want_tier := maxi(1, wave)  # wave 2 -> tier 2 etc. but cap by campaign+wave
-	# Soft unlock: every wave past 1 opens one more type
 	var target_count := mini(ORDER.size(), 2 + (wave - 1))
-	# Respect campaign ceiling + 1 for discovery on current map
 	var cap := mini(ORDER.size(), campaign_tier + 2 + wave)
 	target_count = mini(target_count, cap)
 	var unlocked_any := false
@@ -282,3 +258,7 @@ func all_ids() -> Array[String]:
 	for id in ORDER:
 		out.append(id)
 	return out
+
+
+func target_label(id: String) -> String:
+	return str(def_for(id).get("target_label", "ALL"))

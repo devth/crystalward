@@ -11,6 +11,8 @@ class_name Nightspawn
 
 var hp: int
 var kind_id: String = "thrall"
+## Air units ignore ground-only towers / roots; path still follows the road.
+var is_flying: bool = false
 var _crystal: Node2D
 var _visual: Node2D
 var _body_poly: Polygon2D
@@ -99,6 +101,7 @@ func configure_kind(id: String, base_hp: int = -1, base_speed: float = -1.0) -> 
 	_min_path_gap = float(d.get("min_path_gap", 70.0))
 	_kind_skin_key = str(d.get("skin", ""))
 	_kind_color = d.get("color", Color(0.85, 0.3, 0.45)) as Color
+	is_flying = bool(d.get("flying", false))
 	var cdm := float(d.get("crystal_damage_mult", 1.0))
 	crystal_damage = maxi(1, int(float(crystal_damage) * cdm))
 	var sm := float(d.get("scale_mult", 1.0))
@@ -361,7 +364,9 @@ func _finish_frame() -> void:
 	else:
 		z_index = clampi(50 + int(global_position.y) + 2000, 50, 4000)
 	if _visual:
-		_visual.position.y = 0.0
+		# Flyers hover above the path
+		var hover := (-14.0 + sin(_anim_t * 2.4) * 3.0) if is_flying else 0.0
+		_visual.position.y = hover
 		if _move_dir.x < -0.12:
 			_face_sign = -1.0
 		elif _move_dir.x > 0.12:
@@ -399,8 +404,11 @@ func apply_slow(amount: float, duration: float) -> void:
 		if "mist" in d.get("resist_channels", []):
 			amount *= 0.4
 			duration *= 0.6
-		if "aura_slow" in d.get("resist_specials", []):
+		if "slow_aura" in d.get("resist_specials", []) or "aura_slow" in d.get("resist_specials", []):
 			amount *= 0.5
+	# Flyers still slow, but less (harder to pin)
+	if is_flying:
+		amount *= 0.75
 	_slow = maxf(_slow, amount)
 	_slow_t = maxf(_slow_t, duration)
 
@@ -415,10 +423,12 @@ func apply_mark(mult: float, duration: float) -> void:
 
 
 func apply_root(duration: float) -> void:
+	# Roots cannot grab air units
+	if is_flying:
+		return
 	if EnemyKinds:
 		var d: Dictionary = EnemyKinds.def_for(kind_id)
 		if "root" in d.get("resist_specials", []) or "thorn" in d.get("resist_channels", []):
-			# Shades / resistant types shrug roots
 			if "root" in d.get("resist_specials", []):
 				return
 			duration *= 0.45
@@ -435,6 +445,14 @@ func is_marked() -> bool:
 
 func is_elite() -> bool:
 	return _is_elite
+
+
+func is_air() -> bool:
+	return is_flying
+
+
+func is_ground() -> bool:
+	return not is_flying
 
 
 func get_kind_id() -> String:

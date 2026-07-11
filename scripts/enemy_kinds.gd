@@ -1,15 +1,15 @@
 extends Node
 ## Nightspawn kind catalog — one kind per surge, with tower matchups.
 ## Autoloaded as EnemyKinds.
+## `flying: true` = air unit (Skyshard / air targeting).
 
 ## kind_id -> definition
-## weak_channels / resist_channels use tower "channel" (thorn, light, mist, hex, shatter)
-## weak_specials / resist_specials use tower "special" (multishot, execute, splash, root, chain, …)
 const KINDS := {
 	"thrall": {
 		"name": "Briar Thralls",
 		"short": "SWARM",
-		"blurb": "Pack runners. Thorns & pulses shred them; snipes waste shots.",
+		"blurb": "Ground pack. Thorns & Emberfall shred them.",
+		"flying": false,
 		"hp_mult": 0.72,
 		"speed_mult": 1.22,
 		"scale_mult": 0.92,
@@ -19,15 +19,16 @@ const KINDS := {
 		"spawn_spacing": 0.85,
 		"weak_channels": ["thorn", "shatter"],
 		"resist_channels": ["light"],
-		"weak_specials": ["multishot", "splash"],
-		"resist_specials": ["execute", "snipe"],
+		"weak_specials": ["multishot", "splash", "aoe"],
+		"resist_specials": ["execute", "snipe", "chain"],
 		"skin": "pest",
 		"color": Color(0.55, 0.85, 0.45),
 	},
 	"ironclad": {
 		"name": "Iron Procession",
 		"short": "ARMORED",
-		"blurb": "Thick plates. Bonehowl/shatter cracks them; thorns glance off.",
+		"blurb": "Ground armor. Emberfall cracks plates; thorns glance.",
+		"flying": false,
 		"hp_mult": 1.65,
 		"speed_mult": 0.72,
 		"scale_mult": 1.18,
@@ -37,7 +38,7 @@ const KINDS := {
 		"spawn_spacing": 1.15,
 		"weak_channels": ["shatter"],
 		"resist_channels": ["thorn"],
-		"weak_specials": ["splash", "pulse"],
+		"weak_specials": ["splash", "aoe"],
 		"resist_specials": ["multishot"],
 		"skin": "undead",
 		"color": Color(0.65, 0.7, 0.85),
@@ -45,7 +46,8 @@ const KINDS := {
 	"skitter": {
 		"name": "Skitter Host",
 		"short": "SWIFT",
-		"blurb": "Too fast to pin. Mist & roots hold them; pure DPS trails behind.",
+		"blurb": "Ground speedsters. Mist & roots hold them.",
+		"flying": false,
 		"hp_mult": 0.85,
 		"speed_mult": 1.55,
 		"scale_mult": 0.88,
@@ -55,33 +57,35 @@ const KINDS := {
 		"spawn_spacing": 0.7,
 		"weak_channels": ["mist", "thorn"],
 		"resist_channels": ["light"],
-		"weak_specials": ["root", "aura_slow"],
+		"weak_specials": ["root", "slow_aura", "control"],
 		"resist_specials": ["execute"],
 		"skin": "beast",
 		"color": Color(0.9, 0.7, 0.35),
 	},
 	"shade": {
 		"name": "Soft Dark",
-		"short": "SHADE",
-		"blurb": "Half-spirit. Light, hex, and marks burn them; roots pass through.",
-		"hp_mult": 1.05,
-		"speed_mult": 1.05,
+		"short": "FLYER",
+		"blurb": "Air spirits. Skyshard & light burn them; roots miss.",
+		"flying": true,
+		"hp_mult": 1.0,
+		"speed_mult": 1.12,
 		"scale_mult": 1.0,
-		"path_slack": 18.0,
-		"sep_radius": 50.0,
+		"path_slack": 28.0,
+		"sep_radius": 52.0,
 		"min_path_gap": 80.0,
 		"spawn_spacing": 0.95,
-		"weak_channels": ["light", "hex"],
-		"resist_channels": ["thorn"],
-		"weak_specials": ["mark", "execute", "chain"],
-		"resist_specials": ["root", "multishot"],
+		"weak_channels": ["light"],
+		"resist_channels": ["thorn", "shatter"],
+		"weak_specials": ["chain", "execute", "air", "snipe"],
+		"resist_specials": ["root", "splash", "multishot", "aoe"],
 		"skin": "demon",
 		"color": Color(0.7, 0.45, 0.95),
 	},
 	"brute": {
 		"name": "Siege Brutes",
 		"short": "BRUTE",
-		"blurb": "Heavy crystal-eaters. Snipes & executes; slows barely touch them.",
+		"blurb": "Heavy ground. Shardbow executes; slows barely stick.",
+		"flying": false,
 		"hp_mult": 1.85,
 		"speed_mult": 0.78,
 		"scale_mult": 1.32,
@@ -91,8 +95,8 @@ const KINDS := {
 		"spawn_spacing": 1.35,
 		"weak_channels": ["light"],
 		"resist_channels": ["mist"],
-		"weak_specials": ["execute", "snipe", "mark"],
-		"resist_specials": ["aura_slow", "root"],
+		"weak_specials": ["execute", "snipe"],
+		"resist_specials": ["slow_aura", "root"],
 		"skin": "demon",
 		"color": Color(0.95, 0.4, 0.35),
 		"crystal_damage_mult": 1.5,
@@ -100,7 +104,8 @@ const KINDS := {
 	"blight": {
 		"name": "Blight Spores",
 		"short": "BLIGHT",
-		"blurb": "Soft bodies in a cloud. Hex & thorns; splash is messy but weak.",
+		"blurb": "Ground cloud. Thorns & splash melt them.",
+		"flying": false,
 		"hp_mult": 0.95,
 		"speed_mult": 1.1,
 		"scale_mult": 0.95,
@@ -108,28 +113,29 @@ const KINDS := {
 		"sep_radius": 46.0,
 		"min_path_gap": 65.0,
 		"spawn_spacing": 0.75,
-		"weak_channels": ["hex", "thorn"],
-		"resist_channels": ["shatter"],
-		"weak_specials": ["mark", "multishot"],
-		"resist_specials": ["splash"],
+		"weak_channels": ["thorn", "shatter"],
+		"resist_channels": [],
+		"weak_specials": ["splash", "multishot", "aoe"],
+		"resist_specials": ["chain"],
 		"skin": "slime",
 		"color": Color(0.45, 0.85, 0.55),
 	},
 	"wraith": {
 		"name": "Night Wraiths",
 		"short": "WRAITH",
-		"blurb": "Arc-hungry spirits. Skyshard chains melt them; solid thorns fade.",
+		"blurb": "Air hunters. Skyshard chains melt them.",
+		"flying": true,
 		"hp_mult": 1.15,
-		"speed_mult": 1.12,
+		"speed_mult": 1.18,
 		"scale_mult": 1.05,
-		"path_slack": 20.0,
+		"path_slack": 30.0,
 		"sep_radius": 54.0,
 		"min_path_gap": 85.0,
 		"spawn_spacing": 1.0,
 		"weak_channels": ["light"],
 		"resist_channels": ["thorn", "shatter"],
-		"weak_specials": ["chain", "execute"],
-		"resist_specials": ["splash", "multishot"],
+		"weak_specials": ["chain", "air", "execute"],
+		"resist_specials": ["splash", "root", "multishot", "aoe"],
 		"skin": "undead",
 		"color": Color(0.55, 0.85, 0.95),
 	},
@@ -160,6 +166,10 @@ func blurb(kind_id: String) -> String:
 	return str(def_for(kind_id).get("blurb", ""))
 
 
+func is_flying(kind_id: String) -> bool:
+	return bool(def_for(kind_id).get("flying", false))
+
+
 ## Damage multiplier for a tower profile vs this kind.
 func damage_mult(kind_id: String, channel: String, special: String, role: String) -> float:
 	var d: Dictionary = def_for(kind_id)
@@ -187,32 +197,34 @@ func matchup_hint(kind_id: String) -> String:
 		if not seen.has(s):
 			seen[s] = true
 			tips.append(s)
+	if bool(d.get("flying", false)):
+		add.call("Skyshard")
+		add.call("Shardbow")
 	for ch in d.get("weak_channels", []):
 		match str(ch):
 			"thorn":
 				add.call("Thornspire")
 			"light":
-				add.call("Shardbow")
+				if not bool(d.get("flying", false)):
+					add.call("Shardbow")
 			"mist":
 				add.call("Mistvent")
-			"hex":
-				add.call("Hex Lantern")
 			"shatter":
-				add.call("Bonehowl")
+				add.call("Emberfall")
 	for sp in d.get("weak_specials", []):
 		match str(sp):
-			"splash", "pulse":
-				add.call("Bonehowl")
-			"chain":
+			"splash", "aoe":
+				add.call("Emberfall")
+			"chain", "air":
 				add.call("Skyshard")
-			"root", "aura_slow":
-				add.call("Rootgate/Mist")
+			"root", "control":
+				add.call("Rootgate")
+			"slow_aura":
+				add.call("Mistvent")
 			"multishot":
 				add.call("Thornspire")
 			"execute", "snipe":
 				add.call("Shardbow")
-			"mark":
-				add.call("Hex Lantern")
 	if tips.is_empty():
 		return "Best: any tower"
 	return "Best: " + ", ".join(tips)

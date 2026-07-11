@@ -164,12 +164,25 @@ func _refresh_tower_loadout() -> void:
 		name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		name_l.add_theme_font_size_override("font_size", 12)
 		name_l.add_theme_color_override("font_color", col.lightened(0.25))
+		var layer_l := Label.new()
+		var tgt := str(d.get("target_label", "ALL"))
+		layer_l.text = tgt
+		layer_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		layer_l.add_theme_font_size_override("font_size", 9)
+		match str(d.get("target", "both")):
+			"air":
+				layer_l.add_theme_color_override("font_color", Color(0.65, 0.9, 1.0, 0.95))
+			"ground":
+				layer_l.add_theme_color_override("font_color", Color(0.55, 0.9, 0.5, 0.95))
+			_:
+				layer_l.add_theme_color_override("font_color", Color(0.95, 0.9, 0.55, 0.95))
 		var cost_l := Label.new()
 		cost_l.text = "%d✦" % int(d.get("cost", 0))
 		cost_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		cost_l.add_theme_font_size_override("font_size", 10)
 		cost_l.add_theme_color_override("font_color", Color(1, 0.9, 0.65, 0.9))
 		v.add_child(name_l)
+		v.add_child(layer_l)
 		v.add_child(cost_l)
 		panel.add_child(v)
 		# Click to select (P1)
