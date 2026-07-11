@@ -1,21 +1,39 @@
 extends Node
-## PixelJunk-inspired visual language: outlines, palette, helpers.
+## Crystalward visual language — Dark Crystal / ethereal forest.
 ## Autoloaded as VisualStyle.
 
-const OUTLINE := Color(0.1, 0.07, 0.14, 0.95)
-const SHADOW := Color(0.05, 0.04, 0.1, 0.45)
-const P1_TINT := Color(0.55, 0.85, 0.75)
-const P2_TINT := Color(0.9, 0.6, 0.85)
-const PATH_DIRT := Color(0.45, 0.32, 0.22, 0.92)
-const TOWER_MOSS := Color(0.35, 0.55, 0.4)
+const OUTLINE := Color(0.06, 0.04, 0.12, 0.95)
+const SHADOW := Color(0.02, 0.02, 0.06, 0.5)
+const P1_TINT := Color(0.45, 0.9, 0.85)   # cyan crystal warden
+const P2_TINT := Color(0.75, 0.55, 0.95)  # violet shadow warden
+const PATH_DIRT := Color(0.28, 0.2, 0.28, 0.95)
+const TOWER_MOSS := Color(0.28, 0.42, 0.38)
 const ESSENCE_GLOW := Color(0.45, 0.95, 0.9)
-const CRYSTAL_CORE := Color(0.85, 0.7, 1.0)
-const UI_CREAM := Color(0.98, 0.95, 0.9)
-const UI_INK := Color(0.12, 0.1, 0.16)
-# Legend (1985) botanical palette
-const LEGEND_MEADOW := Color(0.4, 0.6, 0.38)
-const LEGEND_BLOOM := Color(0.95, 0.55, 0.7)
-const LEGEND_GOLDEN_HOUR := Color(0.95, 0.88, 0.55)
+const CRYSTAL_CORE := Color(0.55, 0.88, 0.95)
+const UI_CREAM := Color(0.92, 0.9, 0.98)
+const UI_INK := Color(0.1, 0.08, 0.14)
+# Title-screen forest palette (purple mist + teal crystal + deep moss)
+const FOREST_DEEP := Color(0.08, 0.12, 0.14)
+const FOREST_MOSS := Color(0.18, 0.32, 0.26)
+const FOREST_MIST := Color(0.35, 0.28, 0.48)
+const LEGEND_MEADOW := Color(0.22, 0.38, 0.32)
+const LEGEND_BLOOM := Color(0.65, 0.45, 0.85)
+const LEGEND_GOLDEN_HOUR := Color(0.85, 0.75, 0.4)
+
+## Z layers — ground always under actors. Never use Main y_sort (covers north map).
+const Z_GROUND := -200
+const Z_PATH := -180
+const Z_PROP_BASE := 0      # + int(y) for decor
+const Z_ACTOR_BASE := 5000  # + int(y) — always above all ground props
+
+
+func actor_z(world_y: float, height: float = 0.0) -> int:
+	## Stable draw order: higher world Y (south) draws later; height lifts slightly.
+	return Z_ACTOR_BASE + int(world_y) - int(height * 0.1)
+
+
+func prop_z(world_y: float) -> int:
+	return Z_PROP_BASE + int(world_y)
 
 var _outline_shader: Shader
 var _outline_mat: ShaderMaterial
@@ -67,9 +85,9 @@ func style_game_label(label: Label, size: int = 16, cream: bool = true) -> void:
 
 func style_hud_panel(panel: PanelContainer) -> void:
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.06, 0.07, 0.09, 0.92)
-	sb.set_corner_radius_all(10)
-	sb.border_color = Color(0.55, 0.48, 0.35, 0.55)
+	sb.bg_color = Color(0.06, 0.05, 0.1, 0.92)
+	sb.set_corner_radius_all(12)
+	sb.border_color = Color(0.45, 0.7, 0.75, 0.4)
 	sb.set_border_width_all(1)
 	sb.shadow_color = Color(0, 0, 0, 0.45)
 	sb.shadow_size = 8

@@ -40,7 +40,11 @@ func _ready() -> void:
 	_label.visible = false
 	_refresh_label()
 	_update_presence_visuals()
-	z_index = int(global_position.y)
+	z_as_relative = false
+	if VisualStyle:
+		z_index = VisualStyle.actor_z(global_position.y) - 5
+	else:
+		z_index = 4995 + int(global_position.y)
 	add_to_group("tower_sites")
 
 

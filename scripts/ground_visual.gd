@@ -1,22 +1,23 @@
 extends Node2D
 ## Ground + dirt roads + forest props.
-## Critical: paths must paint ABOVE the floor (z_index), not under it.
+## All ground art stays under actors (Ground node z=-200 absolute). Props use local z only.
 
-const FOREST_MODULATE := Color(0.92, 1.0, 0.88)
+const FOREST_MODULATE := Color(0.75, 0.88, 0.82)  # cool teal-moss, title-screen trees
 const FLOOR_EXTENT := 2200.0
 
-# Local draw order under Ground (parent z is -100 on Main)
 const Z_FLOOR := 0
 const Z_PLAZA := 1
-const Z_PATH_EDGE := 18
-const Z_PATH := 20
-const Z_PATH_DETAIL := 22
-const Z_PORTAL := 30
-const Z_DECOR := 40
+const Z_PATH_EDGE := 10
+const Z_PATH := 12
+const Z_PATH_DETAIL := 14
+const Z_PORTAL := 20
+const Z_DECOR := 30
 
 
 func _ready() -> void:
 	y_sort_enabled = false
+	z_as_relative = false
+	z_index = -200
 	for c in get_children():
 		c.queue_free()
 	# Main rebuilds PathNetwork in its _ready; wait one frame so lanes exist.
@@ -69,11 +70,14 @@ func _build_floor() -> void:
 
 func _build_plaza() -> void:
 	# Soft clearing around the Lightwell — not a hard diamond stamp
-	var clear := _ellipse(Vector2(0, 40), 280, 170, Color(0.32, 0.48, 0.34, 0.35), Z_PLAZA)
+	# Soft clearing with purple mist wash (title Lightwell glade)
+	var clear := _ellipse(Vector2(0, 40), 300, 180, Color(0.22, 0.32, 0.3, 0.4), Z_PLAZA)
 	add_child(clear)
-	var ring := _ellipse(Vector2(0, 40), 160, 95, Color(0.55, 0.72, 0.5, 0.18), Z_PLAZA)
+	var mist := _ellipse(Vector2(0, 40), 220, 130, Color(0.35, 0.28, 0.48, 0.12), Z_PLAZA)
+	add_child(mist)
+	var ring := _ellipse(Vector2(0, 40), 140, 82, Color(0.4, 0.75, 0.75, 0.14), Z_PLAZA)
 	add_child(ring)
-	var ring2 := _ellipse(Vector2(0, 40), 100, 58, Color(0.75, 0.7, 0.45, 0.12), Z_PLAZA)
+	var ring2 := _ellipse(Vector2(0, 40), 90, 52, Color(0.55, 0.9, 0.95, 0.1), Z_PLAZA)
 	add_child(ring2)
 
 
@@ -118,7 +122,7 @@ func _build_terrain_features() -> void:
 
 func _add_mountain_cluster(center: Vector2, radius: float, rng: RandomNumberGenerator) -> void:
 	# Layered rock peaks — roads bend around these.
-	var base := _ellipse(center + Vector2(0, 12), radius * 0.85, radius * 0.45, Color(0.18, 0.16, 0.2, 0.75), Z_DECOR - 5)
+	var base := _ellipse(center + Vector2(0, 12), radius * 0.85, radius * 0.45, Color(0.12, 0.1, 0.16, 0.8), Z_DECOR - 5)
 	add_child(base)
 	for i in 5:
 		var ang := TAU * float(i) / 5.0 + rng.randf() * 0.3
@@ -130,16 +134,16 @@ func _add_mountain_cluster(center: Vector2, radius: float, rng: RandomNumberGene
 			Vector2(-w, 10), Vector2(-w * 0.4, -h * 0.55), Vector2(0, -h),
 			Vector2(w * 0.35, -h * 0.5), Vector2(w, 10)
 		])
-		peak.color = Color(0.28, 0.26, 0.32).darkened(rng.randf() * 0.15)
+		peak.color = Color(0.2, 0.18, 0.28).darkened(rng.randf() * 0.12)
 		peak.position = center + o
-		peak.z_index = Z_DECOR + clampi(int((center.y + o.y) / 40.0), -10, 40)
+		peak.z_index = Z_DECOR + clampi(int((center.y + o.y) / 80.0), -5, 20)
 		add_child(peak)
-		# Snow / crystal cap
+		# Crystal vein cap (title cyan/gold)
 		var cap := Polygon2D.new()
 		cap.polygon = PackedVector2Array([
 			Vector2(0, -h), Vector2(-w * 0.22, -h * 0.72), Vector2(w * 0.18, -h * 0.7)
 		])
-		cap.color = Color(0.75, 0.78, 0.85, 0.85)
+		cap.color = Color(0.55, 0.85, 0.95, 0.75)
 		cap.position = peak.position
 		cap.z_index = peak.z_index + 1
 		add_child(cap)
@@ -196,19 +200,23 @@ func _build_botanicals() -> void:
 func _build_atmosphere_light() -> void:
 	if FX == null:
 		return
-	# Sparse motes near the well only
-	var motes := FX.spark_particles(self, Color(0.9, 0.85, 0.55, 0.35), 10, "star")
+	# Title-screen fireflies: cyan + violet near the well
+	var motes := FX.spark_particles(self, Color(0.55, 0.95, 0.95, 0.4), 12, "star")
 	motes.position = Vector2(0, 40)
 	motes.z_index = Z_DECOR
-	motes.amount = 10
+	motes.amount = 12
 	motes.lifetime = 3.5
 	var pm := motes.process_material as ParticleProcessMaterial
 	if pm:
 		pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
-		pm.emission_sphere_radius = 160.0
+		pm.emission_sphere_radius = 200.0
 		pm.initial_velocity_min = 1.0
-		pm.initial_velocity_max = 6.0
-		pm.gravity = Vector3(0, -2, 0)
+		pm.initial_velocity_max = 5.0
+		pm.gravity = Vector3(0, -1.5, 0)
+	var motes2 := FX.spark_particles(self, Color(0.75, 0.5, 0.95, 0.3), 8, "glow")
+	motes2.position = Vector2(0, 20)
+	motes2.z_index = Z_DECOR
+	motes2.amount = 8
 
 
 func _ellipse(pos: Vector2, rx: float, ry: float, col: Color, z: int) -> Polygon2D:
@@ -293,8 +301,8 @@ func _place_sprite(tex: Texture2D, pos: Vector2, scale_mul: float, alpha: float 
 	s.position = pos
 	s.scale = Vector2(scale_mul, scale_mul)
 	s.modulate = Color(FOREST_MODULATE.r, FOREST_MODULATE.g, FOREST_MODULATE.b, alpha)
-	# Keep props above floor/paths; use Y only as fine sort within decor band
-	s.z_index = Z_DECOR + clampi(int(pos.y / 40.0), -10, 40)
+	# Local z only under Ground (-200) — never compete with actors (5000+)
+	s.z_index = Z_DECOR + clampi(int(pos.y / 80.0), -5, 25)
 	s.offset = Vector2(0, -float(tex.get_height()) * 0.4)
 	add_child(s)
 	return s
@@ -304,9 +312,10 @@ func _place_sprite(tex: Texture2D, pos: Vector2, scale_mul: float, alpha: float 
 func _add_path_ribbon(pts: PackedVector2Array, half_width: float) -> void:
 	if pts.size() < 2:
 		return
+	# Purple-tinged forest roads (title screen night wood)
 	var bed := Line2D.new()
 	bed.width = half_width * 2.35
-	bed.default_color = Color(0.16, 0.11, 0.07, 1.0)
+	bed.default_color = Color(0.1, 0.08, 0.12, 1.0)
 	bed.begin_cap_mode = Line2D.LINE_CAP_ROUND
 	bed.end_cap_mode = Line2D.LINE_CAP_ROUND
 	bed.joint_mode = Line2D.LINE_JOINT_ROUND
@@ -317,7 +326,7 @@ func _add_path_ribbon(pts: PackedVector2Array, half_width: float) -> void:
 
 	var dirt := Line2D.new()
 	dirt.width = half_width * 1.9
-	dirt.default_color = Color(0.52, 0.38, 0.24, 1.0)
+	dirt.default_color = Color(0.32, 0.24, 0.28, 1.0)
 	dirt.begin_cap_mode = Line2D.LINE_CAP_ROUND
 	dirt.end_cap_mode = Line2D.LINE_CAP_ROUND
 	dirt.joint_mode = Line2D.LINE_JOINT_ROUND
@@ -328,7 +337,7 @@ func _add_path_ribbon(pts: PackedVector2Array, half_width: float) -> void:
 
 	var track := Line2D.new()
 	track.width = half_width * 0.85
-	track.default_color = Color(0.62, 0.48, 0.30, 1.0)
+	track.default_color = Color(0.42, 0.34, 0.38, 1.0)
 	track.begin_cap_mode = Line2D.LINE_CAP_ROUND
 	track.end_cap_mode = Line2D.LINE_CAP_ROUND
 	track.joint_mode = Line2D.LINE_JOINT_ROUND
@@ -337,10 +346,9 @@ func _add_path_ribbon(pts: PackedVector2Array, half_width: float) -> void:
 	track.z_index = Z_PATH_DETAIL
 	add_child(track)
 
-	# Soft moss edge guide
 	var edge := Line2D.new()
-	edge.width = 3.0
-	edge.default_color = Color(0.28, 0.42, 0.26, 0.45)
+	edge.width = 2.5
+	edge.default_color = Color(0.35, 0.45, 0.4, 0.35)
 	edge.begin_cap_mode = Line2D.LINE_CAP_ROUND
 	edge.end_cap_mode = Line2D.LINE_CAP_ROUND
 	edge.joint_mode = Line2D.LINE_JOINT_ROUND
@@ -370,7 +378,7 @@ func _add_standing_stone(pos: Vector2, scale: float) -> void:
 	var root := Node2D.new()
 	root.position = pos
 	root.scale = Vector2(scale, scale)
-	root.z_index = Z_DECOR + clampi(int(pos.y / 40.0), -10, 40)
+	root.z_index = Z_DECOR + clampi(int(pos.y / 80.0), -5, 20)
 	add_child(root)
 	if FX:
 		FX.add_soft_shadow(root, 14, 6, 12)
@@ -379,7 +387,7 @@ func _add_standing_stone(pos: Vector2, scale: float) -> void:
 		Vector2(-10, 10), Vector2(-14, -8), Vector2(-4, -28),
 		Vector2(6, -32), Vector2(14, -12), Vector2(10, 10)
 	])
-	body.color = Color(0.22, 0.2, 0.28)
+	body.color = Color(0.18, 0.16, 0.24)
 	root.add_child(body)
 	var moss := Polygon2D.new()
 	moss.polygon = PackedVector2Array([

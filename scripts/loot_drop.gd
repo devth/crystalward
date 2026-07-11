@@ -78,7 +78,11 @@ func _process(delta: float) -> void:
 	if _visual:
 		_visual.position.y = sin(_bob) * 2.5
 		_visual.rotation = sin(_bob * 0.7) * 0.15
-	z_index = int(global_position.y)
+	z_as_relative = false
+	if VisualStyle:
+		z_index = VisualStyle.actor_z(global_position.y) + 5
+	else:
+		z_index = 5005 + int(global_position.y)
 	# Blink when about to expire
 	if _age > lifetime - 5.0 and _visual:
 		_visual.modulate.a = 0.4 + 0.6 * absf(sin(_bob * 4.0))

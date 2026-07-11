@@ -39,7 +39,11 @@ func _ready() -> void:
 		VisualStyle.style_game_label(_label, 12, true)
 	_label.position = Vector2(-40, 26)
 	_label.visible = false
-	z_index = int(global_position.y)
+	z_as_relative = false
+	if VisualStyle:
+		z_index = VisualStyle.actor_z(global_position.y) - 2
+	else:
+		z_index = 4998 + int(global_position.y)
 	add_to_group("essence_nodes")
 
 

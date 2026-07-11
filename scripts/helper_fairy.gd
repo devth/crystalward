@@ -87,7 +87,11 @@ func _process(delta: float) -> void:
 			_wing_l.rotation = sin(_bob * 2.5) * 0.35
 		if _wing_r:
 			_wing_r.rotation = -sin(_bob * 2.5) * 0.35
-	z_index = int(global_position.y)
+	z_as_relative = false
+	if VisualStyle:
+		z_index = VisualStyle.actor_z(global_position.y) + 10
+	else:
+		z_index = 5010 + int(global_position.y)
 
 	# Always prefer nearby loot if any exists
 	if mode != Mode.SEEK_LOOT:

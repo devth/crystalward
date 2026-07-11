@@ -201,52 +201,85 @@ func _kenney_anim_set(folder: String, prefix: String) -> Dictionary:
 	}
 
 
-## 2.5D warden skins (Kenney Platformer Characters — CC0).
-## Returns anim dict: idle/walk/jump/fall/attack arrays + scale + modulate.
+## Ethereal Dark Crystal wardens — top-down DawnLike elementals (walk flip frames).
+## Side-view Kenney soldiers looked wrong on this camera; these match the forest angle.
 func warden_skin(player_index: int) -> Dictionary:
-	var folder := "Adventurer"
-	var prefix := "adventurer"
-	var modulate := Color(1.0, 1.0, 1.0)
+	var frames: Array[Texture2D] = []
+	var modulate := Color(0.55, 0.95, 0.9)
+	# Hand-picked elemental cells that read as living crystal beings (not empty/black).
 	if player_index == 0:
-		folder = "Soldier"
-		prefix = "soldier"
-		modulate = Color(0.85, 1.0, 0.92)  # slight teal-iron tint for P1
+		# Cyan / aqua crystal guardian
+		modulate = Color(0.55, 0.98, 0.92)
+		frames = dawnlike_frames(DAWNLIKE_ELEMENTAL0, DAWNLIKE_ELEMENTAL1, 1, 0)
+		if frames.is_empty():
+			frames = dawnlike_frames(DAWNLIKE_ELEMENTAL0, DAWNLIKE_ELEMENTAL1, 0, 1)
+		if frames.is_empty():
+			frames = dawnlike_frames(DAWNLIKE_PLANT0, DAWNLIKE_PLANT1, 1, 0)
 	else:
-		folder = "Adventurer"
-		prefix = "adventurer"
-		modulate = Color(1.0, 0.92, 0.88)  # warm for P2
-	var anim := _kenney_anim_set(folder, prefix)
-	# Fallback to Female if missing
-	if (anim.get("frames") as Array).is_empty():
-		anim = _kenney_anim_set("Female", "female")
-		modulate = Color(0.95, 0.9, 1.0)
-	anim["modulate"] = modulate
-	anim["scale"] = 1.25  # 80×110 — punchy 2.5D silhouette on the field
-	anim["style"] = "kenney_25d"
-	return anim
+		# Violet / amethyst shadow warden
+		modulate = Color(0.82, 0.55, 0.98)
+		frames = dawnlike_frames(DAWNLIKE_ELEMENTAL0, DAWNLIKE_ELEMENTAL1, 2, 0)
+		if frames.is_empty():
+			frames = dawnlike_frames(DAWNLIKE_ELEMENTAL0, DAWNLIKE_ELEMENTAL1, 3, 1)
+		if frames.is_empty():
+			frames = dawnlike_frames(DAWNLIKE_HUMANOID0, DAWNLIKE_HUMANOID1, 1, 0)
+	if frames.is_empty():
+		# Last resort Kenney (side view) so something renders
+		var anim := _kenney_anim_set("Adventurer", "adventurer")
+		anim["modulate"] = modulate
+		anim["scale"] = 1.1
+		anim["style"] = "kenney_25d"
+		return anim
+	return {
+		"idle": frames,
+		"walk": frames,
+		"jump": frames,
+		"fall": frames,
+		"attack": frames,
+		"frames": frames,
+		"modulate": modulate,
+		"scale": 4.2,
+		"style": "ethereal_topdown",
+	}
 
 
-## Nightspawn skins — zombie 2.5D walk cycle + tint variants.
+## Nightspawn — demonic / undead thralls (top-down walk flip).
 func random_enemy_skin() -> Dictionary:
-	var anim := _kenney_anim_set("Zombie", "zombie")
-	var modulate := Color(0.85, 0.75, 0.9)
+	var frames: Array[Texture2D] = []
+	var modulate := Color(0.7, 0.4, 0.55)
+	var scale_mul := 3.6
 	var roll := randi() % 100
-	if roll < 35:
-		modulate = Color(0.75, 0.9, 0.7)  # moss thrall
-	elif roll < 60:
-		modulate = Color(0.9, 0.55, 0.55)  # blood thrall
-	elif roll < 80:
-		modulate = Color(0.65, 0.7, 0.95)  # night thrall
+	if roll < 40:
+		frames = dawnlike_frames(DAWNLIKE_DEMON0, DAWNLIKE_DEMON1, randi() % 4, randi() % 3)
+		modulate = Color(0.75, 0.35, 0.5)
+	elif roll < 70:
+		frames = dawnlike_frames(DAWNLIKE_UNDEAD0, DAWNLIKE_UNDEAD1, randi() % 3, randi() % 2)
+		modulate = Color(0.55, 0.45, 0.7)
+	elif roll < 88:
+		frames = dawnlike_frames(DAWNLIKE_PEST0, DAWNLIKE_PEST1, randi() % 4, randi() % 2)
+		modulate = Color(0.5, 0.35, 0.55)
+		scale_mul = 3.2
 	else:
-		modulate = Color(0.95, 0.85, 0.55)  # cursed thrall
-	if (anim.get("frames") as Array).is_empty():
-		# Last resort: dawnlike (tiny) so something shows
-		var frames := dawnlike_frames(DAWNLIKE_DEMON0, DAWNLIKE_DEMON1, 0, 0)
-		return {"frames": frames, "walk": frames, "idle": frames, "modulate": modulate, "scale": 3.2, "style": "dawnlike"}
-	anim["modulate"] = modulate
-	anim["scale"] = 1.0
-	anim["style"] = "kenney_25d"
-	return anim
+		frames = dawnlike_frames(DAWNLIKE_SLIME0, DAWNLIKE_SLIME1, randi() % 3, 0)
+		modulate = Color(0.45, 0.3, 0.55)
+		scale_mul = 3.0
+	if frames.is_empty():
+		frames = dawnlike_frames(DAWNLIKE_DEMON0, DAWNLIKE_DEMON1, 0, 0)
+	# Filter out empty/black-looking frames is hard; prefer known cells if empty
+	if frames.is_empty():
+		var anim := _kenney_anim_set("Zombie", "zombie")
+		anim["modulate"] = modulate
+		anim["scale"] = 0.9
+		anim["style"] = "kenney_25d"
+		return anim
+	return {
+		"idle": frames,
+		"walk": frames,
+		"frames": frames,
+		"modulate": modulate,
+		"scale": scale_mul,
+		"style": "ethereal_topdown",
+	}
 
 
 func particle_texture(kind: String = "circle_soft") -> Texture2D:

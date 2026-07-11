@@ -80,8 +80,9 @@ func _ready() -> void:
 	else:
 		_label.add_theme_color_override("font_color", body_color.lightened(0.25))
 		_label.add_theme_constant_override("outline_size", 5)
-	_label.position = Vector2(-18, -58)
-	_label.z_index = 10
+	_label.position = Vector2(-18, -52)
+	_label.z_index = 20
+	z_as_relative = false
 
 
 func _build_visuals() -> void:
@@ -103,26 +104,30 @@ func _build_visuals() -> void:
 	if _anim_idle.is_empty():
 		_anim_idle = _anim_walk.duplicate()
 
-	# Ground shadow only (no aura blobs)
+	# Soft ground shadow + ethereal aura (Dark Crystal living crystal)
 	if VisualStyle:
-		_shadow = VisualStyle.make_blob_shadow(_visual_root, 18, 8, 14)
+		_shadow = VisualStyle.make_blob_shadow(_visual_root, 14, 6, 10)
 	else:
-		_shadow = FX.add_soft_shadow(_visual_root, 18, 8, 14)
-	_aura_poly = null
+		_shadow = FX.add_soft_shadow(_visual_root, 14, 6, 10)
+
+	var aura := FX.make_ellipse_poly(20, 24, 22, Color(_skin_modulate.r, _skin_modulate.g, _skin_modulate.b, 0.2))
+	aura.z_index = -2
+	_visual_root.add_child(aura)
+	_aura_poly = aura
 
 	var start_tex: Texture2D = _anim_idle[0] if not _anim_idle.is_empty() else null
 	if start_tex:
 		_use_sprite = true
 		_body_sprite = AssetPaths.make_pixel_sprite(start_tex, _sprite_base_scale)
 		_body_sprite.modulate = _skin_modulate
-		# Feet at origin for clean 2.5D contact with ground
 		_body_sprite.centered = true
-		_body_sprite.offset = Vector2(0, -float(start_tex.get_height()) * 0.42)
+		# Top-down sprite: slight lift so feet sit on ground
+		_body_sprite.offset = Vector2(0, -float(start_tex.get_height()) * 0.15)
 		_body_sprite.position = Vector2.ZERO
 		_body_sprite.name = "BodySprite"
 		_visual_root.add_child(_body_sprite)
 		if VisualStyle:
-			VisualStyle.apply_sprite_outline(_body_sprite, 1.1)
+			VisualStyle.apply_sprite_outline(_body_sprite, 1.2)
 	else:
 		_use_sprite = false
 		_build_polygon_fallback()
@@ -250,7 +255,11 @@ func _physics_process(delta: float) -> void:
 	# Free roam on paths and open land (no path snap, no solid world colliders).
 	move_and_slide()
 	global_position = GameState.clamp_world_position(global_position)
-	z_index = int(global_position.y - _height * 0.15)
+	# Always above ground props — Main must NOT y_sort the whole map layer
+	if VisualStyle:
+		z_index = VisualStyle.actor_z(global_position.y, _height)
+	else:
+		z_index = 5000 + int(global_position.y)
 
 	_update_sprite_anim(delta)
 

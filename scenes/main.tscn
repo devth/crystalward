@@ -12,15 +12,17 @@
 [ext_resource type="PackedScene" path="res://scenes/enemy.tscn" id="10"]
 
 [node name="Main" type="Node2D"]
-y_sort_enabled = true
+y_sort_enabled = false
 script = ExtResource("1")
 
 [node name="Ground" type="Node2D" parent="."]
-z_index = -100
+z_index = -200
+z_as_relative = false
 script = ExtResource("6")
 
 [node name="Crystal" type="Node2D" parent="."]
 position = Vector2(0, 40)
+z_as_relative = false
 script = ExtResource("2")
 
 [node name="HpBar" type="ProgressBar" parent="Crystal"]
@@ -33,7 +35,8 @@ value = 100.0
 show_percentage = false
 
 [node name="World" type="Node2D" parent="."]
-y_sort_enabled = true
+y_sort_enabled = false
+z_as_relative = false
 
 [node name="Player1" parent="World" instance=ExtResource("7")]
 position = Vector2(-48, 80)

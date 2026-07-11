@@ -32,7 +32,11 @@ var _configured: bool = false
 
 func _ready() -> void:
 	add_to_group("towers")
-	z_index = int(global_position.y)
+	z_as_relative = false
+	if VisualStyle:
+		z_index = VisualStyle.actor_z(global_position.y)
+	else:
+		z_index = 5000 + int(global_position.y)
 	# Hide scene placeholders (RangeHint / Body / CrystalTip); code builds type-specific art.
 	for n in ["RangeHint", "Body", "CrystalTip"]:
 		if has_node(n):

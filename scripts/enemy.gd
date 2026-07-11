@@ -47,6 +47,7 @@ func _ready() -> void:
 	motion_mode = MOTION_MODE_FLOATING
 	collision_layer = 4  # enemy
 	collision_mask = 0   # nothing blocks pathing
+	z_as_relative = false
 	if has_node("Body"):
 		$Body.visible = false
 	if has_node("Eye"):
@@ -134,7 +135,7 @@ func _build_visuals() -> void:
 		_body_sprite = AssetPaths.make_pixel_sprite(_skin_frames[0], _sprite_scale)
 		_body_sprite.modulate = _skin_modulate
 		_body_sprite.centered = true
-		_body_sprite.offset = Vector2(0, -float(_skin_frames[0].get_height()) * 0.42)
+		_body_sprite.offset = Vector2(0, -float(_skin_frames[0].get_height()) * 0.15)
 		_body_sprite.position = Vector2.ZERO
 		_visual.add_child(_body_sprite)
 		_apply_outline()
@@ -257,7 +258,10 @@ func _leak() -> void:
 
 
 func _finish_frame() -> void:
-	z_index = int(global_position.y)
+	if VisualStyle:
+		z_index = VisualStyle.actor_z(global_position.y)
+	else:
+		z_index = 5000 + int(global_position.y)
 	if _visual:
 		_visual.position.y = 0.0
 		if _move_dir.x < -0.12:
@@ -265,11 +269,11 @@ func _finish_frame() -> void:
 		elif _move_dir.x > 0.12:
 			_face_sign = 1.0
 		_visual.scale = Vector2(_face_sign, 1.0)
-	# 2.5D walk cycle while moving along path
+	# Walk flip while moving along path
 	if _use_sprite and _body_sprite and _anim_walk.size() > 0:
 		var moving := _move_dir.length() > 0.05
 		var frames: Array[Texture2D] = _anim_walk if moving else (_anim_idle if not _anim_idle.is_empty() else _anim_walk)
-		var rate := 0.16 if moving else 0.4
+		var rate := 0.18 if moving else 0.4
 		if frames.size() == 1:
 			_body_sprite.texture = frames[0]
 		elif _frame_t > rate:
