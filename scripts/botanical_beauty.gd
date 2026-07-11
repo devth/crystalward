@@ -3,40 +3,45 @@ extends Node2D
 ## fairy rings, ferns, vines, pollen — romantic forest magic.
 
 
-const LEGEND_GREEN := Color(0.35, 0.55, 0.38)
-const LEGEND_MOSS := Color(0.28, 0.48, 0.32)
-const LEGEND_BLOOM_PINK := Color(0.95, 0.55, 0.7)
-const LEGEND_BLOOM_LILAC := Color(0.75, 0.55, 0.95)
-const LEGEND_BLOOM_GOLD := Color(0.95, 0.85, 0.45)
-const LEGEND_BLOOM_WHITE := Color(0.95, 0.92, 0.98)
-const LEGEND_FERN := Color(0.25, 0.5, 0.35)
+# Spec: Legend soft-dark botanical beauty — not candy confetti
+const LEGEND_GREEN := Color(0.28, 0.48, 0.38)
+const LEGEND_MOSS := Color(0.22, 0.4, 0.32)
+const LEGEND_BLOOM_PINK := Color(0.75, 0.4, 0.65)   # dusk rose
+const LEGEND_BLOOM_LILAC := Color(0.65, 0.5, 0.9)    # violet
+const LEGEND_BLOOM_GOLD := Color(0.92, 0.75, 0.35)   # amber crystal light
+const LEGEND_BLOOM_WHITE := Color(0.75, 0.92, 0.95)  # cyan frost
+const LEGEND_FERN := Color(0.22, 0.42, 0.34)
 
 
 func paint(parent: Node2D) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 1985  # year of Legend
 
-	# Meadow accents around the Lightwell (moderate — leave play space readable)
-	_meadow_ring(parent, Vector2(0, 40), 120.0, 280.0, 40, rng)
+	# Lightwell meadow — ethereal blooms in the amber/cyan glow
+	_meadow_ring(parent, Vector2(0, 40), 100.0, 260.0, 28, rng)
 	if PathNetwork:
 		for lane in PathNetwork.lanes:
 			var pts: PackedVector2Array = lane
-			for i in range(pts.size() - 1):
+			for i in range(0, pts.size() - 1, 2):
 				_path_edge_flowers(parent, pts[i], pts[i + 1], rng)
+	# A few fairy rings — soft dark magic, not everywhere
 	var rings: Array[Vector2] = [
-		Vector2(-420, -180), Vector2(480, -120), Vector2(-350, 320),
-		Vector2(400, 280), Vector2(-700, 80), Vector2(720, -40),
+		Vector2(-280, 200), Vector2(300, -80), Vector2(-100, 480),
 	]
 	for c in rings:
-		_fairy_ring(parent, c, rng.randf_range(36.0, 58.0), rng)
-	for i in 12:
+		if PathNetwork and PathNetwork.dist_to_path(c) < 90.0:
+			continue
+		_fairy_ring(parent, c, rng.randf_range(32.0, 48.0), rng)
+	for i in 6:
 		var ang := rng.randf() * TAU
-		var r := rng.randf_range(400.0, 1400.0)
+		var r := rng.randf_range(350.0, 900.0)
 		var pos := Vector2(cos(ang), sin(ang) * 0.82) * r
+		if PathNetwork and PathNetwork.dist_to_path(pos) < 100.0:
+			continue
 		_botanical_cluster(parent, pos, rng)
 	_scatter_glow_blossoms(parent, rng)
 	_pollen_clouds(parent)
-	_scatter_plant_sheet(parent, rng)
+	# Skip RGB plant sheet (reads as solid rectangles)
 
 
 func _meadow_ring(parent: Node2D, center: Vector2, r0: float, r1: float, count: int, rng: RandomNumberGenerator) -> void:
@@ -115,28 +120,34 @@ func _botanical_cluster(parent: Node2D, center: Vector2, rng: RandomNumberGenera
 
 
 func _scatter_glow_blossoms(parent: Node2D, rng: RandomNumberGenerator) -> void:
-	for i in 18:
+	# Sparse night-blooming flowers that glow like crystal dust
+	for i in 14:
 		var ang := rng.randf() * TAU
-		var r := rng.randf_range(280.0, 1200.0)
+		var r := rng.randf_range(220.0, 900.0)
 		var pos := Vector2(cos(ang), sin(ang) * 0.8) * r
+		if PathNetwork and PathNetwork.dist_to_path(pos) < 80.0:
+			continue
 		_glow_blossom(parent, pos, rng)
 
 
 func _pollen_clouds(parent: Node2D) -> void:
-	# One soft pollen field — not three layers of sparkle noise
-	var p := FX.spark_particles(parent, Color(0.95, 0.9, 0.55, 0.4), 14, "star")
-	p.position = Vector2(0, 40)
-	var pm := p.process_material as ParticleProcessMaterial
+	# Amber + violet pollen — ethereal air of the Lightwell glade
+	if FX == null:
+		return
+	var amber := FX.spark_particles(parent, Color(0.95, 0.8, 0.4, 0.35), 12, "star")
+	amber.position = Vector2(0, 40)
+	var pm := amber.process_material as ParticleProcessMaterial
 	if pm:
 		pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
-		pm.emission_sphere_radius = 360.0
-		pm.gravity = Vector3(0, -4, 0)
-		pm.initial_velocity_min = 2.0
-		pm.initial_velocity_max = 8.0
-		pm.scale_min = 0.4
-		pm.scale_max = 1.1
-	p.lifetime = 4.5
-	p.z_index = -5
+		pm.emission_sphere_radius = 280.0
+		pm.gravity = Vector3(0, -3, 0)
+		pm.initial_velocity_min = 1.5
+		pm.initial_velocity_max = 6.0
+	amber.lifetime = 4.0
+	amber.z_index = -5
+	var violet := FX.spark_particles(parent, Color(0.7, 0.5, 0.95, 0.28), 10, "glow")
+	violet.position = Vector2(40, 20)
+	violet.z_index = -5
 
 
 func _scatter_plant_sheet(_parent: Node2D, _rng: RandomNumberGenerator) -> void:

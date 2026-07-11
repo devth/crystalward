@@ -184,35 +184,51 @@ func _too_close_to_existing_sites(pos: Vector2, min_dist: float) -> bool:
 
 
 func _build_atmosphere() -> void:
-	var ambient := FX.spark_particles(self, Color(0.55, 0.4, 0.85, 0.4), 36, "star")
+	# Spec: cold violet night + warm amber Lightwell shafts
+	var ambient := FX.spark_particles(self, Color(0.6, 0.45, 0.9, 0.35), 28, "star")
 	ambient.position = Vector2(0, 40)
 	var pm := ambient.process_material as ParticleProcessMaterial
 	if pm:
 		pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
-		pm.emission_sphere_radius = 520.0
-		pm.gravity = Vector3(0, -2, 0)
-		pm.initial_velocity_min = 2.0
-		pm.initial_velocity_max = 12.0
-		pm.scale_min = 0.5
-		pm.scale_max = 1.6
+		pm.emission_sphere_radius = 480.0
+		pm.gravity = Vector3(0, -1.5, 0)
+		pm.initial_velocity_min = 1.5
+		pm.initial_velocity_max = 9.0
+		pm.scale_min = 0.4
+		pm.scale_max = 1.4
 
-	for i in 5:
+	# Amber god-rays from the well (warm crystal light)
+	for i in 4:
 		var ray := Polygon2D.new()
-		var ang := -0.7 + i * 0.35
+		var ang := -0.85 + i * 0.4
 		ray.polygon = PackedVector2Array([
 			Vector2(0, 20),
-			Vector2(cos(ang - 0.12) * 50, sin(ang - 0.12) * 40 - 90),
-			Vector2(cos(ang + 0.12) * 280, sin(ang + 0.12) * 160 - 260),
-			Vector2(cos(ang - 0.12) * 280, sin(ang - 0.12) * 160 - 260),
+			Vector2(cos(ang - 0.1) * 40, sin(ang - 0.1) * 30 - 70),
+			Vector2(cos(ang + 0.1) * 260, sin(ang + 0.1) * 140 - 240),
+			Vector2(cos(ang - 0.1) * 260, sin(ang - 0.1) * 140 - 240),
 		])
-		ray.color = Color(0.55, 0.4, 0.85, 0.035 + i * 0.008)
+		ray.color = Color(0.95, 0.75, 0.4, 0.04 + i * 0.008)
 		ray.z_index = -20
 		ray.position = Vector2(0, 40)
 		add_child(ray)
+	# Cool violet side shafts
+	for i in 3:
+		var ray2 := Polygon2D.new()
+		var ang2 := 0.9 + i * 0.45
+		ray2.polygon = PackedVector2Array([
+			Vector2(0, 30),
+			Vector2(cos(ang2 - 0.1) * 30, sin(ang2 - 0.1) * 50 - 40),
+			Vector2(cos(ang2 + 0.1) * 220, sin(ang2 + 0.1) * 180 - 80),
+			Vector2(cos(ang2 - 0.1) * 220, sin(ang2 - 0.1) * 180 - 80),
+		])
+		ray2.color = Color(0.5, 0.35, 0.85, 0.03)
+		ray2.z_index = -20
+		ray2.position = Vector2(0, 40)
+		add_child(ray2)
 
-	# Legend botanical grade — warm green-gold forest light
+	# Soft dark fairy-tale grade — cool violet night + slightly lifted midtones
 	var grade := CanvasModulate.new()
-	grade.color = Color(1.04, 1.02, 0.96)
+	grade.color = Color(0.92, 0.9, 1.02)
 	add_child(grade)
 
 	# Soft bloom / vignette post

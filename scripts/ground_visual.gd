@@ -2,7 +2,8 @@ extends Node2D
 ## Ground + dirt roads + forest props.
 ## All ground art stays under actors (Ground node z=-200 absolute). Props use local z only.
 
-const FOREST_MODULATE := Color(0.75, 0.88, 0.82)  # cool teal-moss, title-screen trees
+# Spec: Dark Crystal + Legend — cool canopy under violet night, not dull lime
+const FOREST_MODULATE := Color(0.55, 0.72, 0.68)
 const FLOOR_EXTENT := 2200.0
 
 const Z_FLOOR := 0
@@ -39,11 +40,11 @@ func _build() -> void:
 	_build_floor()
 	_build_plaza()
 	_build_paths()  # must be after floor, higher z
+	_build_mist_fields()
 	_build_terrain_features()  # forests / mountains roads curve around
 	_build_landmarks()
 	_scatter_forest_props()
-	# Botanical confetti disabled — kept readable
-	# _build_botanicals()
+	_build_botanicals()  # Legend soft-dark blooms (restrained)
 	_build_atmosphere_light()
 
 
@@ -69,16 +70,31 @@ func _build_floor() -> void:
 
 
 func _build_plaza() -> void:
-	# Soft clearing around the Lightwell — not a hard diamond stamp
-	# Soft clearing with purple mist wash (title Lightwell glade)
-	var clear := _ellipse(Vector2(0, 40), 300, 180, Color(0.22, 0.32, 0.3, 0.4), Z_PLAZA)
+	# Lightwell glade — warm amber heart in cold violet night (spec art dir)
+	var outer_mist := _ellipse(Vector2(0, 40), 380, 230, Color(0.28, 0.2, 0.42, 0.22), Z_PLAZA)
+	add_child(outer_mist)
+	var clear := _ellipse(Vector2(0, 40), 280, 170, Color(0.18, 0.28, 0.26, 0.45), Z_PLAZA)
 	add_child(clear)
-	var mist := _ellipse(Vector2(0, 40), 220, 130, Color(0.35, 0.28, 0.48, 0.12), Z_PLAZA)
-	add_child(mist)
-	var ring := _ellipse(Vector2(0, 40), 140, 82, Color(0.4, 0.75, 0.75, 0.14), Z_PLAZA)
-	add_child(ring)
-	var ring2 := _ellipse(Vector2(0, 40), 90, 52, Color(0.55, 0.9, 0.95, 0.1), Z_PLAZA)
-	add_child(ring2)
+	var amber_glow := _ellipse(Vector2(0, 40), 180, 105, Color(0.9, 0.7, 0.35, 0.14), Z_PLAZA)
+	add_child(amber_glow)
+	var cyan_ring := _ellipse(Vector2(0, 40), 130, 75, Color(0.45, 0.9, 0.95, 0.16), Z_PLAZA)
+	add_child(cyan_ring)
+	var core_glow := _ellipse(Vector2(0, 40), 70, 42, Color(0.95, 0.85, 0.55, 0.12), Z_PLAZA)
+	add_child(core_glow)
+
+
+func _build_mist_fields() -> void:
+	# Soft ethereal mist banks (behind props, local z under Ground)
+	var banks := [
+		[Vector2(-420, -200), Vector2(320, 140)],
+		[Vector2(480, 180), Vector2(280, 120)],
+		[Vector2(-200, 520), Vector2(360, 160)],
+		[Vector2(300, -480), Vector2(260, 130)],
+		[Vector2(-600, 100), Vector2(240, 100)],
+	]
+	for b in banks:
+		var mist := _ellipse(b[0], b[1].x * 0.5, b[1].y * 0.5, Color(0.38, 0.28, 0.55, 0.14), Z_PLAZA + 2)
+		add_child(mist)
 
 
 func _build_paths() -> void:
@@ -143,7 +159,7 @@ func _add_mountain_cluster(center: Vector2, radius: float, rng: RandomNumberGene
 		cap.polygon = PackedVector2Array([
 			Vector2(0, -h), Vector2(-w * 0.22, -h * 0.72), Vector2(w * 0.18, -h * 0.7)
 		])
-		cap.color = Color(0.55, 0.85, 0.95, 0.75)
+		cap.color = Color(0.9, 0.72, 0.4, 0.7)  # amber crystal veins
 		cap.position = peak.position
 		cap.z_index = peak.z_index + 1
 		add_child(cap)
@@ -200,23 +216,27 @@ func _build_botanicals() -> void:
 func _build_atmosphere_light() -> void:
 	if FX == null:
 		return
-	# Title-screen fireflies: cyan + violet near the well
-	var motes := FX.spark_particles(self, Color(0.55, 0.95, 0.95, 0.4), 12, "star")
-	motes.position = Vector2(0, 40)
-	motes.z_index = Z_DECOR
-	motes.amount = 12
-	motes.lifetime = 3.5
-	var pm := motes.process_material as ParticleProcessMaterial
+	# Spec: amber crystal light + cold violet motes (title fireflies)
+	var amber := FX.spark_particles(self, Color(0.95, 0.75, 0.35, 0.5), 18, "star")
+	amber.position = Vector2(0, 40)
+	amber.z_index = Z_DECOR
+	amber.amount = 18
+	amber.lifetime = 4.0
+	var pm := amber.process_material as ParticleProcessMaterial
 	if pm:
 		pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
-		pm.emission_sphere_radius = 200.0
+		pm.emission_sphere_radius = 260.0
 		pm.initial_velocity_min = 1.0
-		pm.initial_velocity_max = 5.0
-		pm.gravity = Vector3(0, -1.5, 0)
-	var motes2 := FX.spark_particles(self, Color(0.75, 0.5, 0.95, 0.3), 8, "glow")
-	motes2.position = Vector2(0, 20)
-	motes2.z_index = Z_DECOR
-	motes2.amount = 8
+		pm.initial_velocity_max = 7.0
+		pm.gravity = Vector3(0, -2.0, 0)
+	var cyan := FX.spark_particles(self, Color(0.5, 0.95, 0.95, 0.4), 14, "glow")
+	cyan.position = Vector2(0, 30)
+	cyan.z_index = Z_DECOR
+	cyan.amount = 14
+	var violet := FX.spark_particles(self, Color(0.7, 0.45, 0.95, 0.32), 12, "magic")
+	violet.position = Vector2(0, 60)
+	violet.z_index = Z_DECOR
+	violet.amount = 12
 
 
 func _ellipse(pos: Vector2, rx: float, ry: float, col: Color, z: int) -> Polygon2D:
@@ -308,14 +328,13 @@ func _place_sprite(tex: Texture2D, pos: Vector2, scale_mul: float, alpha: float 
 	return s
 
 
-## Smooth dirt road via layered Line2D (reads as one curve, not faceted strips).
+## Ethereal path: bone-bark bed + warm amber glow vein (spec: amber light vs violet night).
 func _add_path_ribbon(pts: PackedVector2Array, half_width: float) -> void:
 	if pts.size() < 2:
 		return
-	# Purple-tinged forest roads (title screen night wood)
 	var bed := Line2D.new()
-	bed.width = half_width * 2.35
-	bed.default_color = Color(0.1, 0.08, 0.12, 1.0)
+	bed.width = half_width * 2.4
+	bed.default_color = Color(0.12, 0.08, 0.14, 1.0)
 	bed.begin_cap_mode = Line2D.LINE_CAP_ROUND
 	bed.end_cap_mode = Line2D.LINE_CAP_ROUND
 	bed.joint_mode = Line2D.LINE_JOINT_ROUND
@@ -325,8 +344,8 @@ func _add_path_ribbon(pts: PackedVector2Array, half_width: float) -> void:
 	add_child(bed)
 
 	var dirt := Line2D.new()
-	dirt.width = half_width * 1.9
-	dirt.default_color = Color(0.32, 0.24, 0.28, 1.0)
+	dirt.width = half_width * 1.95
+	dirt.default_color = Color(0.38, 0.28, 0.26, 1.0)  # warm bark-bone
 	dirt.begin_cap_mode = Line2D.LINE_CAP_ROUND
 	dirt.end_cap_mode = Line2D.LINE_CAP_ROUND
 	dirt.joint_mode = Line2D.LINE_JOINT_ROUND
@@ -336,8 +355,8 @@ func _add_path_ribbon(pts: PackedVector2Array, half_width: float) -> void:
 	add_child(dirt)
 
 	var track := Line2D.new()
-	track.width = half_width * 0.85
-	track.default_color = Color(0.42, 0.34, 0.38, 1.0)
+	track.width = half_width * 0.9
+	track.default_color = Color(0.52, 0.4, 0.32, 1.0)
 	track.begin_cap_mode = Line2D.LINE_CAP_ROUND
 	track.end_cap_mode = Line2D.LINE_CAP_ROUND
 	track.joint_mode = Line2D.LINE_JOINT_ROUND
@@ -346,15 +365,28 @@ func _add_path_ribbon(pts: PackedVector2Array, half_width: float) -> void:
 	track.z_index = Z_PATH_DETAIL
 	add_child(track)
 
-	var edge := Line2D.new()
-	edge.width = 2.5
-	edge.default_color = Color(0.35, 0.45, 0.4, 0.35)
-	edge.begin_cap_mode = Line2D.LINE_CAP_ROUND
-	edge.end_cap_mode = Line2D.LINE_CAP_ROUND
-	edge.joint_mode = Line2D.LINE_JOINT_ROUND
-	edge.points = pts
-	edge.z_index = Z_PATH_DETAIL + 1
-	add_child(edge)
+	# Living crystal dust vein down the road
+	var vein := Line2D.new()
+	vein.width = 4.0
+	vein.default_color = Color(0.85, 0.65, 0.35, 0.45)
+	vein.begin_cap_mode = Line2D.LINE_CAP_ROUND
+	vein.end_cap_mode = Line2D.LINE_CAP_ROUND
+	vein.joint_mode = Line2D.LINE_JOINT_ROUND
+	vein.antialiased = true
+	vein.points = pts
+	vein.z_index = Z_PATH_DETAIL + 1
+	add_child(vein)
+
+	var glow := Line2D.new()
+	glow.width = 14.0
+	glow.default_color = Color(0.55, 0.4, 0.85, 0.12)
+	glow.begin_cap_mode = Line2D.LINE_CAP_ROUND
+	glow.end_cap_mode = Line2D.LINE_CAP_ROUND
+	glow.joint_mode = Line2D.LINE_JOINT_ROUND
+	glow.antialiased = true
+	glow.points = pts
+	glow.z_index = Z_PATH_EDGE - 1
+	add_child(glow)
 
 
 func _add_spawn_portal(pos: Vector2) -> void:
@@ -362,15 +394,15 @@ func _add_spawn_portal(pos: Vector2) -> void:
 	root.position = pos
 	root.z_index = Z_PORTAL
 	add_child(root)
-	# Dark gate — readable but not a neon disco
-	var outer := _ellipse(Vector2.ZERO, 40, 24, Color(0.12, 0.08, 0.14, 0.9), 0)
+	# Nightspawn gate — violet mist + amber rim
+	var outer := _ellipse(Vector2.ZERO, 44, 26, Color(0.1, 0.06, 0.16, 0.92), 0)
 	root.add_child(outer)
-	var ring := _ellipse(Vector2.ZERO, 30, 18, Color(0.55, 0.28, 0.42, 0.55), 1)
+	var ring := _ellipse(Vector2.ZERO, 32, 19, Color(0.55, 0.3, 0.7, 0.55), 1)
 	root.add_child(ring)
-	var core := _ellipse(Vector2.ZERO, 12, 8, Color(0.75, 0.45, 0.55, 0.55), 2)
+	var core := _ellipse(Vector2.ZERO, 14, 9, Color(0.9, 0.55, 0.4, 0.5), 2)
 	root.add_child(core)
 	if FX:
-		var p := FX.spark_particles(root, Color(0.8, 0.4, 0.55, 0.45), 6, "magic")
+		var p := FX.spark_particles(root, Color(0.7, 0.45, 0.95, 0.5), 8, "magic")
 		p.z_index = 3
 
 
@@ -387,14 +419,19 @@ func _add_standing_stone(pos: Vector2, scale: float) -> void:
 		Vector2(-10, 10), Vector2(-14, -8), Vector2(-4, -28),
 		Vector2(6, -32), Vector2(14, -12), Vector2(10, 10)
 	])
-	body.color = Color(0.18, 0.16, 0.24)
+	body.color = Color(0.22, 0.2, 0.28)
 	root.add_child(body)
 	var moss := Polygon2D.new()
 	moss.polygon = PackedVector2Array([
 		Vector2(-8, 2), Vector2(-6, -10), Vector2(2, -6), Vector2(6, 4)
 	])
-	moss.color = Color(0.25, 0.45, 0.35, 0.75)
+	moss.color = Color(0.3, 0.5, 0.38, 0.8)
 	root.add_child(moss)
+	# Crystal fleck on stone
+	var fleck := Polygon2D.new()
+	fleck.polygon = PackedVector2Array([Vector2(-2, -22), Vector2(4, -18), Vector2(0, -12)])
+	fleck.color = Color(0.55, 0.85, 0.9, 0.55)
+	root.add_child(fleck)
 
 
 func _add_thicket(pos: Vector2, rot: float) -> void:

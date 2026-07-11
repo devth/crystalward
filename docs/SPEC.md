@@ -34,6 +34,8 @@
 
 **Art direction (target):** warm amber crystal light vs cold blue/violet night; moss, bone, bark, cloth, crystal; slight practical/puppet *feel* even in digital art. Silhouette-readable units.
 
+**Map palette (implementation):** deep teal–moss floor under violet mist pools; paths of bark/bone with amber dust veins + soft violet glow; Lightwell plaza = amber heart in cyan/violet rings; canopy trees cool blue-green (not lime); fireflies amber + cyan + violet. Avoid flat dull olive and pure grey mud.
+
 **Working fiction:** Wardens guard a **Lightwell** that cradles a **Crystal**. Nightspawn and thralls push paths toward it. Players **awaken** map features (roots, standing stones, ruins, thorn gates) into defenses, fight on the field, and scramble economy under wave pressure.
 
 ---
