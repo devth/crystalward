@@ -627,16 +627,19 @@ func _place_sprite(tex: Texture2D, pos: Vector2, scale_mul: float, alpha: float 
 	return s
 
 
-## Soft dirt road — one continuous packed-dirt ribbon (no multi-band stripes).
+## Forest trail — cool grey-taupe dirt, soft grass edges (not chocolate sausage).
 func _add_path_ribbon(pts: PackedVector2Array, half_width: float) -> void:
 	if pts.size() < 2:
 		return
+	# Bust cache if we reloaded colors in-session (editor hot-reload)
+	_dirt_tex = null
+	_dirt_edge_tex = null
 	_ensure_dirt_textures()
 
-	# Soft grass shoulder (low contrast with ground — not purple rings)
+	# Soft green verge — blends into forest floor
 	var moss := Line2D.new()
-	moss.width = half_width * 2.35
-	moss.default_color = Color(0.2, 0.34, 0.22, 0.32)
+	moss.width = half_width * 2.15
+	moss.default_color = Color(0.16, 0.28, 0.18, 0.42)
 	moss.begin_cap_mode = Line2D.LINE_CAP_ROUND
 	moss.end_cap_mode = Line2D.LINE_CAP_ROUND
 	moss.joint_mode = Line2D.LINE_JOINT_ROUND
@@ -645,9 +648,9 @@ func _add_path_ribbon(pts: PackedVector2Array, half_width: float) -> void:
 	moss.z_index = Z_PATH_EDGE - 1
 	add_child(moss)
 
-	# Single dirt body with soft edge gradient baked into texture
+	# Cool packed earth (narrower trail feel)
 	var dirt := Line2D.new()
-	dirt.width = half_width * 1.9
+	dirt.width = half_width * 1.55
 	dirt.default_color = Color(1, 1, 1, 1)
 	dirt.begin_cap_mode = Line2D.LINE_CAP_ROUND
 	dirt.end_cap_mode = Line2D.LINE_CAP_ROUND
@@ -668,47 +671,45 @@ func _ensure_dirt_textures() -> void:
 
 
 func _make_dirt_gradient_tex(for_edge: bool) -> Texture2D:
-	## V axis = across road width. Soft continuous dirt, not bands.
-	var w := 16
+	## Cool forest path: grey-taupe dirt with soft greenish rim. Not orange-brown.
+	var w := 24
 	var h := 96
 	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
 	for y in h:
-		var v := float(y) / float(h - 1)  # 0..1 across width
-		var edge := absf(v - 0.5) * 2.0   # 0 center → 1 edge
-		# Smooth falloff (no hard steps)
-		var e2 := edge * edge
-		var e_smooth := e2 * e2 * (1.0 - 0.15 * edge)  # softer mid, gentle rim
+		var v := float(y) / float(h - 1)
+		var edge := absf(v - 0.5) * 2.0  # 0 center → 1 edge
+		var t := edge * edge * (3.0 - 2.0 * edge)  # smoothstep
 
 		var col: Color
 		if for_edge:
-			var soil := Color(0.28, 0.2, 0.14, 1.0)
-			var mid := Color(0.4, 0.3, 0.22, 0.85)
-			col = mid.lerp(soil, clampf(e_smooth * 1.1, 0.0, 1.0))
-			col.a = clampf(0.55 - e_smooth * 0.5, 0.05, 0.6)
+			# Soft mossy shoulder
+			var mid := Color(0.28, 0.32, 0.26, 0.55)
+			var out := Color(0.18, 0.26, 0.18, 0.0)
+			col = mid.lerp(out, t)
 		else:
-			# Packed dirt: center slightly lighter, edges blend to grass — one smooth falloff
-			var crown := Color(0.55, 0.42, 0.30, 1.0)
-			var body := Color(0.42, 0.32, 0.22, 1.0)
-			var rim := Color(0.3, 0.22, 0.16, 1.0)
-			# Smoothstep across full width (no hard bands)
-			var t := clampf(edge, 0.0, 1.0)
-			t = t * t * (3.0 - 2.0 * t)
-			col = crown.lerp(body, t * 0.7).lerp(rim, t)
-			col.a = clampf(1.0 - pow(edge, 3.2) * 0.35, 0.75, 1.0)
+			# Cool packed earth (desaturated — reads as trail, not mud)
+			var crown := Color(0.52, 0.48, 0.42, 1.0)   # light dusty center
+			var body := Color(0.40, 0.38, 0.34, 1.0)    # cool taupe
+			var rim := Color(0.30, 0.32, 0.28, 1.0)     # greenish earth edge
+			col = crown.lerp(body, t * 0.65).lerp(rim, t * 0.85)
+			# Soft alpha at extreme edge so it merges with grass verge
+			col.a = clampf(1.0 - pow(edge, 2.6) * 0.28, 0.82, 1.0)
 
-		# Fine grain — subtle, not stripes
 		for x in w:
+			# Fine grit — slightly more variance for soil read
 			var n := fposmod(sin(float(x) * 12.9898 + float(y) * 78.233) * 43758.5453, 1.0)
-			var grain := (n - 0.5) * 0.04
+			var n2 := fposmod(sin(float(x) * 47.1 + float(y) * 19.3) * 23421.1, 1.0)
+			var grain := (n - 0.5) * 0.055 + (n2 - 0.5) * 0.025
+			# Tiny cooler pebble flecks
+			var pebble := 1.0 if n > 0.93 else 0.0
 			var c := Color(
-				clampf(col.r + grain, 0.0, 1.0),
-				clampf(col.g + grain * 0.85, 0.0, 1.0),
-				clampf(col.b + grain * 0.7, 0.0, 1.0),
+				clampf(col.r + grain - pebble * 0.04, 0.0, 1.0),
+				clampf(col.g + grain * 0.9 - pebble * 0.02, 0.0, 1.0),
+				clampf(col.b + grain * 0.85 + pebble * 0.02, 0.0, 1.0),
 				col.a
 			)
 			img.set_pixel(x, y, c)
-	var tex := ImageTexture.create_from_image(img)
-	return tex
+	return ImageTexture.create_from_image(img)
 
 
 func _add_spawn_portal(pos: Vector2) -> void:

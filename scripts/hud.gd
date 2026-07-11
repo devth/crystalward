@@ -49,7 +49,7 @@ func _ready() -> void:
 	_on_dust(GameState.crystal_dust)
 	_on_crystal(GameState.crystal_hp, GameState.crystal_max_hp)
 	_on_wave(GameState.current_wave, GameState.waves_to_win)
-	hint_label.text = "Scroll zoom · Z/X tower · Q build · E gather/sell · C attack · F fairy · T wave"
+	hint_label.text = "Scroll/+- zoom · Z/X tower · Q build · E gather/sell · C attack · F fairy · T wave"
 	hint_label.modulate = Color(1, 1, 1, 0.55)
 	_ensure_minimap()
 	_ensure_call_wave_ui()
