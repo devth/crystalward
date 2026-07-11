@@ -266,7 +266,7 @@ func _too_close_to_existing_sites(pos: Vector2, min_dist: float) -> bool:
 
 func _build_atmosphere() -> void:
 	# Spec: cold violet night + warm amber Lightwell shafts — denser fireflies
-	var ambient := FX.spark_particles(self, Color(0.65, 0.5, 0.95, 0.4), 42, "star")
+	var ambient := FX.spark_particles(self, Color(0.78, 0.68, 0.95, 0.38), 42, "star")
 	ambient.position = Vector2(0, 40)
 	var pm := ambient.process_material as ParticleProcessMaterial
 	if pm:
@@ -277,7 +277,7 @@ func _build_atmosphere() -> void:
 		pm.initial_velocity_max = 10.0
 		pm.scale_min = 0.35
 		pm.scale_max = 1.5
-	var amber_motes := FX.spark_particles(self, Color(0.95, 0.75, 0.4, 0.35), 18, "glow")
+	var amber_motes := FX.spark_particles(self, Color(0.98, 0.86, 0.55, 0.38), 22, "glow")
 	amber_motes.position = Vector2(0, 40)
 	var pm2 := amber_motes.process_material as ParticleProcessMaterial
 	if pm2:
@@ -295,7 +295,7 @@ func _build_atmosphere() -> void:
 			Vector2(cos(ang + 0.1) * 260, sin(ang + 0.1) * 140 - 240),
 			Vector2(cos(ang - 0.1) * 260, sin(ang - 0.1) * 140 - 240),
 		])
-		ray.color = Color(0.95, 0.75, 0.4, 0.04 + i * 0.008)
+		ray.color = Color(0.98, 0.88, 0.55, 0.05 + i * 0.01)
 		ray.z_index = -20
 		ray.position = Vector2(0, 40)
 		add_child(ray)
@@ -309,14 +309,14 @@ func _build_atmosphere() -> void:
 			Vector2(cos(ang2 + 0.1) * 220, sin(ang2 + 0.1) * 180 - 80),
 			Vector2(cos(ang2 - 0.1) * 220, sin(ang2 - 0.1) * 180 - 80),
 		])
-		ray2.color = Color(0.5, 0.35, 0.85, 0.03)
+		ray2.color = Color(0.75, 0.62, 0.95, 0.04)
 		ray2.z_index = -20
 		ray2.position = Vector2(0, 40)
 		add_child(ray2)
 
-	# Soft dark fairy-tale grade — cool violet night + slightly lifted midtones
+	# Soft pearl-gold grade — ethereal lift without washing out actors
 	var grade := CanvasModulate.new()
-	grade.color = Color(0.92, 0.9, 1.02)
+	grade.color = Color(1.02, 0.99, 1.04)
 	add_child(grade)
 
 	# Soft bloom / vignette post

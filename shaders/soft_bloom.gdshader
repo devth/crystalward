@@ -1,15 +1,21 @@
 shader_type canvas_item;
 
-// Cheap fullscreen bloom/lift for “finished game” glow.
+// Soft ethereal grade: golden/pastel shimmer on highlights only.
+// Midtones stay clear so towers & monsters remain readable.
+
 uniform sampler2D screen_texture : hint_screen_texture, filter_linear_mipmap;
-uniform float bloom_threshold : hint_range(0.0, 1.0) = 0.55;
-uniform float bloom_intensity : hint_range(0.0, 2.0) = 0.45;
-uniform float saturation : hint_range(0.0, 2.0) = 1.15;
-uniform float contrast : hint_range(0.5, 1.5) = 1.06;
-uniform vec4 tint : source_color = vec4(1.0, 0.98, 1.04, 1.0);
+uniform float bloom_threshold : hint_range(0.0, 1.0) = 0.62;
+uniform float bloom_intensity : hint_range(0.0, 2.0) = 0.28;
+uniform float saturation : hint_range(0.0, 2.0) = 1.08;
+uniform float contrast : hint_range(0.5, 1.5) = 1.08;
+uniform vec4 tint : source_color = vec4(1.04, 0.99, 1.03, 1.0);
+uniform float gold_lift : hint_range(0.0, 0.2) = 0.04;
+uniform float clarity : hint_range(0.0, 1.0) = 0.35;
 
 void fragment() {
 	vec3 col = textureLod(screen_texture, SCREEN_UV, 0.0).rgb;
+	// Sharper base read (unsharp-ish mix with lod0) — keeps actors crisp
+	vec3 sharp = col;
 	vec3 blur = textureLod(screen_texture, SCREEN_UV, 2.0).rgb;
 	blur += textureLod(screen_texture, SCREEN_UV + vec2(0.002, 0.0), 2.5).rgb;
 	blur += textureLod(screen_texture, SCREEN_UV + vec2(-0.002, 0.0), 2.5).rgb;
@@ -17,20 +23,30 @@ void fragment() {
 	blur += textureLod(screen_texture, SCREEN_UV + vec2(0.0, -0.002), 2.5).rgb;
 	blur *= 0.2;
 
+	// Local contrast restore so bloom doesn't haze gameplay
+	col = mix(blur, sharp, 0.72 + clarity * 0.25);
+
 	float lum = dot(blur, vec3(0.299, 0.587, 0.114));
-	vec3 bloom = blur * smoothstep(bloom_threshold, 1.0, lum) * bloom_intensity;
+	// Warm golden bloom on bright areas only
+	vec3 bloom_col = mix(blur, blur * vec3(1.08, 0.98, 0.88), 0.55);
+	vec3 bloom = bloom_col * smoothstep(bloom_threshold, 1.0, lum) * bloom_intensity;
+	// Soft pastel highlight spill
+	bloom += vec3(0.95, 0.85, 1.0) * smoothstep(0.75, 1.0, lum) * bloom_intensity * 0.25;
 	col += bloom;
 
-	// Contrast + saturation
+	// Contrast + gentle saturation
 	col = (col - 0.5) * contrast + 0.5;
 	float l2 = dot(col, vec3(0.299, 0.587, 0.114));
 	col = mix(vec3(l2), col, saturation);
 	col *= tint.rgb;
 
-	// Soft vignette
-	vec2 v = SCREEN_UV * (1.0 - SCREEN_UV);
-	float vig = pow(v.x * v.y * 14.0, 0.35);
-	col *= mix(0.75, 1.0, vig);
+	// Soft champagne lift in midtones (ethereal, not washout)
+	col += vec3(gold_lift * 1.1, gold_lift * 0.85, gold_lift * 0.55) * (1.0 - abs(l2 - 0.5) * 1.5);
 
-	COLOR = vec4(col, 1.0);
+	// Mild vignette (lilac edge, not black)
+	vec2 v = SCREEN_UV * (1.0 - SCREEN_UV);
+	float vig = pow(v.x * v.y * 14.0, 0.38);
+	col = mix(col * vec3(0.92, 0.88, 0.96), col, mix(0.82, 1.0, vig));
+
+	COLOR = vec4(clamp(col, 0.0, 1.0), 1.0);
 }

@@ -2,8 +2,8 @@ extends Node2D
 ## Ground + dirt roads + forest props.
 ## All ground art stays under actors (Ground node z=-200 absolute). Props use local z only.
 
-# Spec: Dark Crystal + Legend — cool canopy under violet night, not dull lime
-const FOREST_MODULATE := Color(0.52, 0.84, 0.62)
+# Ethereal glade — soft sage/mint canopy (actors stay unmodulated & crisp)
+const FOREST_MODULATE := Color(0.62, 0.82, 0.72)
 const FLOOR_EXTENT := 3200.0
 ## Soft dirt-road gradient texture (V = across road width). Cached once.
 static var _dirt_tex: Texture2D
@@ -101,22 +101,21 @@ func _build_elevation_base() -> void:
 				continue
 			if elev > 0.0:
 				var r := 55.0 + elev * 110.0
-				var a := 0.14 + elev * 0.18
-				var hill := _ellipse(pos, r, r * 0.58, Color(0.1, 0.34, 0.16, a), Z_HILL)
+				var a := 0.12 + elev * 0.14
+				var hill := _ellipse(pos, r, r * 0.58, Color(0.28, 0.48, 0.36, a), Z_HILL)
 				add_child(hill)
-				var mid := _ellipse(pos + Vector2(0, -r * 0.1), r * 0.62, r * 0.36, Color(0.16, 0.42, 0.2, a * 0.9), Z_HILL + 1)
+				var mid := _ellipse(pos + Vector2(0, -r * 0.1), r * 0.62, r * 0.36, Color(0.42, 0.62, 0.45, a * 0.9), Z_HILL + 1)
 				add_child(mid)
-				var crest := _ellipse(pos + Vector2(0, -r * 0.2), r * 0.32, r * 0.18, Color(0.28, 0.52, 0.26, 0.12 + elev * 0.14), Z_HILL + 2)
+				var crest := _ellipse(pos + Vector2(0, -r * 0.2), r * 0.32, r * 0.18, Color(0.72, 0.7, 0.42, 0.1 + elev * 0.12), Z_HILL + 2)
 				add_child(crest)
-				# Shadow on "north" slope for depth
-				var shade := _ellipse(pos + Vector2(0, r * 0.22), r * 0.7, r * 0.22, Color(0.04, 0.08, 0.06, 0.1 + elev * 0.08), Z_HILL)
+				var shade := _ellipse(pos + Vector2(0, r * 0.22), r * 0.7, r * 0.22, Color(0.22, 0.18, 0.28, 0.08 + elev * 0.06), Z_HILL)
 				add_child(shade)
 			else:
 				var r2 := 50.0 + absf(elev) * 100.0
-				var a2 := 0.16 + absf(elev) * 0.18
-				var hollow := _ellipse(pos, r2, r2 * 0.58, Color(0.06, 0.12, 0.16, a2), Z_HILL)
+				var a2 := 0.12 + absf(elev) * 0.14
+				var hollow := _ellipse(pos, r2, r2 * 0.58, Color(0.28, 0.38, 0.48, a2), Z_HILL)
 				add_child(hollow)
-				var wet := _ellipse(pos, r2 * 0.65, r2 * 0.38, Color(0.08, 0.18, 0.22, a2 * 0.7), Z_HILL + 1)
+				var wet := _ellipse(pos, r2 * 0.65, r2 * 0.38, Color(0.4, 0.55, 0.68, a2 * 0.65), Z_HILL + 1)
 				add_child(wet)
 	# Explicit contour rings around major landmarks
 	for f in PathNetwork.features:
@@ -130,24 +129,26 @@ func _build_elevation_base() -> void:
 			var t := 0.45 + float(ring_i) * 0.28
 			var rr := rad * t
 			if elev_f > 0.0:
-				var ring := _ellipse(c, rr * 1.15, rr * 0.62, Color(0.12, 0.36, 0.18, 0.08 + elev_f * 0.06), Z_HILL)
+				var ring := _ellipse(c, rr * 1.15, rr * 0.62, Color(0.38, 0.55, 0.4, 0.07 + elev_f * 0.05), Z_HILL)
 				add_child(ring)
 			else:
-				var bowl := _ellipse(c, rr * 1.1, rr * 0.6, Color(0.06, 0.12, 0.18, 0.1 + absf(elev_f) * 0.08), Z_HILL)
+				var bowl := _ellipse(c, rr * 1.1, rr * 0.6, Color(0.32, 0.45, 0.58, 0.08 + absf(elev_f) * 0.06), Z_HILL)
 				add_child(bowl)
 
 
 func _build_plaza() -> void:
-	# Lightwell glade — warm amber heart in cold violet night (spec art dir)
-	var outer_mist := _ellipse(Vector2(0, 40), 380, 230, Color(0.28, 0.2, 0.42, 0.28), Z_PLAZA)
+	# Lightwell glade — champagne gold + lilac pearl (ethereal, still clear)
+	var outer_mist := _ellipse(Vector2(0, 40), 380, 230, Color(0.55, 0.42, 0.72, 0.22), Z_PLAZA)
 	add_child(outer_mist)
-	var clear := _ellipse(Vector2(0, 40), 280, 170, Color(0.18, 0.28, 0.26, 0.5), Z_PLAZA)
+	var clear := _ellipse(Vector2(0, 40), 280, 170, Color(0.38, 0.52, 0.46, 0.38), Z_PLAZA)
 	add_child(clear)
-	var amber_glow := _ellipse(Vector2(0, 40), 200, 118, Color(0.95, 0.72, 0.35, 0.2), Z_PLAZA)
+	var amber_glow := _ellipse(Vector2(0, 40), 200, 118, Color(0.98, 0.86, 0.5, 0.24), Z_PLAZA)
 	add_child(amber_glow)
-	var cyan_ring := _ellipse(Vector2(0, 40), 145, 85, Color(0.45, 0.92, 0.95, 0.22), Z_PLAZA)
+	var lilac_haze := _ellipse(Vector2(0, 40), 170, 100, Color(0.78, 0.65, 0.95, 0.12), Z_PLAZA)
+	add_child(lilac_haze)
+	var cyan_ring := _ellipse(Vector2(0, 40), 145, 85, Color(0.62, 0.92, 0.96, 0.2), Z_PLAZA)
 	add_child(cyan_ring)
-	var core_glow := _ellipse(Vector2(0, 40), 80, 48, Color(0.98, 0.88, 0.55, 0.18), Z_PLAZA)
+	var core_glow := _ellipse(Vector2(0, 40), 80, 48, Color(1.0, 0.94, 0.72, 0.22), Z_PLAZA)
 	add_child(core_glow)
 	# Ethereal crystal circle around the well (original Dark Crystal vibe)
 	var rng := RandomNumberGenerator.new()
@@ -177,8 +178,11 @@ func _build_mist_fields() -> void:
 		[Vector2(200, 200), Vector2(240, 110)],
 	]
 	for b in banks:
-		var mist := _ellipse(b[0], b[1].x * 0.5, b[1].y * 0.5, Color(0.36, 0.26, 0.52, 0.16), Z_PLAZA + 2)
+		var mist := _ellipse(b[0], b[1].x * 0.5, b[1].y * 0.5, Color(0.68, 0.58, 0.88, 0.12), Z_PLAZA + 2)
 		add_child(mist)
+		# Soft gold shimmer pockets in the mist
+		var gold := _ellipse(b[0] + Vector2(20, -10), b[1].x * 0.22, b[1].y * 0.18, Color(0.96, 0.85, 0.55, 0.06), Z_PLAZA + 2)
+		add_child(gold)
 
 
 func _build_paths() -> void:
@@ -241,7 +245,7 @@ func _add_mountain(center: Vector2, radius: float, rng: RandomNumberGenerator) -
 	# Moss skirts (two layers for lush foothills)
 	var skirt := _ellipse(center + Vector2(0, 12), radius * 1.05, radius * 0.46, Color(0.12, 0.3, 0.16, 0.62), Z_MOUNTAIN - 4)
 	add_child(skirt)
-	var foothill := _ellipse(center + Vector2(0, 28), radius * 1.25, radius * 0.38, Color(0.1, 0.26, 0.14, 0.4), Z_MOUNTAIN - 6)
+	var foothill := _ellipse(center + Vector2(0, 28), radius * 1.25, radius * 0.38, Color(0.32, 0.48, 0.38, 0.4), Z_MOUNTAIN - 6)
 	add_child(foothill)
 	var peaks := 6 + int(radius / 40.0)
 	for i in peaks:
@@ -254,7 +258,7 @@ func _add_mountain(center: Vector2, radius: float, rng: RandomNumberGenerator) -
 			Vector2(-w, 16), Vector2(-w * 0.5, -h * 0.48), Vector2(0, -h),
 			Vector2(w * 0.42, -h * 0.46), Vector2(w, 16)
 		])
-		peak.color = Color(0.24, 0.22, 0.3).darkened(rng.randf() * 0.12)
+		peak.color = Color(0.42, 0.38, 0.52).darkened(rng.randf() * 0.08)
 		peak.position = center + o
 		peak.z_index = Z_MOUNTAIN + clampi(int((center.y + o.y) / 60.0), -5, 15)
 		add_child(peak)
@@ -263,16 +267,16 @@ func _add_mountain(center: Vector2, radius: float, rng: RandomNumberGenerator) -
 		moss_s.polygon = PackedVector2Array([
 			Vector2(-w * 0.7, 10), Vector2(-w * 0.25, -h * 0.25), Vector2(w * 0.2, -h * 0.22), Vector2(w * 0.65, 10)
 		])
-		moss_s.color = Color(0.18, 0.36, 0.2, 0.55)
+		moss_s.color = Color(0.38, 0.58, 0.42, 0.55)
 		moss_s.position = peak.position
 		moss_s.z_index = peak.z_index + 1
 		add_child(moss_s)
-		# Snow / crystal cap
+		# Pearl / champagne crystal cap
 		var cap := Polygon2D.new()
 		cap.polygon = PackedVector2Array([
 			Vector2(0, -h), Vector2(-w * 0.3, -h * 0.7), Vector2(w * 0.24, -h * 0.68)
 		])
-		cap.color = Color(0.78, 0.88, 0.96, 0.8) if i % 2 == 0 else Color(0.92, 0.78, 0.48, 0.7)
+		cap.color = Color(0.9, 0.94, 1.0, 0.85) if i % 2 == 0 else Color(0.98, 0.88, 0.55, 0.75)
 		cap.position = peak.position
 		cap.z_index = peak.z_index + 2
 		add_child(cap)
@@ -335,15 +339,15 @@ func _add_lake(center: Vector2, radius: float, rng: RandomNumberGenerator, is_po
 	var wet := _ellipse(center, r * 1.0, r * aspect, Color(0.08, 0.16, 0.15, 0.55), Z_WATER + 2)
 	add_child(wet)
 	# Water body (matches PathNetwork swim ellipse ~0.92 / 0.58)
-	var water_col := Color(0.12, 0.38, 0.48, 0.78) if is_pond else Color(0.1, 0.32, 0.45, 0.82)
+	var water_col := Color(0.32, 0.58, 0.68, 0.72) if is_pond else Color(0.28, 0.52, 0.65, 0.75)
 	var water := _ellipse(center, r * 0.94, r * aspect, water_col, Z_WATER + 3)
 	add_child(water)
-	var deep := _ellipse(center + Vector2(r * 0.06, r * 0.04), r * 0.55, r * aspect * 0.58, Color(0.05, 0.14, 0.3, 0.72), Z_WATER + 4)
+	var deep := _ellipse(center + Vector2(r * 0.06, r * 0.04), r * 0.55, r * aspect * 0.58, Color(0.22, 0.38, 0.58, 0.65), Z_WATER + 4)
 	add_child(deep)
-	var shallows := _ellipse(center + Vector2(-r * 0.18, -r * 0.1), r * 0.38, r * aspect * 0.35, Color(0.22, 0.5, 0.52, 0.32), Z_WATER + 4)
+	var shallows := _ellipse(center + Vector2(-r * 0.18, -r * 0.1), r * 0.38, r * aspect * 0.35, Color(0.48, 0.75, 0.78, 0.32), Z_WATER + 4)
 	add_child(shallows)
-	# Soft cyan rim light
-	var rim := _ellipse(center, r * 0.96, r * aspect * 1.02, Color(0.35, 0.75, 0.85, 0.1), Z_WATER + 3)
+	# Soft pearl-cyan rim light
+	var rim := _ellipse(center, r * 0.96, r * aspect * 1.02, Color(0.55, 0.88, 0.95, 0.12), Z_WATER + 3)
 	add_child(rim)
 	# Specular glints
 	var glint_n := 5 if is_pond else 10
@@ -560,8 +564,8 @@ func _build_botanicals() -> void:
 func _build_atmosphere_light() -> void:
 	if FX == null:
 		return
-	# Spec: amber crystal light + cold violet motes (title fireflies)
-	var amber := FX.spark_particles(self, Color(0.95, 0.75, 0.35, 0.5), 18, "star")
+	# Champagne gold + lilac pearl motes (ethereal shimmer, light density)
+	var amber := FX.spark_particles(self, Color(0.98, 0.88, 0.55, 0.45), 20, "star")
 	amber.position = Vector2(0, 40)
 	amber.z_index = Z_DECOR
 	amber.amount = 18
@@ -573,11 +577,11 @@ func _build_atmosphere_light() -> void:
 		pm.initial_velocity_min = 1.0
 		pm.initial_velocity_max = 7.0
 		pm.gravity = Vector3(0, -2.0, 0)
-	var cyan := FX.spark_particles(self, Color(0.5, 0.95, 0.95, 0.4), 14, "glow")
+	var cyan := FX.spark_particles(self, Color(0.65, 0.92, 0.96, 0.38), 14, "glow")
 	cyan.position = Vector2(0, 30)
 	cyan.z_index = Z_DECOR
 	cyan.amount = 14
-	var violet := FX.spark_particles(self, Color(0.7, 0.45, 0.95, 0.32), 12, "magic")
+	var violet := FX.spark_particles(self, Color(0.82, 0.68, 0.96, 0.3), 12, "magic")
 	violet.position = Vector2(0, 60)
 	violet.z_index = Z_DECOR
 	violet.amount = 12
@@ -710,10 +714,10 @@ func _add_path_ribbon(pts: PackedVector2Array, half_width: float) -> void:
 		return
 	_ensure_dirt_textures()
 
-	# Soft grass/moss blend under the road (fades into biome)
+	# Soft sage moss blend under the road (fades into ethereal biome)
 	var moss := Line2D.new()
 	moss.width = half_width * 2.55
-	moss.default_color = Color(0.14, 0.24, 0.16, 0.42)
+	moss.default_color = Color(0.32, 0.48, 0.38, 0.38)
 	moss.begin_cap_mode = Line2D.LINE_CAP_ROUND
 	moss.end_cap_mode = Line2D.LINE_CAP_ROUND
 	moss.joint_mode = Line2D.LINE_JOINT_ROUND
@@ -775,22 +779,21 @@ func _make_dirt_gradient_tex(for_edge: bool) -> Texture2D:
 
 		var col: Color
 		if for_edge:
-			# Dark earth shoulder that fades to transparent at outer rim
-			var soil := Color(0.18, 0.12, 0.09, 1.0)
-			var mid := Color(0.28, 0.20, 0.14, 0.95)
+			# Soft rose-earth shoulder that fades into sage moss
+			var soil := Color(0.32, 0.24, 0.22, 1.0)
+			var mid := Color(0.48, 0.38, 0.32, 0.92)
 			col = mid.lerp(soil, clampf(e_smooth * 1.1, 0.0, 1.0))
-			col.a = clampf(0.75 - e_smooth * 0.55, 0.15, 0.8)
+			col.a = clampf(0.7 - e_smooth * 0.5, 0.12, 0.75)
 		else:
-			# Warm packed dirt: soft light crown → medium → dark rim
-			var crown := Color(0.58, 0.44, 0.30, 1.0)
-			var body := Color(0.44, 0.32, 0.22, 1.0)
-			var rim := Color(0.30, 0.21, 0.15, 1.0)
+			# Warm champagne dirt: soft light crown → rose body → soft rim
+			var crown := Color(0.72, 0.58, 0.42, 1.0)
+			var body := Color(0.55, 0.42, 0.32, 1.0)
+			var rim := Color(0.4, 0.3, 0.26, 1.0)
 			if edge < 0.45:
 				col = crown.lerp(body, edge / 0.45)
 			else:
 				col = body.lerp(rim, (edge - 0.45) / 0.55)
-			# Soft alpha only at extreme edges so road blends into moss
-			col.a = clampf(1.0 - pow(edge, 2.8) * 0.22, 0.78, 1.0)
+			col.a = clampf(1.0 - pow(edge, 2.8) * 0.2, 0.8, 1.0)
 
 		# Fine grain — subtle, not stripes
 		for x in w:
@@ -817,7 +820,7 @@ func _add_path_well_glow(pts: PackedVector2Array) -> void:
 		return
 	var glow := Line2D.new()
 	glow.width = 28.0
-	glow.default_color = Color(0.92, 0.72, 0.38, 0.1)
+	glow.default_color = Color(0.98, 0.88, 0.55, 0.12)
 	glow.begin_cap_mode = Line2D.LINE_CAP_ROUND
 	glow.end_cap_mode = Line2D.LINE_CAP_ROUND
 	glow.joint_mode = Line2D.LINE_JOINT_ROUND

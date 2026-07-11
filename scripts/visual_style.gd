@@ -1,24 +1,29 @@
 extends Node
-## Crystalward visual language — Dark Crystal / ethereal forest.
+## Crystalward visual language — ethereal gold + pastel shimmer.
 ## Autoloaded as VisualStyle.
+## Outlines stay strong so actors read clearly on the soft world.
 
-const OUTLINE := Color(0.06, 0.04, 0.12, 0.95)
-const SHADOW := Color(0.02, 0.02, 0.06, 0.5)
-const P1_TINT := Color(0.45, 0.9, 0.85)   # cyan crystal warden
-const P2_TINT := Color(0.75, 0.55, 0.95)  # violet shadow warden
-const PATH_DIRT := Color(0.28, 0.2, 0.28, 0.95)
-const TOWER_MOSS := Color(0.28, 0.42, 0.38)
-const ESSENCE_GLOW := Color(0.45, 0.95, 0.9)
-const CRYSTAL_CORE := Color(0.55, 0.88, 0.95)
-const UI_CREAM := Color(0.92, 0.9, 0.98)
-const UI_INK := Color(0.1, 0.08, 0.14)
-# Title-screen forest palette (purple mist + teal crystal + deep moss)
-const FOREST_DEEP := Color(0.08, 0.12, 0.14)
-const FOREST_MOSS := Color(0.18, 0.32, 0.26)
-const FOREST_MIST := Color(0.35, 0.28, 0.48)
-const LEGEND_MEADOW := Color(0.22, 0.38, 0.32)
-const LEGEND_BLOOM := Color(0.65, 0.45, 0.85)
-const LEGEND_GOLDEN_HOUR := Color(0.85, 0.75, 0.4)
+const OUTLINE := Color(0.12, 0.08, 0.18, 0.96)
+const SHADOW := Color(0.12, 0.08, 0.16, 0.42)
+const P1_TINT := Color(0.55, 0.92, 0.9)   # soft cyan crystal warden
+const P2_TINT := Color(0.82, 0.62, 0.95)  # pastel violet warden
+const PATH_DIRT := Color(0.48, 0.38, 0.32, 0.95)
+const TOWER_MOSS := Color(0.42, 0.58, 0.48)
+const ESSENCE_GLOW := Color(0.65, 0.95, 0.92)
+const CRYSTAL_CORE := Color(0.7, 0.92, 0.98)
+const UI_CREAM := Color(0.97, 0.94, 0.98)
+const UI_INK := Color(0.16, 0.12, 0.2)
+# Ethereal glade palette — soft gold, sage, lilac pearl
+const FOREST_DEEP := Color(0.16, 0.2, 0.22)
+const FOREST_MOSS := Color(0.32, 0.48, 0.4)
+const FOREST_MIST := Color(0.62, 0.52, 0.78)
+const LEGEND_MEADOW := Color(0.4, 0.58, 0.48)
+const LEGEND_BLOOM := Color(0.78, 0.58, 0.9)
+const LEGEND_GOLDEN_HOUR := Color(0.96, 0.84, 0.5)
+const PASTEL_BLUSH := Color(0.92, 0.7, 0.78)
+const PASTEL_LILAC := Color(0.75, 0.68, 0.92)
+const PASTEL_MINT := Color(0.62, 0.88, 0.78)
+const CHAMPAGNE := Color(0.96, 0.88, 0.62)
 
 ## Z layers — ground always under actors. Never use Main y_sort (covers north map).
 ## Godot CanvasItem.z_index is clamped to [-4096, 4096]; stay well inside that.
@@ -50,10 +55,10 @@ func _ready() -> void:
 		_outline_mat = ShaderMaterial.new()
 		_outline_mat.shader = _outline_shader
 		_outline_mat.set_shader_parameter("outline_color", OUTLINE)
-		_outline_mat.set_shader_parameter("outline_width", 1.15)
+		_outline_mat.set_shader_parameter("outline_width", 1.35)
 
 
-func apply_sprite_outline(sprite: CanvasItem, width: float = 1.15) -> void:
+func apply_sprite_outline(sprite: CanvasItem, width: float = 1.35) -> void:
 	if sprite == null:
 		return
 	if _outline_shader == null:
@@ -63,7 +68,8 @@ func apply_sprite_outline(sprite: CanvasItem, width: float = 1.15) -> void:
 	var mat := ShaderMaterial.new()
 	mat.shader = _outline_shader
 	mat.set_shader_parameter("outline_color", OUTLINE)
-	mat.set_shader_parameter("outline_width", width)
+	# Slightly stronger outline so sprites pop on pastel ground
+	mat.set_shader_parameter("outline_width", maxf(width, 1.25))
 	sprite.material = mat
 
 

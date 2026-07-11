@@ -3,14 +3,14 @@ extends Node2D
 ## fairy rings, ferns, vines, pollen — romantic forest magic.
 
 
-# Spec: Legend soft-dark botanical beauty — not candy confetti
-const LEGEND_GREEN := Color(0.28, 0.48, 0.38)
-const LEGEND_MOSS := Color(0.22, 0.4, 0.32)
-const LEGEND_BLOOM_PINK := Color(0.75, 0.4, 0.65)   # dusk rose
-const LEGEND_BLOOM_LILAC := Color(0.65, 0.5, 0.9)    # violet
-const LEGEND_BLOOM_GOLD := Color(0.92, 0.75, 0.35)   # amber crystal light
-const LEGEND_BLOOM_WHITE := Color(0.75, 0.92, 0.95)  # cyan frost
-const LEGEND_FERN := Color(0.22, 0.42, 0.34)
+# Soft ethereal botanicals — pastel blooms + champagne gold, still readable
+const LEGEND_GREEN := Color(0.42, 0.62, 0.5)
+const LEGEND_MOSS := Color(0.38, 0.55, 0.45)
+const LEGEND_BLOOM_PINK := Color(0.92, 0.62, 0.78)   # soft rose
+const LEGEND_BLOOM_LILAC := Color(0.78, 0.65, 0.95)  # pastel lilac
+const LEGEND_BLOOM_GOLD := Color(0.98, 0.86, 0.5)    # champagne gold
+const LEGEND_BLOOM_WHITE := Color(0.85, 0.95, 0.98)  # pearl frost
+const LEGEND_FERN := Color(0.4, 0.6, 0.48)
 
 
 func paint(parent: Node2D) -> void:

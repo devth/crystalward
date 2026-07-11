@@ -37,20 +37,23 @@ func _try_soft_bloom() -> bool:
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var mat := ShaderMaterial.new()
 	mat.shader = sh
-	# Soft ethereal grade — amber lift + violet night (spec art dir)
-	mat.set_shader_parameter("bloom_intensity", 0.22)
-	mat.set_shader_parameter("saturation", 1.16)
-	mat.set_shader_parameter("contrast", 1.06)
-	mat.set_shader_parameter("tint", Color(1.03, 0.98, 1.06, 1.0))
+	# Soft gold + pastel shimmer on highlights; midtones stay clear for actors
+	mat.set_shader_parameter("bloom_intensity", 0.26)
+	mat.set_shader_parameter("bloom_threshold", 0.64)
+	mat.set_shader_parameter("saturation", 1.08)
+	mat.set_shader_parameter("contrast", 1.1)
+	mat.set_shader_parameter("tint", Color(1.05, 1.0, 1.04, 1.0))
+	mat.set_shader_parameter("gold_lift", 0.035)
+	mat.set_shader_parameter("clarity", 0.42)
 	rect.material = mat
 	add_child(rect)
 	return true
 
 
 func _add_simple_vignette() -> void:
-	# Soft edge darkening without screen-texture (safe on headless / compatibility).
+	# Soft lilac edge without screen-texture (safe on headless / compatibility).
 	var rect := ColorRect.new()
 	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	rect.color = Color(0.08, 0.05, 0.12, 0.12)
+	rect.color = Color(0.22, 0.14, 0.28, 0.08)
 	add_child(rect)
