@@ -29,31 +29,47 @@ func _ready() -> void:
 	z_index = -200
 	for c in get_children():
 		c.queue_free()
-	# Main rebuilds PathNetwork in its _ready; wait one frame so lanes exist.
 	await get_tree().process_frame
 	if PathNetwork and PathNetwork.lane_count() == 0:
 		PathNetwork.rebuild(PathNetwork.active_lane_set if PathNetwork.active_lane_set else "simple")
+	if TerrainWorld and not TerrainWorld.ready_map:
+		TerrainWorld.rebuild()
 	_build()
 	if PathNetwork and not PathNetwork.paths_rebuilt.is_connected(_on_paths_rebuilt):
 		PathNetwork.paths_rebuilt.connect(_on_paths_rebuilt)
+	if TerrainWorld and not TerrainWorld.terrain_rebuilt.is_connected(_on_terrain_rebuilt):
+		TerrainWorld.terrain_rebuilt.connect(_on_terrain_rebuilt)
 
 
 func _on_paths_rebuilt() -> void:
+	# TerrainWorld rebuilds first (listens too); ground refreshes on terrain_rebuilt.
+	pass
+
+
+func _on_terrain_rebuilt() -> void:
 	for c in get_children():
 		c.queue_free()
 	call_deferred("_build")
 
 
 func _build() -> void:
+	## Integrated landscape from TerrainWorld heightfield + hydrology.
 	_build_floor()
-	_build_altitude_field()  # continuous height bands + slope shade
-	_build_elevation_base()  # material washes following elevation
+	if TerrainWorld and TerrainWorld.ready_map:
+		_build_contiguous_terrain()
+		_build_hydrology()
+		_build_ridge_crests()
+		_place_integrated_features()
+	else:
+		# Fallback if terrain not ready
+		_build_altitude_field()
+		_build_elevation_base()
+		_build_terrain_features()
+		_scatter_forest_props()
 	_build_plaza()
 	_build_paths()
 	_build_mist_fields()
-	_build_terrain_features()  # mountains, hills, lakes
 	_build_landmarks()
-	_scatter_forest_props()
 	_build_botanicals()
 
 
@@ -77,6 +93,297 @@ func _build_floor() -> void:
 	else:
 		floor_poly.color = Color(0.16, 0.42, 0.22)
 	add_child(floor_poly)
+
+
+func _build_contiguous_terrain() -> void:
+	## Draw heightfield as contiguous cells — materials and shade from elev/slope/moisture.
+	if TerrainWorld == null or not TerrainWorld.ready_map:
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 9901
+	var half := TerrainWorld.CELL * 0.52
+	TerrainWorld.for_each_cell(func(ix: int, iy: int, p: Vector2, elev: float, moist: float, wcode: int, slope: float):
+		if wcode >= TerrainWorld.W_POND:
+			return  # water drawn in hydrology
+		if PathNetwork and PathNetwork.dist_to_path(p) < PATH_CLEAR * 0.45:
+			return  # road corridor left for path ribbon
+		# Skip every other cell in flat mid-ground for performance / less noise
+		if absf(elev) < 0.12 and slope < 0.004 and ((ix + iy) % 2 == 0):
+			return
+		var col := _terrain_color(elev, moist, slope)
+		var a := clampf(0.1 + absf(elev) * 0.16 + slope * 6.0, 0.08, 0.38)
+		col.a = a
+		# Cell footprint slightly irregular so it doesn't look like a grid
+		var jitter := Vector2(rng.randf_range(-4, 4), rng.randf_range(-3, 3))
+		var hx := half * (0.92 + absf(elev) * 0.12)
+		var hy := half * (0.78 + maxf(0.0, elev) * 0.1)
+		# Stack layers on high ground for altitude read
+		var layers := 1
+		if elev > 0.3:
+			layers = 2
+		if elev > 0.65:
+			layers = 3
+		if elev < -0.35:
+			layers = 2
+		for li in layers:
+			var loft := float(li) * (5.0 + maxf(0.0, elev) * 10.0)
+			var layer_col := col
+			if elev > 0.0:
+				layer_col = col.lightened(0.05 * float(li))
+			else:
+				layer_col = col.darkened(0.04 * float(li))
+			layer_col.a = col.a * (0.75 + 0.12 * float(li))
+			var poly := Polygon2D.new()
+			var o := p + jitter + Vector2(0, -loft * 0.12)
+			var sx := hx * (1.0 - float(li) * 0.12)
+			var sy := hy * (1.0 - float(li) * 0.1)
+			# Diamond-ish cell with soft warp
+			var w1 := 0.9 + 0.12 * sin(float(ix * 3 + iy))
+			var w2 := 0.9 + 0.12 * cos(float(iy * 2 - ix))
+			poly.polygon = PackedVector2Array([
+				o + Vector2(0, -sy * w1),
+				o + Vector2(sx * w2, 0),
+				o + Vector2(0, sy * w1),
+				o + Vector2(-sx * w2, 0),
+			])
+			poly.color = layer_col
+			poly.z_index = Z_HILL + li
+			add_child(poly)
+		# Slope shade / lit face
+		if slope > 0.0035:
+			var grad := PathNetwork.elevation_gradient(p) if PathNetwork else Vector2.ZERO
+			if grad.length_squared() > 0.00001:
+				var down := -grad.normalized()
+				var shade := Polygon2D.new()
+				var sp := p + down * (14.0 + slope * 180.0)
+				var side := Vector2(-down.y, down.x) * (half * 0.7)
+				shade.polygon = PackedVector2Array([sp - side, sp + side, sp + down * half * 0.5])
+				shade.color = Color(0.04, 0.06, 0.07, clampf(0.05 + slope * 7.0, 0.05, 0.18))
+				shade.z_index = Z_HILL
+				add_child(shade)
+		# Steep integrated rock face (not a plopped mountain prop)
+		if elev > 0.35 and slope > 0.01:
+			var grad2 := PathNetwork.elevation_gradient(p) if PathNetwork else Vector2.DOWN
+			var face := -grad2.normalized() if grad2.length_squared() > 0.00001 else Vector2.DOWN
+			var cliff := Polygon2D.new()
+			var base := p + face * 8.0
+			var side2 := Vector2(-face.y, face.x) * (12.0 + elev * 16.0)
+			var up := Vector2(0, -16.0 - elev * 22.0 - slope * 120.0)
+			cliff.polygon = PackedVector2Array([
+				base - side2, base + side2,
+				base + side2 * 0.35 + up, base - side2 * 0.35 + up
+			])
+			cliff.color = Color(0.32, 0.32, 0.36, 0.4 + elev * 0.2)
+			cliff.z_index = Z_MOUNTAIN - 2
+			add_child(cliff)
+	)
+
+
+func _terrain_color(elev: float, moist: float, slope: float) -> Color:
+	if elev > 0.7 or (elev > 0.4 and slope > 0.01):
+		return Color(0.36, 0.36, 0.4)  # rock
+	if elev > 0.35:
+		return Color(0.3, 0.48, 0.3)  # high meadow
+	if elev > 0.05:
+		return Color(0.24, 0.42, 0.26).lerp(Color(0.32, 0.38, 0.24), moist * 0.3)
+	if elev > -0.2:
+		return Color(0.2, 0.36, 0.24)
+	if moist > 0.7:
+		return Color(0.16, 0.3, 0.28)  # wet
+	return Color(0.18, 0.28, 0.26)
+
+
+func _build_hydrology() -> void:
+	## Lakes/ponds as contiguous cell floods + streams + waterfalls from flow field.
+	if TerrainWorld == null or not TerrainWorld.ready_map:
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 5501
+	var half := TerrainWorld.CELL * 0.55
+	# Water cells
+	TerrainWorld.for_each_cell(func(ix: int, iy: int, p: Vector2, elev: float, moist: float, wcode: int, slope: float):
+		if wcode < TerrainWorld.W_STREAM:
+			return
+		if wcode == TerrainWorld.W_STREAM:
+			return  # streams as polylines
+		if wcode == TerrainWorld.W_FALL:
+			return
+		# Shore bank slightly outside water
+		var bank := _ellipse(p, half * 1.35, half * 1.0, Color(0.34, 0.3, 0.22, 0.35), Z_WATER)
+		add_child(bank)
+		var water_col := Color(0.28, 0.52, 0.62, 0.82)
+		if wcode == TerrainWorld.W_POND:
+			water_col = Color(0.3, 0.55, 0.64, 0.78)
+		var water := _ellipse(p, half * 1.05, half * 0.85, water_col, Z_WATER + 2)
+		add_child(water)
+		if elev < -0.3 or wcode == TerrainWorld.W_LAKE:
+			var deep := _ellipse(p + Vector2(4, 2), half * 0.55, half * 0.45, Color(0.16, 0.34, 0.5, 0.55), Z_WATER + 3)
+			add_child(deep)
+	)
+	# Stream polylines (integrated corridors)
+	for path in TerrainWorld.stream_paths:
+		var pts: PackedVector2Array = path
+		if pts.size() < 2:
+			continue
+		# Wet banks
+		var banks := Line2D.new()
+		banks.width = 22.0
+		banks.default_color = Color(0.18, 0.3, 0.2, 0.35)
+		banks.begin_cap_mode = Line2D.LINE_CAP_ROUND
+		banks.end_cap_mode = Line2D.LINE_CAP_ROUND
+		banks.joint_mode = Line2D.LINE_JOINT_ROUND
+		banks.antialiased = true
+		banks.points = pts
+		banks.z_index = Z_WATER
+		add_child(banks)
+		var stream := Line2D.new()
+		stream.width = 11.0
+		stream.default_color = Color(0.32, 0.58, 0.68, 0.75)
+		stream.begin_cap_mode = Line2D.LINE_CAP_ROUND
+		stream.end_cap_mode = Line2D.LINE_CAP_ROUND
+		stream.joint_mode = Line2D.LINE_JOINT_ROUND
+		stream.antialiased = true
+		stream.points = pts
+		stream.z_index = Z_WATER + 2
+		add_child(stream)
+		var gloss := Line2D.new()
+		gloss.width = 4.0
+		gloss.default_color = Color(0.55, 0.85, 0.95, 0.25)
+		gloss.begin_cap_mode = Line2D.LINE_CAP_ROUND
+		gloss.end_cap_mode = Line2D.LINE_CAP_ROUND
+		gloss.joint_mode = Line2D.LINE_JOINT_ROUND
+		gloss.points = pts
+		gloss.z_index = Z_WATER + 3
+		add_child(gloss)
+		# Sparse reeds along stream
+		for i in range(0, pts.size(), 3):
+			if rng.randf() < 0.55:
+				continue
+			if PathNetwork and PathNetwork.dist_to_path(pts[i]) < PATH_CLEAR:
+				continue
+			_add_reed_cluster(pts[i] + Vector2(rng.randf_range(-10, 10), rng.randf_range(-6, 6)), rng)
+	# Waterfalls — vertical foam where streams drop
+	for wf in TerrainWorld.waterfalls:
+		var a: Vector2 = wf.get("from", Vector2.ZERO)
+		var b: Vector2 = wf.get("to", Vector2.ZERO)
+		var strength: float = float(wf.get("strength", 0.2))
+		_add_waterfall(a, b, strength, rng)
+
+
+func _add_waterfall(from: Vector2, to: Vector2, strength: float, rng: RandomNumberGenerator) -> void:
+	var mid := from.lerp(to, 0.45)
+	var drop := 18.0 + strength * 40.0
+	# Cliff rock behind fall
+	var cliff := Polygon2D.new()
+	var side := Vector2(-(to.y - from.y), to.x - from.x).normalized() * (10.0 + strength * 12.0)
+	if side.length_squared() < 0.01:
+		side = Vector2.RIGHT * 12.0
+	cliff.polygon = PackedVector2Array([
+		from - side, from + side,
+		to + side * 0.7 + Vector2(0, 6), to - side * 0.7 + Vector2(0, 6)
+	])
+	cliff.color = Color(0.3, 0.3, 0.34, 0.55)
+	cliff.z_index = Z_MOUNTAIN - 3
+	add_child(cliff)
+	# Water curtain
+	var fall := Polygon2D.new()
+	fall.polygon = PackedVector2Array([
+		from - side * 0.35, from + side * 0.35,
+		to + side * 0.25 + Vector2(0, drop * 0.15),
+		to - side * 0.25 + Vector2(0, drop * 0.15)
+	])
+	fall.color = Color(0.45, 0.75, 0.88, 0.45 + strength * 0.25)
+	fall.z_index = Z_WATER + 5
+	add_child(fall)
+	# Foam pool
+	var foam := _ellipse(to + Vector2(0, 4), 14.0 + strength * 10.0, 8.0 + strength * 6.0, Color(0.75, 0.9, 0.95, 0.4), Z_WATER + 6)
+	add_child(foam)
+	if FX and strength > 0.2:
+		var spray := FX.spark_particles(self, Color(0.8, 0.92, 1.0, 0.4), 6, "glow")
+		spray.position = mid
+		spray.z_index = Z_WATER + 7
+		spray.amount = 6
+		spray.lifetime = 1.2
+
+
+func _build_ridge_crests() -> void:
+	## Jagged crest teeth only on steep high cells — grows from terrain, not free-floating art.
+	if TerrainWorld == null:
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 3301
+	TerrainWorld.for_each_cell(func(ix: int, iy: int, p: Vector2, elev: float, moist: float, wcode: int, slope: float):
+		if wcode != TerrainWorld.W_NONE:
+			return
+		if elev < 0.55 or slope < 0.009:
+			return
+		if (ix * 7 + iy * 3) % 5 != 0:
+			return
+		if PathNetwork and PathNetwork.dist_to_path(p) < PATH_CLEAR + 30.0:
+			return
+		var h := 28.0 + elev * 50.0 + rng.randf() * 16.0
+		var w := 10.0 + elev * 12.0
+		var peak := Polygon2D.new()
+		peak.polygon = PackedVector2Array([
+			Vector2(-w, 8), Vector2(-w * 0.35, -h * 0.45), Vector2(0, -h),
+			Vector2(w * 0.3, -h * 0.42), Vector2(w, 8)
+		])
+		peak.color = Color(0.36, 0.35, 0.4)
+		peak.position = p
+		peak.z_index = Z_MOUNTAIN + clampi(int(p.y / 60.0), -5, 12)
+		add_child(peak)
+		var cap := Polygon2D.new()
+		cap.polygon = PackedVector2Array([Vector2(0, -h), Vector2(-w * 0.22, -h * 0.65), Vector2(w * 0.18, -h * 0.62)])
+		cap.color = Color(0.9, 0.93, 0.96, 0.75)
+		cap.position = p
+		cap.z_index = peak.z_index + 1
+		add_child(cap)
+	)
+
+
+func _place_integrated_features() -> void:
+	## Rocks & trees from terrain suitability — no random confetti.
+	if TerrainWorld == null:
+		return
+	var tree_tex: Texture2D = AssetPaths.load_texture(AssetPaths.FOREST_TREES) if AssetPaths else null
+	var tree_sprites: Array[Texture2D] = []
+	if tree_tex and tree_tex.get_width() >= 64 and tree_tex.get_height() >= 128:
+		tree_sprites.append(_atlas(tree_tex, Rect2(0, 0, 64, 64)))
+		tree_sprites.append(_atlas(tree_tex, Rect2(0, 64, 64, 64)))
+	elif tree_tex:
+		tree_sprites.append(tree_tex)
+	var i := 0
+	for site in TerrainWorld.tree_sites:
+		var pos: Vector2 = site.get("pos", Vector2.ZERO)
+		if pos.length() < 300.0:
+			continue
+		if PathNetwork and PathNetwork.dist_to_path(pos) < PATH_CLEAR + 15.0:
+			continue
+		if tree_sprites.is_empty():
+			break
+		var sc: float = float(site.get("scale", 2.4))
+		_place_sprite(tree_sprites[i % tree_sprites.size()], pos, sc, 0.96)
+		i += 1
+		if i > 55:
+			break
+	for site in TerrainWorld.rock_sites:
+		var pos2: Vector2 = site.get("pos", Vector2.ZERO)
+		if pos2.length() < 260.0:
+			continue
+		if PathNetwork and PathNetwork.dist_to_path(pos2) < PATH_CLEAR:
+			continue
+		_add_standing_stone(pos2, 0.55 + float(site.get("elev", 0.3)) * 0.7)
+	# Crystal spurs only if feature far from well
+	if PathNetwork:
+		var rng := RandomNumberGenerator.new()
+		rng.seed = 88
+		for f in PathNetwork.features:
+			if str(f.get("kind", "")) != "crystal_grove":
+				continue
+			var c: Vector2 = f.get("pos", Vector2.ZERO)
+			if c.length() < 350.0:
+				continue
+			_add_crystal_grove(c, float(f.get("radius", 80.0)), rng)
 
 
 func _build_altitude_field() -> void:

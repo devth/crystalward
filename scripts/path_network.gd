@@ -53,6 +53,7 @@ func rebuild(lane_set: String = "single") -> void:
 			_add_single()
 	_clear_features_from_paths()
 	_rebuild_water_bodies()
+	# Contiguous terrain rebuilds on paths_rebuilt (TerrainWorld listens).
 	paths_rebuilt.emit()
 
 
@@ -187,11 +188,15 @@ func _rebuild_water_bodies() -> void:
 
 
 func in_water(world_pos: Vector2) -> bool:
+	if TerrainWorld and TerrainWorld.ready_map:
+		return TerrainWorld.in_water(world_pos)
 	return water_depth_at(world_pos) > 0.05
 
 
 func water_depth_at(world_pos: Vector2) -> float:
-	## 0 = dry, 1 = deep — max over multi-lobe falloff.
+	## Prefer contiguous TerrainWorld hydrology when available.
+	if TerrainWorld and TerrainWorld.ready_map:
+		return TerrainWorld.water_depth_at(world_pos)
 	var best := 0.0
 	for w in water_bodies:
 		var lobes: Array = w.get("lobes", [])
@@ -232,18 +237,19 @@ func nearest_water(world_pos: Vector2) -> Dictionary:
 
 
 func elevation_at(world_pos: Vector2) -> float:
-	## Continuous heightfield (roughly -1.2..1.4): multi-scale terrain + landform peaks/basins.
+	## Prefer contiguous TerrainWorld heightfield when ready.
+	if TerrainWorld and TerrainWorld.ready_map:
+		return TerrainWorld.elev_at(world_pos)
+	return _elevation_fallback(world_pos)
+
+
+func _elevation_fallback(world_pos: Vector2) -> float:
 	var h := 0.0
-	# Large-scale ranges / valleys
 	h += 0.38 * sin(world_pos.x * 0.0018) * cos(world_pos.y * 0.0015)
 	h += 0.28 * sin(world_pos.x * 0.0011 + world_pos.y * 0.0014)
-	# Medium rolling hills
 	h += 0.22 * sin(world_pos.x * 0.0036) * cos(world_pos.y * 0.0031)
 	h += 0.16 * cos(world_pos.x * 0.0048 - world_pos.y * 0.0038)
-	# Fine knolls / dimples
 	h += 0.10 * sin(world_pos.x * 0.0085 + world_pos.y * 0.0062)
-	h += 0.07 * cos(world_pos.x * 0.011 - world_pos.y * 0.009)
-	# Authored landforms (mountains, hills, lakes)
 	for f in features:
 		var c: Vector2 = f.get("pos", Vector2.ZERO)
 		var r: float = float(f.get("radius", 100.0))
@@ -257,26 +263,18 @@ func elevation_at(world_pos: Vector2) -> float:
 		var sa := sin(ang)
 		var lx := local.x * ca + local.y * sa
 		var ly := -local.x * sa + local.y * ca
-		var sx := maxf(0.5, stretch.x)
-		var sy := maxf(0.5, stretch.y)
-		var d := Vector2(lx / sx, ly / sy).length()
+		var d := Vector2(lx / maxf(0.5, stretch.x), ly / maxf(0.5, stretch.y)).length()
 		var fall := r * 2.4
 		if d < fall:
 			var t := 1.0 - d / fall
-			# Mountains peak sharp; lakes are broad bowls
 			if peak > 0.0:
 				h += peak * t * t * t * (1.0 + 0.35 * t)
 			else:
 				h += peak * t * t * (3.0 - 2.0 * t)
-	# Multi-lobe water slightly deepens bowls further
-	var wd := water_depth_at(world_pos)
-	if wd > 0.0:
-		h -= wd * 0.35
 	return clampf(h, -1.35, 1.55)
 
 
 func elevation_gradient(world_pos: Vector2, eps: float = 28.0) -> Vector2:
-	## Approximate slope direction (points uphill).
 	var e0 := elevation_at(world_pos)
 	var ex := elevation_at(world_pos + Vector2(eps, 0))
 	var ey := elevation_at(world_pos + Vector2(0, eps))
