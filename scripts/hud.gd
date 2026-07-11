@@ -49,7 +49,8 @@ func _ready() -> void:
 	_on_dust(GameState.crystal_dust)
 	_on_crystal(GameState.crystal_hp, GameState.crystal_max_hp)
 	_on_wave(GameState.current_wave, GameState.waves_to_win)
-	hint_label.text = "1 Rush · 2 Skybound · 3 Dire Strike · Space jump · C attack · F fairy"
+	hint_label.text = "Space jump · C attack · E gather · Q build · F fairy"
+	hint_label.modulate = Color(1, 1, 1, 0.55)
 	_ensure_minimap()
 	_ensure_call_wave_ui()
 	_ensure_burst_hud()
@@ -161,18 +162,16 @@ func _on_dust(v: int) -> void:
 
 
 func _on_crystal(cur: int, mx: int) -> void:
-	# KR-style lives
-	var hearts := ""
-	for i in mini(cur, 20):
-		hearts += "♥"
-	if cur > 20:
-		hearts += "+%d" % (cur - 20)
-	crystal_label.text = "Lives %s" % (hearts if cur > 0 else "☠")
-	crystal_label.add_theme_color_override("font_color", Color(0.95, 0.35, 0.4) if cur <= 5 else Color(0.95, 0.55, 0.6))
+	# Clean KR lives — number, not a wall of hearts
+	crystal_label.text = "♥  %d / %d" % [cur, mx]
+	crystal_label.add_theme_color_override(
+		"font_color",
+		Color(0.95, 0.35, 0.4) if cur <= 5 else Color(0.95, 0.72, 0.75)
+	)
 
 
 func _on_wave(w: int, total: int) -> void:
-	wave_label.text = "Wave  %d/%d" % [w, total]
+	wave_label.text = "Wave  %d / %d" % [w, total]
 
 
 func _on_message(text: String) -> void:

@@ -21,13 +21,12 @@ func _ready() -> void:
 	GameState.crystal_hp_changed.connect(_on_hp)
 	_on_hp(GameState.crystal_hp, GameState.crystal_max_hp)
 	z_index = int(global_position.y)
-	FX.style_progress_bar(_hp_bar, Color(0.85, 0.65, 0.95), Color(0.08, 0.05, 0.12, 0.9))
+	FX.style_progress_bar(_hp_bar, Color(0.55, 0.85, 0.95), Color(0.06, 0.08, 0.1, 0.9))
 	_hp_bar.position = Vector2(-52, 62)
 	_hp_bar.size = Vector2(104, 12)
 
-	FX.spark_particles(self, Color(0.75, 0.55, 1.0, 0.85), 22, "glow")
-	var dust := FX.spark_particles(self, Color(0.45, 0.85, 0.7, 0.7), 12, "star")
-	dust.position = Vector2(0, -20)
+	var motes := FX.spark_particles(self, Color(0.55, 0.85, 0.95, 0.55), 10, "glow")
+	motes.position = Vector2(0, -12)
 
 
 func _build_visuals() -> void:
@@ -43,40 +42,28 @@ func _build_visuals() -> void:
 	well_rim.z_index = -1
 	add_child(well_rim)
 
-	# Optional DawnLike / dark fantasy object under procedural glow (pixel crystal flesh)
-	var obj_tex: Texture2D = AssetPaths.atlas_region(AssetPaths.DAWNLIKE_TREE0, Rect2(0, 0, 16, 32))
-	if obj_tex == null:
-		obj_tex = AssetPaths.atlas_region(AssetPaths.DARK_FANTASY_ITEMS, Rect2(0, 0, 24, 24))
-	if obj_tex:
-		var base_spr := AssetPaths.make_pixel_sprite(obj_tex, 3.0)
-		base_spr.position = Vector2(0, 6)
-		base_spr.modulate = Color(0.55, 0.4, 0.75, 0.55)
-		base_spr.z_index = -1
-		add_child(base_spr)
-
-	# Outer aura (shader-ish via soft polys)
-	var aura := FX.make_ellipse_poly(70, 90, 40, Color(0.5, 0.3, 0.8, 0.14))
+	# Soft cold aura
+	var aura := FX.make_ellipse_poly(64, 82, 36, Color(0.35, 0.55, 0.75, 0.12))
 	aura.position = Vector2(0, -20)
 	add_child(aura)
 	_glow_layers.append(aura)
 
-	var aura2 := FX.make_ellipse_poly(48, 64, 36, Color(0.3, 0.6, 0.5, 0.12))
+	var aura2 := FX.make_ellipse_poly(42, 56, 32, Color(0.45, 0.75, 0.7, 0.1))
 	aura2.position = Vector2(0, -16)
 	add_child(aura2)
 	_glow_layers.append(aura2)
 
-	# Crystal body — irregular facets
+	# Crystal body — cold cyan facets
 	_core = Polygon2D.new()
 	_core.polygon = PackedVector2Array([
 		Vector2(0, -56), Vector2(18, -36), Vector2(28, -8), Vector2(18, 22),
 		Vector2(6, 36), Vector2(-8, 34), Vector2(-22, 18), Vector2(-30, -6),
 		Vector2(-20, -34)
 	])
-	_core.color = Color(0.85, 0.72, 1.0, 0.98)
+	_core.color = Color(0.55, 0.82, 0.95, 0.98)
 	add_child(_core)
-	# Bold outline rings for silhouette (PJ readability)
 	var outline := _core.duplicate() as Polygon2D
-	outline.color = Color(0.12, 0.08, 0.16, 0.85)
+	outline.color = Color(0.08, 0.1, 0.14, 0.9)
 	outline.scale = Vector2(1.08, 1.08)
 	outline.z_index = -1
 	add_child(outline)
@@ -86,35 +73,33 @@ func _build_visuals() -> void:
 	facet_l.polygon = PackedVector2Array([
 		Vector2(0, -56), Vector2(-20, -34), Vector2(-8, 0), Vector2(0, 10)
 	])
-	facet_l.color = Color(0.45, 0.7, 0.6, 0.55)
+	facet_l.color = Color(0.4, 0.7, 0.65, 0.55)
 	add_child(facet_l)
 
 	var facet_r := Polygon2D.new()
 	facet_r.polygon = PackedVector2Array([
 		Vector2(0, -56), Vector2(18, -36), Vector2(22, 0), Vector2(0, 10)
 	])
-	facet_r.color = Color(0.85, 0.7, 1.0, 0.4)
+	facet_r.color = Color(0.7, 0.9, 1.0, 0.4)
 	add_child(facet_r)
 
 	var facet_top := Polygon2D.new()
 	facet_top.polygon = PackedVector2Array([
 		Vector2(0, -56), Vector2(10, -40), Vector2(0, -28), Vector2(-10, -40)
 	])
-	facet_top.color = Color(0.95, 0.92, 1.0, 0.7)
+	facet_top.color = Color(0.9, 0.98, 1.0, 0.75)
 	add_child(facet_top)
 
-	# Inner light
-	var heart := FX.make_ellipse_poly(8, 14, 16, Color(0.95, 0.9, 1.0, 0.85))
+	var heart := FX.make_ellipse_poly(8, 14, 16, Color(0.85, 0.95, 1.0, 0.85))
 	heart.position = Vector2(0, -8)
 	add_child(heart)
 	_glow_layers.append(heart)
 
-	# Light shaft
 	_shaft = Polygon2D.new()
 	_shaft.polygon = PackedVector2Array([
 		Vector2(-6, -70), Vector2(6, -70), Vector2(14, 40), Vector2(-14, 40)
 	])
-	_shaft.color = Color(0.7, 0.55, 1.0, 0.12)
+	_shaft.color = Color(0.5, 0.75, 0.9, 0.1)
 	_shaft.z_index = -1
 	add_child(_shaft)
 	_glow_layers.append(_shaft)

@@ -53,12 +53,12 @@ func _build_visuals() -> void:
 		VisualStyle.make_blob_shadow(self, 28, 12, 10)
 	_platform = Node2D.new()
 	add_child(_platform)
-	# Soft, semi-transparent pads — not opaque green slabs
-	var outer := FX.make_ellipse_poly(32, 18, 28, Color(0.32, 0.30, 0.28, 0.55))
+	# Stone build pad — quiet marker, not a neon manhole
+	var outer := FX.make_ellipse_poly(30, 16, 28, Color(0.22, 0.2, 0.18, 0.7))
 	_platform.add_child(outer)
-	var mid := FX.make_ellipse_poly(22, 12, 24, Color(0.42, 0.40, 0.36, 0.5))
+	var mid := FX.make_ellipse_poly(20, 11, 24, Color(0.36, 0.34, 0.3, 0.65))
 	_platform.add_child(mid)
-	var inner := FX.make_ellipse_poly(12, 7, 18, Color(0.55, 0.62, 0.48, 0.35))
+	var inner := FX.make_ellipse_poly(10, 6, 16, Color(0.48, 0.5, 0.42, 0.4))
 	_platform.add_child(inner)
 	_type_swatch = FX.make_ellipse_poly(6, 3.5, 12, Color(0.5, 0.85, 0.5, 0.85))
 	_type_swatch.position = Vector2(0, -2)

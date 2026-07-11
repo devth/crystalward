@@ -154,22 +154,8 @@ func _expand_map_content() -> void:
 
 
 func _zone_labels() -> void:
-	# Very subtle zone names — never compete with gameplay UI
-	var zones := {
-		"Lightwell Plaza": Vector2(0, 100),
-		"Northern March": Vector2(0, -700),
-		"Southern Bog": Vector2(0, 750),
-		"Eastern Ruin": Vector2(800, 40),
-		"Western Thorn": Vector2(-800, 40),
-	}
-	for name in zones:
-		var lab := Label.new()
-		lab.text = name
-		lab.position = zones[name] + Vector2(-60, 0)
-		lab.z_index = -12
-		lab.modulate = Color(0.7, 0.65, 0.85, 0.18)
-		lab.add_theme_font_size_override("font_size", 16)
-		add_child(lab)
+	# Intentionally empty — zone text cluttered the playfield.
+	pass
 
 
 func _too_close_to_group_or_class(pos: Vector2, group: String, min_dist: float) -> bool:

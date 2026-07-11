@@ -188,23 +188,37 @@ func _build_visuals() -> void:
 	_level_label.visible = false
 	_visual.add_child(_level_label)
 
-	FX.spark_particles(_visual, Color(_def_color.r, _def_color.g, _def_color.b, 0.55), 8, "glow").position = Vector2(0, -30)
+	# Quiet towers — no constant particle spam; bursts only on fire/upgrade
 
 
 func _build_thornspire() -> void:
+	# Stone plinth
+	var base := FX.make_ellipse_poly(18, 10, 20, Color(0.28, 0.26, 0.24, 0.95))
+	base.position = Vector2(0, 8)
+	_visual.add_child(base)
 	var trunk := Polygon2D.new()
-	trunk.polygon = PackedVector2Array([Vector2(-10, 14), Vector2(10, 14), Vector2(6, -28), Vector2(-6, -28)])
-	trunk.color = Color(0.42, 0.28, 0.18)
+	trunk.polygon = PackedVector2Array([Vector2(-9, 10), Vector2(9, 10), Vector2(7, -22), Vector2(-7, -22)])
+	trunk.color = Color(0.38, 0.26, 0.16)
 	_visual.add_child(trunk)
+	# Bark ridges
+	var ridge := Polygon2D.new()
+	ridge.polygon = PackedVector2Array([Vector2(-5, 4), Vector2(-2, -18), Vector2(1, 6)])
+	ridge.color = Color(0.28, 0.18, 0.1, 0.8)
+	_visual.add_child(ridge)
 	_body = Polygon2D.new()
 	_body.polygon = PackedVector2Array([
-		Vector2(0, -58), Vector2(22, -40), Vector2(18, -14), Vector2(0, -10), Vector2(-18, -14), Vector2(-22, -40)
+		Vector2(0, -56), Vector2(18, -38), Vector2(14, -16), Vector2(0, -12), Vector2(-14, -16), Vector2(-18, -38)
 	])
 	_body.color = _def_color
 	_visual.add_child(_body)
+	# Highlight facet
+	var hi := Polygon2D.new()
+	hi.polygon = PackedVector2Array([Vector2(-6, -48), Vector2(2, -42), Vector2(-2, -28), Vector2(-10, -36)])
+	hi.color = _def_color.lightened(0.25)
+	_visual.add_child(hi)
 	_accent = Polygon2D.new()
-	_accent.polygon = PackedVector2Array([Vector2(0, -50), Vector2(8, -36), Vector2(0, -28), Vector2(-8, -36)])
-	_accent.color = Color(0.95, 0.85, 0.4)
+	_accent.polygon = PackedVector2Array([Vector2(0, -52), Vector2(7, -38), Vector2(0, -30), Vector2(-7, -38)])
+	_accent.color = Color(0.95, 0.85, 0.45)
 	_visual.add_child(_accent)
 
 

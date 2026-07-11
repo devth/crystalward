@@ -6,9 +6,9 @@ extends Camera2D
 @export var crystal_path: NodePath
 @export var world_bound: float = 1800.0
 @export var look_ahead: float = 90.0  ## pan slightly in move direction
-@export var zoom_min: float = 0.52
-@export var zoom_max: float = 0.9
-@export var base_zoom: float = 0.72
+@export var zoom_min: float = 0.62
+@export var zoom_max: float = 0.95
+@export var base_zoom: float = 0.82
 
 var _crystal: Node2D
 var _zoom_target: float = 0.72

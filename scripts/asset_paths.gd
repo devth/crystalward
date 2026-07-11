@@ -221,7 +221,7 @@ func warden_skin(player_index: int) -> Dictionary:
 		anim = _kenney_anim_set("Female", "female")
 		modulate = Color(0.95, 0.9, 1.0)
 	anim["modulate"] = modulate
-	anim["scale"] = 1.05  # 80×110 art — readable without becoming a blob
+	anim["scale"] = 1.25  # 80×110 — punchy 2.5D silhouette on the field
 	anim["style"] = "kenney_25d"
 	return anim
 
@@ -244,7 +244,7 @@ func random_enemy_skin() -> Dictionary:
 		var frames := dawnlike_frames(DAWNLIKE_DEMON0, DAWNLIKE_DEMON1, 0, 0)
 		return {"frames": frames, "walk": frames, "idle": frames, "modulate": modulate, "scale": 3.2, "style": "dawnlike"}
 	anim["modulate"] = modulate
-	anim["scale"] = 0.85
+	anim["scale"] = 1.0
 	anim["style"] = "kenney_25d"
 	return anim
 

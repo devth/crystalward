@@ -101,13 +101,13 @@ first_wave_delay = 4.0
 
 [node name="Camera2D" type="Camera2D" parent="."]
 position = Vector2(0, 40)
-zoom = Vector2(0.72, 0.72)
+zoom = Vector2(0.82, 0.82)
 script = ExtResource("3")
 crystal_path = NodePath("../Crystal")
 follow_speed = 8.0
-look_ahead = 100.0
+look_ahead = 90.0
 world_bound = 1800.0
-base_zoom = 0.72
+base_zoom = 0.82
 
 [node name="HUD" type="CanvasLayer" parent="."]
 layer = 10

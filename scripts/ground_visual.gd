@@ -41,7 +41,8 @@ func _build() -> void:
 	_build_terrain_features()  # forests / mountains roads curve around
 	_build_landmarks()
 	_scatter_forest_props()
-	_build_botanicals()
+	# Botanical confetti disabled — kept readable
+	# _build_botanicals()
 	_build_atmosphere_light()
 
 
@@ -67,17 +68,12 @@ func _build_floor() -> void:
 
 
 func _build_plaza() -> void:
-	var diamond := Polygon2D.new()
-	diamond.polygon = PackedVector2Array([
-		Vector2(0, -520), Vector2(920, 50), Vector2(0, 620), Vector2(-920, 50)
-	])
-	diamond.color = Color(0.28, 0.42, 0.30, 0.55)
-	diamond.z_index = Z_PLAZA
-	add_child(diamond)
-
-	var ring := _ellipse(Vector2(0, 40), 180, 105, Color(0.95, 0.85, 0.45, 0.12), Z_PLAZA)
+	# Soft clearing around the Lightwell — not a hard diamond stamp
+	var clear := _ellipse(Vector2(0, 40), 280, 170, Color(0.32, 0.48, 0.34, 0.35), Z_PLAZA)
+	add_child(clear)
+	var ring := _ellipse(Vector2(0, 40), 160, 95, Color(0.55, 0.72, 0.5, 0.18), Z_PLAZA)
 	add_child(ring)
-	var ring2 := _ellipse(Vector2(0, 40), 120, 70, Color(0.55, 0.85, 0.7, 0.1), Z_PLAZA)
+	var ring2 := _ellipse(Vector2(0, 40), 100, 58, Color(0.75, 0.7, 0.45, 0.12), Z_PLAZA)
 	add_child(ring2)
 
 
@@ -200,18 +196,19 @@ func _build_botanicals() -> void:
 func _build_atmosphere_light() -> void:
 	if FX == null:
 		return
-	var motes := FX.spark_particles(self, Color(0.95, 0.85, 0.55, 0.45), 22, "star")
+	# Sparse motes near the well only
+	var motes := FX.spark_particles(self, Color(0.9, 0.85, 0.55, 0.35), 10, "star")
 	motes.position = Vector2(0, 40)
 	motes.z_index = Z_DECOR
-	motes.amount = 24
-	motes.lifetime = 4.0
+	motes.amount = 10
+	motes.lifetime = 3.5
 	var pm := motes.process_material as ParticleProcessMaterial
 	if pm:
 		pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
-		pm.emission_sphere_radius = 420.0
-		pm.initial_velocity_min = 2.0
-		pm.initial_velocity_max = 10.0
-		pm.gravity = Vector3(0, -3, 0)
+		pm.emission_sphere_radius = 160.0
+		pm.initial_velocity_min = 1.0
+		pm.initial_velocity_max = 6.0
+		pm.gravity = Vector3(0, -2, 0)
 
 
 func _ellipse(pos: Vector2, rx: float, ry: float, col: Color, z: int) -> Polygon2D:
@@ -242,29 +239,29 @@ func _scatter_forest_props() -> void:
 	elif tree_tex:
 		tree_sprites.append(tree_tex)
 
-	for i in 28:
-		var pos := _rand_map_pos(rng, 380, 1900)
-		if pos.length() < 360.0:
+	for i in 18:
+		var pos := _rand_map_pos(rng, 420, 1900)
+		if pos.length() < 400.0:
 			continue
-		if PathNetwork and PathNetwork.dist_to_path(pos) < 85.0:
+		if PathNetwork and PathNetwork.dist_to_path(pos) < 95.0:
 			continue
 		if tree_sprites.is_empty():
 			break
-		_place_sprite(tree_sprites[i % tree_sprites.size()], pos, rng.randf_range(1.8, 2.7), 0.94)
+		_place_sprite(tree_sprites[i % tree_sprites.size()], pos, rng.randf_range(2.0, 2.9), 0.95)
 
 	if bush_tex:
-		for i in 12:
-			var pos := _rand_map_pos(rng, 300, 1700)
-			if PathNetwork and PathNetwork.dist_to_path(pos) < 75.0:
+		for i in 8:
+			var pos := _rand_map_pos(rng, 340, 1700)
+			if PathNetwork and PathNetwork.dist_to_path(pos) < 85.0:
 				continue
-			_place_sprite(bush_tex, pos, rng.randf_range(1.8, 2.6), 0.9)
+			_place_sprite(bush_tex, pos, rng.randf_range(1.9, 2.6), 0.9)
 
 	if stone_tex:
-		for i in 8:
-			var pos := _rand_map_pos(rng, 320, 1600)
-			if PathNetwork and PathNetwork.dist_to_path(pos) < 70.0:
+		for i in 5:
+			var pos := _rand_map_pos(rng, 360, 1600)
+			if PathNetwork and PathNetwork.dist_to_path(pos) < 80.0:
 				continue
-			_place_sprite(stone_tex, pos, rng.randf_range(1.4, 2.0), 0.88)
+			_place_sprite(stone_tex, pos, rng.randf_range(1.5, 2.1), 0.88)
 
 
 func _rand_map_pos(rng: RandomNumberGenerator, min_r: float, max_r: float) -> Vector2:
@@ -303,59 +300,53 @@ func _place_sprite(tex: Texture2D, pos: Vector2, scale_mul: float, alpha: float 
 	return s
 
 
-## Continuous curved dirt ribbon along a dense polyline (not a rigid cross).
+## Smooth dirt road via layered Line2D (reads as one curve, not faceted strips).
 func _add_path_ribbon(pts: PackedVector2Array, half_width: float) -> void:
 	if pts.size() < 2:
 		return
-	# Smooth width taper near crystal
-	for i in range(pts.size() - 1):
-		var t := float(i) / float(maxi(1, pts.size() - 2))
-		var w := lerpf(half_width * 1.15, half_width * 0.75, t)
-		_add_path_strip(pts[i], pts[i + 1], w * 2.0)
+	var bed := Line2D.new()
+	bed.width = half_width * 2.35
+	bed.default_color = Color(0.16, 0.11, 0.07, 1.0)
+	bed.begin_cap_mode = Line2D.LINE_CAP_ROUND
+	bed.end_cap_mode = Line2D.LINE_CAP_ROUND
+	bed.joint_mode = Line2D.LINE_JOINT_ROUND
+	bed.antialiased = true
+	bed.points = pts
+	bed.z_index = Z_PATH_EDGE
+	add_child(bed)
 
-	# Continuous center line for curve readability
-	var vein := Line2D.new()
-	vein.width = 3.0
-	vein.default_color = Color(0.72, 0.58, 0.9, 0.4)
-	vein.begin_cap_mode = Line2D.LINE_CAP_ROUND
-	vein.end_cap_mode = Line2D.LINE_CAP_ROUND
-	vein.joint_mode = Line2D.LINE_JOINT_ROUND
-	vein.points = pts
-	vein.z_index = Z_PATH_DETAIL + 1
-	add_child(vein)
+	var dirt := Line2D.new()
+	dirt.width = half_width * 1.9
+	dirt.default_color = Color(0.52, 0.38, 0.24, 1.0)
+	dirt.begin_cap_mode = Line2D.LINE_CAP_ROUND
+	dirt.end_cap_mode = Line2D.LINE_CAP_ROUND
+	dirt.joint_mode = Line2D.LINE_JOINT_ROUND
+	dirt.antialiased = true
+	dirt.points = pts
+	dirt.z_index = Z_PATH
+	add_child(dirt)
 
+	var track := Line2D.new()
+	track.width = half_width * 0.85
+	track.default_color = Color(0.62, 0.48, 0.30, 1.0)
+	track.begin_cap_mode = Line2D.LINE_CAP_ROUND
+	track.end_cap_mode = Line2D.LINE_CAP_ROUND
+	track.joint_mode = Line2D.LINE_JOINT_ROUND
+	track.antialiased = true
+	track.points = pts
+	track.z_index = Z_PATH_DETAIL
+	add_child(track)
 
-func _add_path_strip(from: Vector2, to: Vector2, width: float) -> void:
-	var dir := to - from
-	var len := dir.length()
-	if len < 0.5:
-		return
-	var n := dir.normalized()
-	var perp := Vector2(-n.y, n.x) * (width * 0.5)
-
-	var outer := Polygon2D.new()
-	outer.polygon = PackedVector2Array([
-		from + perp * 1.15, from - perp * 1.15, to - perp * 1.15, to + perp * 1.15
-	])
-	outer.color = Color(0.22, 0.14, 0.08, 1.0)
-	outer.z_index = Z_PATH_EDGE
-	add_child(outer)
-
-	var mid := Polygon2D.new()
-	mid.polygon = PackedVector2Array([
-		from + perp * 0.95, from - perp * 0.95, to - perp * 0.95, to + perp * 0.95
-	])
-	mid.color = Color(0.5, 0.36, 0.22, 1.0)
-	mid.z_index = Z_PATH
-	add_child(mid)
-
-	var inner := Polygon2D.new()
-	inner.polygon = PackedVector2Array([
-		from + perp * 0.4, from - perp * 0.4, to - perp * 0.4, to + perp * 0.4
-	])
-	inner.color = Color(0.64, 0.48, 0.3, 1.0)
-	inner.z_index = Z_PATH_DETAIL
-	add_child(inner)
+	# Soft moss edge guide
+	var edge := Line2D.new()
+	edge.width = 3.0
+	edge.default_color = Color(0.28, 0.42, 0.26, 0.45)
+	edge.begin_cap_mode = Line2D.LINE_CAP_ROUND
+	edge.end_cap_mode = Line2D.LINE_CAP_ROUND
+	edge.joint_mode = Line2D.LINE_JOINT_ROUND
+	edge.points = pts
+	edge.z_index = Z_PATH_DETAIL + 1
+	add_child(edge)
 
 
 func _add_spawn_portal(pos: Vector2) -> void:
@@ -363,14 +354,15 @@ func _add_spawn_portal(pos: Vector2) -> void:
 	root.position = pos
 	root.z_index = Z_PORTAL
 	add_child(root)
-	var outer := _ellipse(Vector2.ZERO, 44, 28, Color(0.18, 0.08, 0.2, 0.85), 0)
+	# Dark gate — readable but not a neon disco
+	var outer := _ellipse(Vector2.ZERO, 40, 24, Color(0.12, 0.08, 0.14, 0.9), 0)
 	root.add_child(outer)
-	var ring := _ellipse(Vector2.ZERO, 34, 20, Color(0.75, 0.35, 0.55, 0.6), 1)
+	var ring := _ellipse(Vector2.ZERO, 30, 18, Color(0.55, 0.28, 0.42, 0.55), 1)
 	root.add_child(ring)
-	var core := _ellipse(Vector2.ZERO, 16, 10, Color(1.0, 0.7, 0.85, 0.7), 2)
+	var core := _ellipse(Vector2.ZERO, 12, 8, Color(0.75, 0.45, 0.55, 0.55), 2)
 	root.add_child(core)
 	if FX:
-		var p := FX.spark_particles(root, Color(0.95, 0.55, 0.85, 0.7), 10, "magic")
+		var p := FX.spark_particles(root, Color(0.8, 0.4, 0.55, 0.45), 6, "magic")
 		p.z_index = 3
 
 

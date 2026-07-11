@@ -93,7 +93,7 @@ func _build_visuals() -> void:
 	glow.z_index = -1
 	_visual.add_child(glow)
 
-	_particles = FX.spark_particles(_visual, Color(0.55, 1.0, 0.95, 0.85), 14, "glow")
+	_particles = FX.spark_particles(_visual, Color(0.5, 0.95, 0.9, 0.55), 6, "glow")
 	_particles.position = Vector2(0, -12)
 
 

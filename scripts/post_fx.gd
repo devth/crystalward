@@ -37,11 +37,11 @@ func _try_soft_bloom() -> bool:
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var mat := ShaderMaterial.new()
 	mat.shader = sh
-	# Keep bloom mild — heavy bloom washed out sprites and looked "clipped"
-	mat.set_shader_parameter("bloom_intensity", 0.18)
-	mat.set_shader_parameter("saturation", 1.06)
-	mat.set_shader_parameter("contrast", 1.02)
-	mat.set_shader_parameter("tint", Color(1.0, 0.99, 1.01, 1.0))
+	# Very light grade — characters and roads stay crisp
+	mat.set_shader_parameter("bloom_intensity", 0.1)
+	mat.set_shader_parameter("saturation", 1.04)
+	mat.set_shader_parameter("contrast", 1.03)
+	mat.set_shader_parameter("tint", Color(0.98, 1.0, 0.98, 1.0))
 	rect.material = mat
 	add_child(rect)
 	return true

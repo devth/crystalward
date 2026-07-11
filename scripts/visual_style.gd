@@ -67,15 +67,15 @@ func style_game_label(label: Label, size: int = 16, cream: bool = true) -> void:
 
 func style_hud_panel(panel: PanelContainer) -> void:
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.12, 0.1, 0.18, 0.88)
-	sb.set_corner_radius_all(14)
-	sb.border_color = Color(0.75, 0.65, 0.95, 0.55)
-	sb.set_border_width_all(2)
-	sb.shadow_color = Color(0, 0, 0, 0.35)
-	sb.shadow_size = 6
+	sb.bg_color = Color(0.06, 0.07, 0.09, 0.92)
+	sb.set_corner_radius_all(10)
+	sb.border_color = Color(0.55, 0.48, 0.35, 0.55)
+	sb.set_border_width_all(1)
+	sb.shadow_color = Color(0, 0, 0, 0.45)
+	sb.shadow_size = 8
 	sb.shadow_offset = Vector2(0, 3)
-	sb.content_margin_left = 10
-	sb.content_margin_right = 10
+	sb.content_margin_left = 14
+	sb.content_margin_right = 14
 	sb.content_margin_top = 8
 	sb.content_margin_bottom = 8
 	panel.add_theme_stylebox_override("panel", sb)
