@@ -1,6 +1,9 @@
 extends Node
 ## Shared game state — Kingdom Rush economy/lives/wave cadence + Crystalward co-op.
 
+# Preload so reward_kill works without relying on global class_name cache (new scripts).
+const _LootDrop = preload("res://scripts/loot_drop.gd")
+
 signal essence_changed(value: int)
 signal crystal_dust_changed(value: int)
 signal crystal_hp_changed(current: int, maximum: int)
@@ -133,7 +136,7 @@ func try_spawn_fairy(at: Vector2, owner_index: int = 0) -> Node2D:
 		return null
 	parent.add_child(fairy)
 	fairy.global_position = at + Vector2(randf_range(-20, 20), randf_range(-30, -10))
-	message.emit("Fairy helper! (%d/%d) — auto-gathers" % [fairy_count(), FAIRY_MAX])
+	message.emit("Fairy helper! (%d/%d) — loots & gathers" % [fairy_count(), FAIRY_MAX])
 	if Sfx:
 		Sfx.gather()
 	if Juice:
@@ -176,12 +179,22 @@ func reward_kill(elite: bool = false, world_pos: Vector2 = Vector2.ZERO) -> void
 	if is_game_over:
 		return
 	enemies_killed += 1
-	var bounty := ESSENCE_PER_ELITE if elite else ESSENCE_PER_KILL
-	add_essence(bounty)
-	if world_pos != Vector2.ZERO:
-		var tree := get_tree()
-		if tree and tree.current_scene:
-			FloatingText.spawn(tree.current_scene, world_pos + Vector2(0, -20), "+%d" % bounty, Color(1.0, 0.9, 0.35))
+	# Spawn ground loot (fairies / players collect) instead of auto-bank only
+	var tree := get_tree()
+	var parent: Node = tree.current_scene if tree else null
+	if parent == null or world_pos == Vector2.ZERO:
+		# Fallback: instant credit
+		var bounty := ESSENCE_PER_ELITE if elite else ESSENCE_PER_KILL
+		add_essence(bounty)
+		return
+	var ess_amt := ESSENCE_PER_ELITE if elite else ESSENCE_PER_KILL
+	# Elite drops extra shards
+	var drops := 2 if elite else 1
+	for i in drops:
+		var offset := Vector2(randf_range(-16, 16), randf_range(-12, 12))
+		_LootDrop.spawn_essence(parent, world_pos + offset, ess_amt if i == 0 else maxi(1, ess_amt / 2))
+	if elite or randf() < 0.22:
+		_LootDrop.spawn_dust(parent, world_pos + Vector2(randf_range(-10, 10), randf_range(-8, 8)), 1 if not elite else 2)
 
 
 func damage_crystal(amount: int) -> void:

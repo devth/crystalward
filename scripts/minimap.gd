@@ -41,6 +41,9 @@ func _draw() -> void:
 		for f in tree.get_nodes_in_group("helper_fairies"):
 			if f is Node2D:
 				draw_circle(_world_to_mini(f.global_position, center), 1.5, Color(0.85, 0.95, 1.0, 0.9))
+		for loot in tree.get_nodes_in_group("loot"):
+			if loot is Node2D:
+				draw_circle(_world_to_mini(loot.global_position, center), 1.2, Color(1.0, 0.9, 0.35, 0.85))
 
 
 func _process(_delta: float) -> void:

@@ -262,11 +262,8 @@ func take_damage(amount: int) -> void:
 
 
 func _die() -> void:
-	# Kingdom Rush–style kill bounty
+	# Loot drops on ground — fairies auto-loot, players walk over
 	GameState.reward_kill(_is_elite, global_position)
-	if randf() < dust_drop_chance * (2.0 if _is_elite else 1.0):
-		GameState.add_crystal_dust(1 if not _is_elite else 2)
-		FloatingText.spawn(get_parent(), global_position + Vector2(0, -28), "+dust", Color(0.85, 0.7, 1.0))
 	if _is_elite and Juice:
 		Juice.shake(8.0)
 		Juice.flash(Color(1.0, 0.6, 0.3, 0.3), 0.12)

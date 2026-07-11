@@ -49,7 +49,7 @@ Switch Pro / Joy-Cons: device 0 → P1, device 1 → P2 (A gather, B attack, X b
 - Shared **Essence** (💰). Kills pay bounty; gather wells along paths for more.
 - **Stone build pads** → **Q** build / upgrade (Lv1–3). Near pad **E** sells (60% refund) if not gathering.
 - **T / LB** = **Call Wave early** for bonus gold (prep phase only).
-- **F / Y** = summon **auto-gather fairy** (20 Essence, max 6) — they fly to wells and gather for you.
+- **F / Y** = summon **fairy** (20 Essence, max 6) — auto-**loot** kills + auto-**gather** wells. Walk over drops yourself too.
 - Nightspawn march **path lanes**; leaks cost **Lives** (♥). Stars 1–3 on victory.
 - Towers auto-fire (prefer enemies closest to crystal); floating dmg/+gold text.
 - Survive **8 waves**. **R** restart. Esc pause. Minimap top-right.
