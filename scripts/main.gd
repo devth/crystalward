@@ -38,15 +38,30 @@ func _apply_campaign_map() -> void:
 	PathNetwork.rebuild(str(m.get("lane_set", "full")))
 	GameState.waves_to_win = int(m.get("waves", 8))
 	GameState.essence = int(m.get("start_essence", GameState.STARTING_ESSENCE))
+	if m.has("lives"):
+		var lives: int = int(m.get("lives", GameState.CRYSTAL_MAX_HP))
+		GameState.crystal_max_hp = lives
+		GameState.crystal_hp = lives
+		GameState.crystal_hp_changed.emit(GameState.crystal_hp, GameState.crystal_max_hp)
 	GameState.current_wave = 0
 	GameState.wave_changed.emit(0, GameState.waves_to_win)
+	# Wave manager pacing from map (tutorial glade is intentionally chill)
+	if _wave_manager:
+		if m.has("first_wave_delay"):
+			_wave_manager.set("first_wave_delay", float(m.get("first_wave_delay")))
+			_wave_manager.set("_timer", float(m.get("first_wave_delay")))
+		if m.has("calm_between_waves"):
+			_wave_manager.set("calm_between_waves", float(m.get("calm_between_waves")))
 
 
 func _map_banner() -> void:
 	if Campaign == null:
 		return
 	var m: Dictionary = Campaign.get_map(Campaign.selected_map_id)
-	GameState.message.emit("%s — %s" % [m.get("name"), m.get("blurb")])
+	var extra := ""
+	if int(m.get("difficulty", 3)) <= 1:
+		extra = " · easy playtest pace"
+	GameState.message.emit("%s — %s%s" % [m.get("name"), m.get("blurb"), extra])
 
 
 func _on_game_over_music(won: bool) -> void:
