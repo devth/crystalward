@@ -17,13 +17,27 @@ var _spawn_points: Array[Marker2D] = []
 
 
 func _ready() -> void:
-	_spawn_points.clear()
-	for p in spawn_point_paths:
-		var n := get_node_or_null(p)
-		if n is Marker2D:
-			_spawn_points.append(n)
+	refresh_spawn_points()
 	_timer = first_wave_delay
 	_phase = Phase.WAIT_FIRST
+
+
+## Collect markers from export paths plus all Marker2D under ../Spawns (large map).
+func refresh_spawn_points() -> void:
+	_spawn_points.clear()
+	var seen: Dictionary = {}
+	for p in spawn_point_paths:
+		var n := get_node_or_null(p)
+		if n is Marker2D and not seen.has(n):
+			_spawn_points.append(n)
+			seen[n] = true
+	var spawns_root := get_node_or_null("../Spawns")
+	if spawns_root:
+		for c in spawns_root.get_children():
+			if c is Marker2D and not seen.has(c):
+				_spawn_points.append(c)
+				seen[c] = true
+	print("WaveManager spawn points: ", _spawn_points.size())
 
 
 func _process(delta: float) -> void:
@@ -40,7 +54,7 @@ func _process(delta: float) -> void:
 			if _spawn_cd <= 0.0 and _to_spawn > 0:
 				_spawn_one()
 				_to_spawn -= 1
-				_spawn_cd = 0.35
+				_spawn_cd = 0.32
 			if _to_spawn <= 0:
 				_phase = Phase.IN_WAVE
 		Phase.IN_WAVE:
@@ -69,13 +83,18 @@ func _begin_wave() -> void:
 		return
 	GameState.set_wave(_wave)
 	GameState.message.emit("Surge %d approaches!" % _wave)
-	_to_spawn = 4 + _wave * 3
+	# Slightly more enemies on the bigger map
+	_to_spawn = 6 + _wave * 4
 	_spawn_cd = 0.0
 	_phase = Phase.SPAWNING
 
 
 func _spawn_one() -> void:
-	if enemy_scene == null or _spawn_points.is_empty():
+	if enemy_scene == null:
+		return
+	if _spawn_points.is_empty():
+		refresh_spawn_points()
+	if _spawn_points.is_empty():
 		return
 	var marker: Marker2D = _spawn_points[randi() % _spawn_points.size()]
 	var e: Node2D = enemy_scene.instantiate() as Node2D
@@ -85,4 +104,4 @@ func _spawn_one() -> void:
 	e.set("max_hp", 30 + _wave * 8)
 	e.set("move_speed", 55.0 + _wave * 6.0)
 	get_parent().add_child(e)
-	e.global_position = marker.global_position + Vector2(randf_range(-24, 24), randf_range(-24, 24))
+	e.global_position = marker.global_position + Vector2(randf_range(-36, 36), randf_range(-36, 36))

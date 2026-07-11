@@ -1,23 +1,27 @@
 extends CharacterBody2D
 class_name Warden
-## Player warden — move, gather, queue build, attack. Full verb set.
+## Player warden — move, gather, queue build, attack. Dark Crystal–esque sprite body.
 
 @export var player_index: int = 0
 @export var move_speed: float = 220.0
 @export var attack_damage: int = 18
 @export var attack_cooldown: float = 0.28
 @export var attack_range: float = 48.0
-@export var body_color: Color = Color(0.55, 0.75, 0.95)
+@export var body_color: Color = Color(0.55, 0.75, 0.7)
 
 var _attack_cd: float = 0.0
 var _facing: Vector2 = Vector2.DOWN
 var _near_gather: Array[Node] = []
 var _near_build: Array[Node] = []
 var _visual_root: Node2D
-var _cloak: Polygon2D
-var _mask: Polygon2D
+var _body_sprite: Sprite2D
 var _attack_arc: Polygon2D
 var _bob_t: float = 0.0
+var _skin_frames: Array[Texture2D] = []
+var _skin_modulate: Color = Color.WHITE
+var _frame_flip_t: float = 0.0
+var _frame_idx: int = 0
+var _use_sprite: bool = false
 
 @onready var _label: Label = $Label
 
@@ -39,7 +43,7 @@ func _ready() -> void:
 	_label.add_theme_color_override("font_color", body_color.lightened(0.25))
 	_label.add_theme_color_override("font_outline_color", Color(0.05, 0.04, 0.1, 0.9))
 	_label.add_theme_constant_override("outline_size", 4)
-	_label.position = Vector2(-18, -48)
+	_label.position = Vector2(-18, -52)
 	_label.z_index = 10
 
 
@@ -49,39 +53,43 @@ func _build_visuals() -> void:
 	add_child(_visual_root)
 	FX.add_soft_shadow(_visual_root, 16, 7, 12)
 
-	# Cloak / body
-	_cloak = Polygon2D.new()
-	_cloak.polygon = PackedVector2Array([
-		Vector2(0, -20), Vector2(12, -12), Vector2(14, 4), Vector2(8, 16),
-		Vector2(0, 14), Vector2(-8, 16), Vector2(-14, 4), Vector2(-12, -12)
-	])
-	_cloak.color = body_color.darkened(0.15)
-	_visual_root.add_child(_cloak)
+	var skin: Dictionary = AssetPaths.warden_skin(player_index)
+	_skin_frames = skin.get("frames", []) as Array[Texture2D]
+	_skin_modulate = skin.get("modulate", body_color) as Color
+	body_color = _skin_modulate
+	var scale_mul: float = float(skin.get("scale", 3.6))
 
-	var trim := Polygon2D.new()
-	trim.polygon = PackedVector2Array([
-		Vector2(-8, -8), Vector2(8, -8), Vector2(6, 6), Vector2(-6, 6)
-	])
-	trim.color = body_color.lightened(0.1)
-	_visual_root.add_child(trim)
+	# Soft organic aura — living crystal flesh vibe
+	var aura := FX.make_ellipse_poly(22, 26, 24, Color(_skin_modulate.r, _skin_modulate.g, _skin_modulate.b, 0.16))
+	aura.z_index = -2
+	_visual_root.add_child(aura)
+	var aura2 := FX.make_ellipse_poly(14, 16, 18, Color(_skin_modulate.r * 0.7, _skin_modulate.g, _skin_modulate.b * 0.9, 0.12))
+	aura2.z_index = -1
+	_visual_root.add_child(aura2)
 
-	# Ritual mask
-	_mask = Polygon2D.new()
-	_mask.polygon = PackedVector2Array([
-		Vector2(0, -26), Vector2(9, -18), Vector2(7, -8), Vector2(0, -4),
-		Vector2(-7, -8), Vector2(-9, -18)
-	])
-	_mask.color = Color(0.85, 0.8, 0.95).lerp(body_color, 0.35)
-	_visual_root.add_child(_mask)
+	var mote := FX.spark_particles(_visual_root, Color(_skin_modulate.r, _skin_modulate.g, _skin_modulate.b, 0.55), 8, "glow")
+	mote.position = Vector2(0, -6)
+	mote.z_index = -1
+	var pm := mote.process_material as ParticleProcessMaterial
+	if pm:
+		pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+		pm.emission_sphere_radius = 14.0
+		pm.gravity = Vector3(0, -6, 0)
+		pm.initial_velocity_min = 2.0
+		pm.initial_velocity_max = 8.0
 
-	var eye_l := FX.make_ellipse_poly(2.2, 2.8, 10, Color(0.95, 0.9, 0.5, 0.95))
-	eye_l.position = Vector2(-3.5, -16)
-	_visual_root.add_child(eye_l)
-	var eye_r := FX.make_ellipse_poly(2.2, 2.8, 10, Color(0.95, 0.9, 0.5, 0.95))
-	eye_r.position = Vector2(3.5, -16)
-	_visual_root.add_child(eye_r)
+	if not _skin_frames.is_empty() and _skin_frames[0] != null:
+		_use_sprite = true
+		_body_sprite = AssetPaths.make_pixel_sprite(_skin_frames[0], scale_mul)
+		_body_sprite.modulate = _skin_modulate
+		_body_sprite.position = Vector2(0, -6)
+		_body_sprite.name = "BodySprite"
+		_visual_root.add_child(_body_sprite)
+	else:
+		_use_sprite = false
+		_build_polygon_fallback()
 
-	# Staff crystal
+	# Staff crystal (kept for Dark Crystal ritual staff vibe)
 	var staff := Line2D.new()
 	staff.width = 2.5
 	staff.default_color = Color(0.35, 0.3, 0.28)
@@ -91,7 +99,7 @@ func _build_visuals() -> void:
 	gem.polygon = PackedVector2Array([
 		Vector2(16, -26), Vector2(20, -18), Vector2(16, -14), Vector2(12, -18)
 	])
-	gem.color = Color(0.65, 0.9, 0.8, 0.95).lerp(body_color, 0.3)
+	gem.color = Color(0.65, 0.9, 0.8, 0.95).lerp(_skin_modulate, 0.35)
 	gem.name = "StaffGem"
 	_visual_root.add_child(gem)
 
@@ -99,14 +107,26 @@ func _build_visuals() -> void:
 	_attack_arc.polygon = PackedVector2Array([
 		Vector2(6, -14), Vector2(46, -6), Vector2(44, 8), Vector2(6, 12)
 	])
-	_attack_arc.color = Color(body_color.r, body_color.g, body_color.b, 0.55)
+	_attack_arc.color = Color(_skin_modulate.r, _skin_modulate.g, _skin_modulate.b, 0.55)
 	_attack_arc.visible = false
 	_visual_root.add_child(_attack_arc)
 
-	# Soft personal glow
-	var glow := FX.make_ellipse_poly(20, 24, 20, Color(body_color.r, body_color.g, body_color.b, 0.12))
-	glow.z_index = -1
-	_visual_root.add_child(glow)
+
+func _build_polygon_fallback() -> void:
+	var cloak := Polygon2D.new()
+	cloak.polygon = PackedVector2Array([
+		Vector2(0, -20), Vector2(12, -12), Vector2(14, 4), Vector2(8, 16),
+		Vector2(0, 14), Vector2(-8, 16), Vector2(-14, 4), Vector2(-12, -12)
+	])
+	cloak.color = body_color.darkened(0.15)
+	_visual_root.add_child(cloak)
+	var mask := Polygon2D.new()
+	mask.polygon = PackedVector2Array([
+		Vector2(0, -26), Vector2(9, -18), Vector2(7, -8), Vector2(0, -4),
+		Vector2(-7, -8), Vector2(-9, -18)
+	])
+	mask.color = Color(0.85, 0.8, 0.95).lerp(body_color, 0.35)
+	_visual_root.add_child(mask)
 
 
 func _exit_tree() -> void:
@@ -132,9 +152,22 @@ func _physics_process(delta: float) -> void:
 		velocity = dir.normalized() * move_speed
 		if _visual_root:
 			_visual_root.scale.x = -1.0 if _facing.x < -0.15 else 1.0
+		# Simple walk frame flip
+		if _use_sprite and _skin_frames.size() > 1 and _body_sprite:
+			_frame_flip_t += delta
+			if _frame_flip_t >= 0.18:
+				_frame_flip_t = 0.0
+				_frame_idx = (_frame_idx + 1) % _skin_frames.size()
+				_body_sprite.texture = _skin_frames[_frame_idx]
 	else:
 		velocity = Vector2.ZERO
+		if _use_sprite and not _skin_frames.is_empty() and _body_sprite:
+			_body_sprite.texture = _skin_frames[0]
+			_frame_idx = 0
+
 	move_and_slide()
+	# Soft world bounds — wardens stay on the ritual forest
+	global_position = GameState.clamp_world_position(global_position)
 	z_index = int(global_position.y)
 
 	if _action_pressed("gather"):

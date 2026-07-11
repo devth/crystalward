@@ -7,6 +7,10 @@ Tone: *The Dark Crystal* × *Legend* (1980s dark fantasy). Pacing: action RTS (h
 **Players:** 1–2 local in v0 (pad slots ready for more) · **any player can do any job**  
 **Stack:** Godot 4 · isometric-ish 2.5D presentation · shared bank
 
+### Map scale
+
+The ritual forest is **large**: floor ~±2200, soft player/camera bounds ~±1800, camera roam radius ~1400 from the crystal with light pull (0.08). Path arteries radiate far from the lightwell; essence wells and tower pads spawn in wide rings; nightspawn approach from distant markers (≈800–1400 out). Walk outward — the forest thickets and stone circles keep going.
+
 ## Play (macOS)
 
 1. Install [Godot 4.3+](https://godotengine.org/download) (or `brew install --cask godot`).
@@ -48,9 +52,11 @@ Switch Pro / Joy-Cons: device 0 → P1, device 1 → P2 (A gather, B attack, X b
 
 ## Third-party assets
 
-Free (mostly **CC0**) art is vendored under [`assets/third_party/`](assets/third_party/) — Kenney particles/UI/smoke, Seasons of Forest sample, DawnLike sprites (CC-BY 4.0), and more.
+Free (mostly **CC0**) art is vendored under [`assets/third_party/`](assets/third_party/) — Kenney particles/UI/smoke/top-down, Seasons of Forest, DawnLike (CC-BY 4.0), dark fantasy scenery/items, assorted organic creatures, haunted trees, limbo monsters, and one CC-BY grotesque creature.
 
 Full author / license / usage list: [`assets/third_party/ATTRIBUTION.md`](assets/third_party/ATTRIBUTION.md).
+
+Wardens and nightspawn use **pixel creature sheets** (DawnLike elemental/demon/undead/pest/etc.) with purple-moss modulate for a puppet-like Dark Crystal read.
 
 ## Agent notes
 

@@ -18,6 +18,9 @@ const STARTING_DUST := 0
 const CRYSTAL_MAX_HP := 100
 const WAVES_TO_WIN := 5
 
+## Soft playable bounds (half-extent). Players and camera clamp inside this rect.
+const WORLD_BOUND := 1800.0
+
 var essence: int = STARTING_ESSENCE:
 	set(v):
 		essence = maxi(0, v)
@@ -63,6 +66,10 @@ func register_warden(w: Node2D) -> void:
 
 func unregister_warden(w: Node2D) -> void:
 	wardens.erase(w)
+
+
+func clamp_world_position(pos: Vector2, bound: float = WORLD_BOUND) -> Vector2:
+	return Vector2(clampf(pos.x, -bound, bound), clampf(pos.y, -bound, bound))
 
 
 func try_spend_essence(amount: int) -> bool:

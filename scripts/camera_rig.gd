@@ -1,10 +1,11 @@
 extends Camera2D
-## Centroid follow of wardens; clamp bias toward crystal.
+## Centroid follow of wardens; soft bias toward crystal; large roam radius.
 
 @export var follow_speed: float = 4.0
 @export var crystal_path: NodePath
-@export var crystal_pull: float = 0.25
-@export var max_distance_from_crystal: float = 420.0
+@export var crystal_pull: float = 0.08
+@export var max_distance_from_crystal: float = 1400.0
+@export var world_bound: float = 1800.0
 
 var _crystal: Node2D
 
@@ -37,4 +38,9 @@ func _process(delta: float) -> void:
 			if to_c.length() > max_distance_from_crystal:
 				target = _crystal.global_position + to_c.normalized() * max_distance_from_crystal
 
+	# Soft world clamp so the camera stays on the ritual forest.
+	target = Vector2(
+		clampf(target.x, -world_bound, world_bound),
+		clampf(target.y, -world_bound, world_bound)
+	)
 	global_position = global_position.lerp(target, 1.0 - exp(-follow_speed * delta))

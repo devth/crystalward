@@ -1,6 +1,6 @@
 extends CharacterBody2D
 class_name Nightspawn
-## Nightspawn — walks toward crystal, damages it on contact.
+## Nightspawn — walks toward crystal, damages it on contact. Varied organic skins.
 
 @export var max_hp: int = 40
 @export var move_speed: float = 70.0
@@ -15,6 +15,10 @@ var _body_sprite: Sprite2D
 var _wings: Array[Polygon2D] = []
 var _anim_t: float = 0.0
 var _use_sprite: bool = false
+var _skin_frames: Array[Texture2D] = []
+var _skin_modulate: Color = Color(0.72, 0.42, 0.62)
+var _frame_idx: int = 0
+var _frame_t: float = 0.0
 
 @onready var _bar: ProgressBar = $HpBar
 
@@ -43,25 +47,24 @@ func _build_visuals() -> void:
 	add_child(_visual)
 	FX.add_soft_shadow(_visual, 14, 6, 10)
 
-	# Prefer DawnLike demon tile (16×16, nearest-neighbor upscale).
-	var demon: Texture2D = AssetPaths.dawnlike_cell(AssetPaths.DAWNLIKE_DEMON0, 0, 0)
-	if demon == null:
-		demon = AssetPaths.dawnlike_cell(AssetPaths.DAWNLIKE_UNDEAD0, 1, 0)
-	if demon:
+	var skin: Dictionary = AssetPaths.random_enemy_skin()
+	_skin_frames = skin.get("frames", []) as Array[Texture2D]
+	_skin_modulate = skin.get("modulate", Color(0.72, 0.42, 0.62)) as Color
+	var scale_mul: float = float(skin.get("scale", 3.4))
+
+	var aura := FX.make_ellipse_poly(16, 10, 16, Color(0.55, 0.1, 0.25, 0.22))
+	aura.z_index = -1
+	_visual.add_child(aura)
+
+	if not _skin_frames.is_empty() and _skin_frames[0] != null:
 		_use_sprite = true
-		var aura := FX.make_ellipse_poly(16, 10, 16, Color(0.55, 0.1, 0.25, 0.22))
-		aura.z_index = -1
-		_visual.add_child(aura)
-		_body_sprite = AssetPaths.make_pixel_sprite(demon, 3.2)
-		_body_sprite.modulate = Color(0.95, 0.75, 0.9)
+		_body_sprite = AssetPaths.make_pixel_sprite(_skin_frames[0], scale_mul)
+		_body_sprite.modulate = _skin_modulate
 		_body_sprite.position = Vector2(0, -4)
 		_visual.add_child(_body_sprite)
 		return
 
-	var aura2 := FX.make_ellipse_poly(18, 14, 18, Color(0.55, 0.1, 0.25, 0.2))
-	aura2.z_index = -1
-	_visual.add_child(aura2)
-
+	# Procedural grotesque fallback
 	_body_poly = Polygon2D.new()
 	_body_poly.polygon = PackedVector2Array([
 		Vector2(0, -16), Vector2(10, -6), Vector2(12, 6), Vector2(4, 14),
@@ -127,6 +130,12 @@ func _physics_process(delta: float) -> void:
 		if _use_sprite:
 			_visual.scale.x = -1.0 if to.x < 0.0 else 1.0
 			_visual.position.y = sin(_anim_t * 10.0) * 1.5
+			if _skin_frames.size() > 1 and _body_sprite:
+				_frame_t += delta
+				if _frame_t >= 0.2:
+					_frame_t = 0.0
+					_frame_idx = (_frame_idx + 1) % _skin_frames.size()
+					_body_sprite.texture = _skin_frames[_frame_idx]
 		else:
 			_visual.rotation = lerp_angle(_visual.rotation, to.angle() + PI * 0.5, 0.15)
 			_visual.position.y = sin(_anim_t * 10.0) * 1.5
@@ -143,7 +152,7 @@ func take_damage(amount: int) -> void:
 	if flash_target:
 		flash_target.modulate = Color(1.8, 1.5, 1.5)
 		var t := create_tween()
-		var rest := Color(0.95, 0.75, 0.9) if _body_sprite else Color.WHITE
+		var rest := _skin_modulate if _body_sprite else Color.WHITE
 		t.tween_property(flash_target, "modulate", rest, 0.12)
 	FX.burst_particles(get_parent(), global_position, Color(1.0, 0.45, 0.55, 0.85), 6, "spark", 0.28)
 	if hp <= 0:

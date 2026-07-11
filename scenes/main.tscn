@@ -38,12 +38,12 @@ y_sort_enabled = true
 [node name="Player1" parent="World" instance=ExtResource("7")]
 position = Vector2(-48, 80)
 player_index = 0
-body_color = Color(0.5, 0.78, 0.92, 1)
+body_color = Color(0.55, 0.75, 0.7, 1)
 
 [node name="Player2" parent="World" instance=ExtResource("7")]
 position = Vector2(48, 80)
 player_index = 1
-body_color = Color(0.92, 0.58, 0.72, 1)
+body_color = Color(0.75, 0.55, 0.85, 1)
 
 [node name="EssenceN" parent="World" instance=ExtResource("8")]
 position = Vector2(-180, -60)
@@ -101,10 +101,13 @@ first_wave_delay = 4.0
 
 [node name="Camera2D" type="Camera2D" parent="."]
 position = Vector2(0, 40)
-zoom = Vector2(0.95, 0.95)
+zoom = Vector2(0.72, 0.72)
 script = ExtResource("3")
 crystal_path = NodePath("../Crystal")
 follow_speed = 5.0
+crystal_pull = 0.08
+max_distance_from_crystal = 1400.0
+world_bound = 1800.0
 
 [node name="HUD" type="CanvasLayer" parent="."]
 layer = 10

@@ -1,8 +1,10 @@
 extends Node2D
 ## Atmospheric isometric ground: moss shader field, glowing paths, mist, forest sprites.
+## Large ritual forest — props and landmarks across the full playable map.
 
 
 const FOREST_MODULATE := Color(0.75, 0.7, 0.95)
+const FLOOR_EXTENT := 2200.0
 
 
 func _ready() -> void:
@@ -13,13 +15,14 @@ func _ready() -> void:
 
 
 func _build() -> void:
+	var e := FLOOR_EXTENT
 	var floor_poly := Polygon2D.new()
 	var floor_pts := PackedVector2Array([
-		Vector2(-1100, -800), Vector2(1100, -800), Vector2(1100, 800), Vector2(-1100, 800)
+		Vector2(-e, -e * 0.75), Vector2(e, -e * 0.75), Vector2(e, e * 0.75), Vector2(-e, e * 0.75)
 	])
 	floor_poly.polygon = floor_pts
 	floor_poly.uv = PackedVector2Array([
-		Vector2(0, 0), Vector2(4, 0), Vector2(4, 3), Vector2(0, 3)
+		Vector2(0, 0), Vector2(10, 0), Vector2(10, 7.5), Vector2(0, 7.5)
 	])
 	floor_poly.color = Color.WHITE
 	var fm := ShaderMaterial.new()
@@ -27,57 +30,108 @@ func _build() -> void:
 	floor_poly.material = fm
 	add_child(floor_poly)
 
+	# Larger ritual diamond around the lightwell
 	var diamond := Polygon2D.new()
 	diamond.polygon = PackedVector2Array([
-		Vector2(0, -300), Vector2(560, 40), Vector2(0, 380), Vector2(-560, 40)
+		Vector2(0, -520), Vector2(920, 50), Vector2(0, 620), Vector2(-920, 50)
 	])
 	diamond.color = Color(0.14, 0.2, 0.18, 0.92)
 	diamond.z_index = -40
 	add_child(diamond)
 
-	var ring := FX.make_ellipse_poly(120, 70, 40, Color(0.45, 0.3, 0.7, 0.12))
+	var ring := FX.make_ellipse_poly(160, 95, 48, Color(0.45, 0.3, 0.7, 0.12))
 	ring.position = Vector2(0, 40)
 	ring.z_index = -35
 	add_child(ring)
-	var ring2 := FX.make_ellipse_poly(80, 46, 36, Color(0.35, 0.55, 0.45, 0.1))
+	var ring2 := FX.make_ellipse_poly(110, 64, 40, Color(0.35, 0.55, 0.45, 0.1))
 	ring2.position = Vector2(0, 40)
 	ring2.z_index = -34
 	add_child(ring2)
+	var ring3 := FX.make_ellipse_poly(280, 170, 48, Color(0.3, 0.22, 0.4, 0.06))
+	ring3.position = Vector2(0, 40)
+	ring3.z_index = -36
+	add_child(ring3)
 
-	_add_path_strip(Vector2(0, -220), Vector2(0, 260), 56)
-	_add_path_strip(Vector2(-300, 20), Vector2(300, 20), 50)
-	_add_path_strip(Vector2(-180, -140), Vector2(200, 160), 36)
-	_add_path_strip(Vector2(180, -120), Vector2(-160, 180), 36)
+	# Long path arteries radiating from crystal (N/S/E/W + diagonals)
+	var arm := 1100.0
+	_add_path_strip(Vector2(0, -arm), Vector2(0, arm * 0.95), 72)
+	_add_path_strip(Vector2(-arm, 30), Vector2(arm, 30), 64)
+	_add_path_strip(Vector2(-arm * 0.72, -arm * 0.55), Vector2(arm * 0.72, arm * 0.55), 48)
+	_add_path_strip(Vector2(arm * 0.72, -arm * 0.5), Vector2(-arm * 0.72, arm * 0.55), 48)
+	# Secondary shorter veins
+	_add_path_strip(Vector2(-420, -380), Vector2(380, 420), 32)
+	_add_path_strip(Vector2(450, -300), Vector2(-400, 360), 32)
+	_add_path_strip(Vector2(-700, 200), Vector2(200, -700), 28)
+	_add_path_strip(Vector2(700, 180), Vector2(-180, -680), 28)
 
-	_add_standing_stone(Vector2(-260, -100), 1.0)
-	_add_standing_stone(Vector2(250, -80), 0.85)
-	_add_standing_stone(Vector2(-300, 160), 0.9)
-	_add_standing_stone(Vector2(280, 140), 1.1)
-	_add_standing_stone(Vector2(-100, -200), 0.7)
-	_add_standing_stone(Vector2(120, 220), 0.75)
+	# Standing stones near well + mid-range
+	var stones: Array = [
+		[Vector2(-260, -100), 1.0], [Vector2(250, -80), 0.85], [Vector2(-300, 160), 0.9],
+		[Vector2(280, 140), 1.1], [Vector2(-100, -200), 0.7], [Vector2(120, 220), 0.75],
+		[Vector2(-480, 40), 1.2], [Vector2(500, -20), 1.05], [Vector2(40, -420), 0.95],
+		[Vector2(-40, 460), 1.0], [Vector2(-620, -280), 0.8], [Vector2(640, 300), 0.9],
+	]
+	for s in stones:
+		_add_standing_stone(s[0], s[1])
 
-	_add_thicket(Vector2(-400, 40), -0.3)
-	_add_thicket(Vector2(400, 60), 0.4)
-	_add_thicket(Vector2(0, -340), 0.0)
-	_add_thicket(Vector2(-60, 340), 0.1)
+	# Near thickets
+	for t in [
+		Vector2(-400, 40), Vector2(400, 60), Vector2(0, -340), Vector2(-60, 340),
+		Vector2(-720, -100), Vector2(760, 80), Vector2(-200, 680), Vector2(220, -700),
+	]:
+		_add_thicket(t, randf_range(-0.4, 0.4))
+
+	# Distant landmark clusters (~600–1200 from origin)
+	_add_landmark_cluster(Vector2(-900, -200), "stones")
+	_add_landmark_cluster(Vector2(950, -150), "stones")
+	_add_landmark_cluster(Vector2(-850, 500), "thicket")
+	_add_landmark_cluster(Vector2(880, 480), "thicket")
+	_add_landmark_cluster(Vector2(0, -1000), "stones")
+	_add_landmark_cluster(Vector2(-100, 1050), "thicket")
+	_add_landmark_cluster(Vector2(-1100, 100), "mixed")
+	_add_landmark_cluster(Vector2(1150, 60), "mixed")
+	_add_landmark_cluster(Vector2(-650, -750), "mixed")
+	_add_landmark_cluster(Vector2(700, 800), "stones")
 
 	_scatter_forest_props()
+	_scatter_dark_scenery()
 
-	var motes := FX.spark_particles(self, Color(0.65, 0.45, 0.9, 0.7), 36, "star")
+	var motes := FX.spark_particles(self, Color(0.65, 0.45, 0.9, 0.7), 48, "star")
 	motes.position = Vector2(0, 40)
-	motes.amount = 40
-	motes.lifetime = 3.5
+	motes.amount = 56
+	motes.lifetime = 3.8
 	var pm := motes.process_material as ParticleProcessMaterial
 	if pm:
 		pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
-		pm.emission_sphere_radius = 280.0
+		pm.emission_sphere_radius = 520.0
 		pm.initial_velocity_min = 4.0
-		pm.initial_velocity_max = 14.0
+		pm.initial_velocity_max = 16.0
 		pm.gravity = Vector3(0, -3, 0)
 
-	_add_mist_bank(Vector2(-320, -60), Vector2(220, 140))
-	_add_mist_bank(Vector2(280, 80), Vector2(200, 120))
-	_add_mist_bank(Vector2(40, 240), Vector2(260, 100))
+	_add_mist_bank(Vector2(-520, -80), Vector2(320, 180))
+	_add_mist_bank(Vector2(480, 120), Vector2(300, 160))
+	_add_mist_bank(Vector2(40, 360), Vector2(360, 140))
+	_add_mist_bank(Vector2(-700, 400), Vector2(280, 150))
+	_add_mist_bank(Vector2(800, -350), Vector2(260, 140))
+	_add_mist_bank(Vector2(-200, -700), Vector2(300, 120))
+
+
+func _add_landmark_cluster(center: Vector2, kind: String) -> void:
+	match kind:
+		"stones":
+			for i in 5:
+				var o := Vector2(randf_range(-70, 70), randf_range(-50, 50))
+				_add_standing_stone(center + o, randf_range(0.7, 1.3))
+			_add_thicket(center + Vector2(40, 20), 0.2)
+		"thicket":
+			_add_thicket(center, randf_range(-0.3, 0.3))
+			_add_thicket(center + Vector2(60, -30), 0.4)
+			_add_thicket(center + Vector2(-50, 40), -0.25)
+			_add_standing_stone(center + Vector2(20, 10), 0.85)
+		_:
+			_add_standing_stone(center, 1.15)
+			_add_thicket(center + Vector2(-40, 30), 0.1)
+			_add_standing_stone(center + Vector2(55, -20), 0.75)
 
 
 func _scatter_forest_props() -> void:
@@ -85,65 +139,86 @@ func _scatter_forest_props() -> void:
 	var stone_tex: Texture2D = AssetPaths.load_texture(AssetPaths.FOREST_STONES)
 	var bush_tex: Texture2D = AssetPaths.load_texture(AssetPaths.FOREST_BUSHES)
 	var grass_tex: Texture2D = AssetPaths.load_texture(AssetPaths.FOREST_GRASS)
+	var haunted: Texture2D = AssetPaths.load_texture(AssetPaths.HAUNTED_TREES)
 
-	# Prefer DawnLike tree cells if forest sheet is missing.
 	if tree_tex == null:
 		tree_tex = AssetPaths.atlas_region(AssetPaths.DAWNLIKE_TREE0, Rect2(0, 0, 48, 64))
 
-	var edge_spots: Array[Vector2] = [
-		Vector2(-480, -220), Vector2(-520, -40), Vector2(-500, 160), Vector2(-460, 300),
-		Vector2(480, -200), Vector2(520, -20), Vector2(500, 180), Vector2(460, 320),
-		Vector2(-200, -380), Vector2(40, -400), Vector2(220, -360),
-		Vector2(-180, 380), Vector2(80, 400), Vector2(260, 360),
-		Vector2(-380, -280), Vector2(380, -260), Vector2(-360, 280), Vector2(360, 300),
-	]
-	var thicket_centers: Array[Vector2] = [
-		Vector2(-400, 40), Vector2(400, 60), Vector2(0, -340), Vector2(-60, 340),
-		Vector2(-280, -180), Vector2(300, 200),
-	]
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 4242
 
+	# Dense scatter across whole map; thinner near crystal
 	if tree_tex:
 		var tree_regions := _sheet_regions(tree_tex, 32, 64)
-		for i in edge_spots.size():
-			var pos: Vector2 = edge_spots[i]
+		for i in 140:
+			var pos := _rand_map_pos(rng, 110, 2000)
 			var reg: Rect2 = tree_regions[i % tree_regions.size()]
-			var tex := _region_or_full(tree_tex, reg)
-			var sc := randf_range(2.2, 3.6)
-			_place_sprite(tex, pos + Vector2(randf_range(-20, 20), randf_range(-12, 12)), sc, -1)
-		# Extra trees around thickets
-		for center in thicket_centers:
-			for j in 3:
-				var offset := Vector2(randf_range(-50, 50), randf_range(-30, 30))
-				var reg2: Rect2 = tree_regions[j % tree_regions.size()]
-				_place_sprite(_region_or_full(tree_tex, reg2), center + offset, randf_range(2.0, 3.2), -1)
+			var sc := rng.randf_range(2.0, 3.8)
+			# Sparse near crystal
+			if pos.length() < 220.0 and rng.randf() < 0.7:
+				continue
+			_place_sprite(_region_or_full(tree_tex, reg), pos, sc, -1)
+
+	if haunted:
+		var hregs := _sheet_regions(haunted, 48, 64)
+		for i in 28:
+			var pos := _rand_map_pos(rng, 280, 1900)
+			var reg: Rect2 = hregs[i % hregs.size()]
+			_place_sprite(_region_or_full(haunted, reg), pos, rng.randf_range(2.4, 3.8), -1, 0.9)
 
 	if bush_tex:
 		var bush_regs := _sheet_regions(bush_tex, 16, 16)
-		for center in thicket_centers:
-			for j in 4:
-				var offset := Vector2(randf_range(-40, 40), randf_range(-24, 24))
-				var reg: Rect2 = bush_regs[j % bush_regs.size()]
-				_place_sprite(_region_or_full(bush_tex, reg), center + offset, randf_range(2.5, 3.5), 0)
+		for i in 90:
+			var pos := _rand_map_pos(rng, 100, 1850)
+			var reg: Rect2 = bush_regs[i % bush_regs.size()]
+			_place_sprite(_region_or_full(bush_tex, reg), pos, rng.randf_range(2.4, 3.6), 0)
 
 	if stone_tex:
 		var stone_regs := _sheet_regions(stone_tex, 16, 16)
-		var stone_spots: Array[Vector2] = [
-			Vector2(-200, 80), Vector2(180, -60), Vector2(-80, 200), Vector2(90, -160),
-			Vector2(-320, -40), Vector2(310, 100), Vector2(40, 280), Vector2(-140, -240),
-		]
-		for i in stone_spots.size():
+		for i in 60:
+			var pos := _rand_map_pos(rng, 90, 1800)
 			var reg: Rect2 = stone_regs[i % stone_regs.size()]
-			_place_sprite(_region_or_full(stone_tex, reg), stone_spots[i], randf_range(2.5, 4.0), 0)
+			_place_sprite(_region_or_full(stone_tex, reg), pos, rng.randf_range(2.4, 4.0), 0)
 
 	if grass_tex:
 		var grass_regs := _sheet_regions(grass_tex, 16, 16)
-		for i in 28:
-			var pos := Vector2(randf_range(-420, 420), randf_range(-300, 320))
-			# Keep clear of lightwell center
-			if pos.length() < 90.0:
-				continue
+		for i in 100:
+			var pos := _rand_map_pos(rng, 80, 1700)
 			var reg: Rect2 = grass_regs[i % grass_regs.size()]
-			_place_sprite(_region_or_full(grass_tex, reg), pos, randf_range(1.8, 2.8), 0, 0.85)
+			_place_sprite(_region_or_full(grass_tex, reg), pos, rng.randf_range(1.8, 2.9), 0, 0.85)
+
+
+func _scatter_dark_scenery() -> void:
+	var scenery: Texture2D = AssetPaths.load_texture(AssetPaths.MISC_DARK_SCENERY)
+	var items: Texture2D = AssetPaths.load_texture(AssetPaths.DARK_FANTASY_ITEMS)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7771
+
+	if scenery:
+		# misc_scenery is a small packed sheet (~163×162) — treat as whole stamps + slices
+		var regs := _sheet_regions(scenery, 32, 32)
+		for i in 40:
+			var pos := _rand_map_pos(rng, 150, 1950)
+			var reg: Rect2 = regs[i % regs.size()]
+			_place_sprite(_region_or_full(scenery, reg), pos, rng.randf_range(2.0, 3.2), 0, 0.92)
+
+	if items:
+		# Item sheet used as ritual debris / idol crumbs along mid-far ring
+		var iregs := _sheet_regions(items, 24, 24)
+		for i in 24:
+			var ang := rng.randf() * TAU
+			var dist := rng.randf_range(400.0, 1100.0)
+			var pos := Vector2(cos(ang), sin(ang) * 0.75) * dist
+			var reg: Rect2 = iregs[i % iregs.size()]
+			_place_sprite(_region_or_full(items, reg), pos, rng.randf_range(1.6, 2.6), 0, 0.8)
+
+
+func _rand_map_pos(rng: RandomNumberGenerator, min_r: float, max_r: float) -> Vector2:
+	var ang := rng.randf() * TAU
+	# Bias density slightly outward but still fill mid-map
+	var t := rng.randf()
+	var r := lerpf(min_r, max_r, t * t * 0.35 + t * 0.65)
+	return Vector2(cos(ang), sin(ang) * 0.78) * r + Vector2(rng.randf_range(-30, 30), rng.randf_range(-20, 20))
 
 
 func _sheet_regions(tex: Texture2D, cell_w: int, cell_h: int) -> Array[Rect2]:

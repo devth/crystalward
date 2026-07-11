@@ -43,6 +43,17 @@ func _build_visuals() -> void:
 	well_rim.z_index = -1
 	add_child(well_rim)
 
+	# Optional DawnLike / dark fantasy object under procedural glow (pixel crystal flesh)
+	var obj_tex: Texture2D = AssetPaths.atlas_region(AssetPaths.DAWNLIKE_TREE0, Rect2(0, 0, 16, 32))
+	if obj_tex == null:
+		obj_tex = AssetPaths.atlas_region(AssetPaths.DARK_FANTASY_ITEMS, Rect2(0, 0, 24, 24))
+	if obj_tex:
+		var base_spr := AssetPaths.make_pixel_sprite(obj_tex, 3.0)
+		base_spr.position = Vector2(0, 6)
+		base_spr.modulate = Color(0.55, 0.4, 0.75, 0.55)
+		base_spr.z_index = -1
+		add_child(base_spr)
+
 	# Outer aura (shader-ish via soft polys)
 	var aura := FX.make_ellipse_poly(70, 90, 40, Color(0.5, 0.3, 0.8, 0.14))
 	aura.position = Vector2(0, -20)
