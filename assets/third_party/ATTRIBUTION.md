@@ -224,17 +224,17 @@ Nested demo Godot project / duplicates stripped; textures only + license.
 
 ## Music (original / CC0)
 
-Original procedural ambient beds synthesized for Crystalward — dark, ethereal soft-fantasy with **mid-80s synth-score** color (detuned Juno-style pads, soft arpeggios, FM bells, slapback delay, filter sweeps). Not derived from third-party audio files.
+Original **dark fantasy synthwave** beds synthesized for Crystalward — supersaw pads, sequenced bass with beat pump, plucky arps, haunting leads, crystal FM bells, slapback delay. Phrygian/dorian/mixolydian modes; no third-party audio.
 
 | File | Role | Author | License | Notes |
 |---|---|---|---|---|
-| `music/title.ogg` | Title screen (~52s loop) | Crystalward project | Original work | Phrygian sacred pad + haunting motif + crystal FM bells |
-| `music/map_select.ogg` | Campaign map select (~44s) | Crystalward project | Original work | Dorian exploration, gentle arp + string machine |
-| `music/battle.ogg` | In-battle bed (~60s) | Crystalward project | Original work | Lower phrygian tension, soft gated swell, no rock drums |
-| `music/victory.ogg` | Victory bed (~40s) | Crystalward project | Original work | Soft mixolydian lift, still ethereal 80s glow |
+| `music/title.ogg` | Title screen (~48s, ~86 BPM) | Crystalward project | Original work | Slow phrygian pad + bass + motif |
+| `music/map_select.ogg` | Campaign map select (~40s, ~92 BPM) | Crystalward project | Original work | Dorian exploration arp + lead |
+| `music/battle.ogg` | In-battle bed (~56s, ~98 BPM) | Crystalward project | Original work | Driving phrygian bass/arps, no rock drums |
+| `music/victory.ogg` | Victory bed (~36s, ~100 BPM) | Crystalward project | Original work | Soft mixolydian lift, still dark |
 
 **Vendor path:** `music/`  
-**How used:** Autoload `Music` (`scripts/music.gd`) loads these Ogg Vorbis loops when present; otherwise falls back to a layered procedural ethereal/80s bed (same aesthetic).
+**How used:** Autoload `Music` (`scripts/music.gd`) loads these Ogg Vorbis loops when present; otherwise falls back to a procedural dark-synthwave bed.
 
 ---
 
