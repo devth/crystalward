@@ -17,11 +17,13 @@ var _elites_left: int = 0
 var _can_call_early: bool = false
 var _wave_kind: String = "thrall"
 var _spawn_spacing: float = 0.9
+var _prep_total: float = 8.0  ## full prep duration for UI bar (1.0 → 0.0)
 
 
 func _ready() -> void:
 	add_to_group("wave_manager")
 	_timer = first_wave_delay
+	_prep_total = maxf(0.1, first_wave_delay)
 	_phase = Phase.WAIT_FIRST
 	_can_call_early = true
 	GameState.message.emit("Build your defenses — Call next surge early for bonus Essence!")
@@ -39,8 +41,7 @@ func can_call_early() -> bool:
 func call_early_wave() -> bool:
 	if not can_call_early():
 		return false
-	var bonus := GameState.EARLY_WAVE_BONUS + int(_timer)
-	bonus = mini(bonus, 25)
+	var bonus := preview_early_bonus()
 	GameState.add_essence(bonus)
 	GameState.message.emit("Early surge! +%d Essence" % bonus)
 	if Juice:
@@ -52,10 +53,29 @@ func call_early_wave() -> bool:
 	return true
 
 
+func preview_early_bonus() -> int:
+	## KR-style: more time left = more gold
+	if not can_call_early():
+		return 0
+	var bonus := GameState.EARLY_WAVE_BONUS + int(_timer)
+	return mini(bonus, 25)
+
+
 func get_prep_seconds() -> float:
 	if _phase == Phase.WAIT_FIRST or _phase == Phase.CALM:
 		return maxf(0.0, _timer)
 	return 0.0
+
+
+func get_prep_total() -> float:
+	return maxf(0.1, _prep_total)
+
+
+func get_prep_ratio() -> float:
+	## 1.0 at start of prep → 0.0 when wave fires
+	if _phase != Phase.WAIT_FIRST and _phase != Phase.CALM:
+		return 0.0
+	return clampf(_timer / get_prep_total(), 0.0, 1.0)
 
 
 func get_phase_name() -> String:
@@ -70,6 +90,29 @@ func get_phase_name() -> String:
 
 func get_wave_kind() -> String:
 	return _wave_kind
+
+
+func get_next_wave_number() -> int:
+	## Wave that will start when prep ends (or current if already fighting).
+	if _phase == Phase.WAIT_FIRST or _phase == Phase.CALM:
+		return _wave + 1
+	return _wave
+
+
+func get_next_kind_id() -> String:
+	if EnemyKinds == null:
+		return _wave_kind
+	if _phase == Phase.WAIT_FIRST or _phase == Phase.CALM:
+		return EnemyKinds.kind_for_wave(_wave + 1)
+	return _wave_kind
+
+
+func is_prep() -> bool:
+	return _phase == Phase.WAIT_FIRST or _phase == Phase.CALM
+
+
+func is_done() -> bool:
+	return _phase == Phase.DONE
 
 
 func _process(delta: float) -> void:
@@ -109,6 +152,7 @@ func _process(delta: float) -> void:
 				else:
 					_phase = Phase.CALM
 					_timer = calm_between_waves
+					_prep_total = maxf(0.1, calm_between_waves)
 					_can_call_early = true
 					GameState.message.emit("Wave clear! Fortify — next in %ds (or Call Early)" % int(calm_between_waves))
 					GameState.wave_phase_changed.emit("prep", _timer)

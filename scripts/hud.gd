@@ -195,38 +195,229 @@ func _refresh_tower_loadout() -> void:
 
 
 func _ensure_call_wave_ui() -> void:
-	if has_node("Root/CallWaveBtn"):
+	## Kingdom Rush–style next-wave panel: timer bar, monster type, call-early bonus.
+	if has_node("Root/WavePrep"):
 		return
+	# Remove legacy button if present
+	if has_node("Root/CallWaveBtn"):
+		$Root/CallWaveBtn.queue_free()
+
+	var panel := PanelContainer.new()
+	panel.name = "WavePrep"
+	panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	panel.offset_left = 16.0
+	panel.offset_top = 72.0
+	panel.offset_right = 340.0
+	panel.offset_bottom = 210.0
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.08, 0.06, 0.14, 0.88)
+	style.border_color = Color(0.75, 0.55, 0.95, 0.55)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(10)
+	style.content_margin_left = 12
+	style.content_margin_right = 12
+	style.content_margin_top = 10
+	style.content_margin_bottom = 10
+	panel.add_theme_stylebox_override("panel", style)
+	$Root.add_child(panel)
+
+	var v := VBoxContainer.new()
+	v.name = "VBox"
+	v.add_theme_constant_override("separation", 6)
+	panel.add_child(v)
+
+	var title := Label.new()
+	title.name = "Title"
+	title.text = "NEXT SURGE"
+	title.add_theme_font_size_override("font_size", 12)
+	title.add_theme_color_override("font_color", Color(0.85, 0.8, 0.95, 0.85))
+	v.add_child(title)
+
+	var kind_row := HBoxContainer.new()
+	kind_row.name = "KindRow"
+	kind_row.add_theme_constant_override("separation", 8)
+	v.add_child(kind_row)
+
+	var swatch := ColorRect.new()
+	swatch.name = "Swatch"
+	swatch.custom_minimum_size = Vector2(14, 36)
+	swatch.color = Color(0.7, 0.4, 0.9)
+	kind_row.add_child(swatch)
+
+	var kind_col := VBoxContainer.new()
+	kind_col.name = "KindCol"
+	kind_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	kind_col.add_theme_constant_override("separation", 0)
+	kind_row.add_child(kind_col)
+
+	var kind_name := Label.new()
+	kind_name.name = "KindName"
+	kind_name.text = "—"
+	kind_name.add_theme_font_size_override("font_size", 16)
+	kind_name.add_theme_color_override("font_color", Color(1.0, 0.95, 0.85))
+	kind_name.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	kind_name.add_theme_constant_override("outline_size", 3)
+	kind_col.add_child(kind_name)
+
+	var kind_hint := Label.new()
+	kind_hint.name = "KindHint"
+	kind_hint.text = ""
+	kind_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	kind_hint.add_theme_font_size_override("font_size", 11)
+	kind_hint.add_theme_color_override("font_color", Color(0.75, 0.9, 0.7, 0.9))
+	kind_col.add_child(kind_hint)
+
+	var timer_lab := Label.new()
+	timer_lab.name = "TimerLabel"
+	timer_lab.text = "Next in —"
+	timer_lab.add_theme_font_size_override("font_size", 13)
+	timer_lab.add_theme_color_override("font_color", Color(0.95, 0.85, 0.55))
+	v.add_child(timer_lab)
+
+	var bar := ProgressBar.new()
+	bar.name = "TimerBar"
+	bar.custom_minimum_size = Vector2(0, 14)
+	bar.max_value = 1.0
+	bar.value = 1.0
+	bar.show_percentage = false
+	# Fill style
+	var fill := StyleBoxFlat.new()
+	fill.bg_color = Color(0.85, 0.55, 0.25, 0.95)
+	fill.set_corner_radius_all(4)
+	var bg := StyleBoxFlat.new()
+	bg.bg_color = Color(0.12, 0.1, 0.18, 0.95)
+	bg.set_corner_radius_all(4)
+	bar.add_theme_stylebox_override("fill", fill)
+	bar.add_theme_stylebox_override("background", bg)
+	v.add_child(bar)
+
 	var btn := Button.new()
-	btn.name = "CallWaveBtn"
-	btn.text = "⚔ CALL WAVE  (T)"
-	btn.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	btn.offset_left = -120.0
-	btn.offset_top = -72.0
-	btn.offset_right = 120.0
-	btn.offset_bottom = -36.0
-	btn.add_theme_font_size_override("font_size", 16)
+	btn.name = "CallBtn"
+	btn.text = "⚔ CALL EARLY  +✦  (T)"
+	btn.custom_minimum_size = Vector2(0, 34)
+	btn.add_theme_font_size_override("font_size", 14)
 	btn.pressed.connect(_on_call_wave_pressed)
-	$Root.add_child(btn)
+	v.add_child(btn)
+
+	_refresh_wave_prep()
 
 
 func _on_call_wave_pressed() -> void:
 	var wm := get_tree().get_first_node_in_group("wave_manager")
 	if wm and wm.has_method("call_early_wave"):
 		wm.call("call_early_wave")
+	_refresh_wave_prep()
 
 
-func _on_wave_phase(phase: String, seconds_left: float) -> void:
-	if not has_node("Root/CallWaveBtn"):
+func _on_wave_phase(_phase: String, _seconds_left: float) -> void:
+	_refresh_wave_prep()
+
+
+func _refresh_wave_prep() -> void:
+	var panel := get_node_or_null("Root/WavePrep") as PanelContainer
+	if panel == null:
 		return
-	var btn: Button = $Root/CallWaveBtn
-	if phase == "prep":
-		btn.visible = true
-		btn.text = "⚔ CALL WAVE +gold  (%.0fs)" % seconds_left
-		btn.disabled = false
-	else:
-		btn.text = "⚔ WAVE INCOMING"
-		btn.disabled = true
+	if GameState and GameState.is_game_over:
+		panel.visible = false
+		return
+
+	var wm := get_tree().get_first_node_in_group("wave_manager")
+	if wm == null:
+		panel.visible = false
+		return
+
+	var prep := false
+	if wm.has_method("is_prep"):
+		prep = bool(wm.call("is_prep"))
+	elif wm.has_method("get_phase_name"):
+		prep = str(wm.call("get_phase_name")) == "prep"
+
+	var done := false
+	if wm.has_method("is_done"):
+		done = bool(wm.call("is_done"))
+
+	if done:
+		panel.visible = false
+		return
+
+	panel.visible = true
+	var title: Label = panel.get_node_or_null("VBox/Title")
+	var kind_name: Label = panel.get_node_or_null("VBox/KindRow/KindCol/KindName")
+	var kind_hint: Label = panel.get_node_or_null("VBox/KindRow/KindCol/KindHint")
+	var swatch: ColorRect = panel.get_node_or_null("VBox/KindRow/Swatch")
+	var timer_lab: Label = panel.get_node_or_null("VBox/TimerLabel")
+	var bar: ProgressBar = panel.get_node_or_null("VBox/TimerBar")
+	var btn: Button = panel.get_node_or_null("VBox/CallBtn")
+
+	var next_n := 1
+	if wm.has_method("get_next_wave_number"):
+		next_n = int(wm.call("get_next_wave_number"))
+	var kind_id := "thrall"
+	if wm.has_method("get_next_kind_id"):
+		kind_id = str(wm.call("get_next_kind_id"))
+	elif wm.has_method("get_wave_kind"):
+		kind_id = str(wm.call("get_wave_kind"))
+
+	var d: Dictionary = {}
+	if EnemyKinds:
+		d = EnemyKinds.def_for(kind_id)
+	var col: Color = d.get("color", Color(0.75, 0.5, 0.9)) as Color
+	var nname: String = str(d.get("name", kind_id))
+	var short: String = str(d.get("short", ""))
+	var hint: String = ""
+	if EnemyKinds and EnemyKinds.has_method("matchup_hint"):
+		hint = str(EnemyKinds.matchup_hint(kind_id))
+
+	if title:
+		if prep:
+			title.text = "NEXT SURGE  ·  WAVE %d" % next_n
+		else:
+			title.text = "SURGE ACTIVE  ·  WAVE %d" % next_n
+	if kind_name:
+		kind_name.text = nname if short == "" else "%s  [%s]" % [nname, short]
+		kind_name.add_theme_color_override("font_color", col.lightened(0.25))
+	if kind_hint:
+		kind_hint.text = hint if prep else str(d.get("blurb", ""))
+	if swatch:
+		swatch.color = col
+
+	var secs := 0.0
+	var ratio := 0.0
+	if wm.has_method("get_prep_seconds"):
+		secs = float(wm.call("get_prep_seconds"))
+	if wm.has_method("get_prep_ratio"):
+		ratio = float(wm.call("get_prep_ratio"))
+
+	if timer_lab:
+		if prep:
+			timer_lab.text = "Arrives in  %.0f s" % ceilf(secs)
+			timer_lab.add_theme_color_override("font_color", Color(0.95, 0.85, 0.55))
+		else:
+			timer_lab.text = "Enemies on the path"
+			timer_lab.add_theme_color_override("font_color", Color(0.95, 0.45, 0.4))
+	if bar:
+		bar.visible = prep
+		if prep:
+			bar.value = ratio
+			var fill := bar.get_theme_stylebox("fill")
+			if fill is StyleBoxFlat:
+				var f2 := (fill as StyleBoxFlat).duplicate() as StyleBoxFlat
+				# Shift amber → red as time runs out
+				f2.bg_color = Color(0.85, 0.55, 0.25).lerp(Color(0.95, 0.3, 0.35), 1.0 - ratio)
+				bar.add_theme_stylebox_override("fill", f2)
+
+	if btn:
+		if prep:
+			var bonus := 0
+			if wm.has_method("preview_early_bonus"):
+				bonus = int(wm.call("preview_early_bonus"))
+			btn.visible = true
+			btn.disabled = false
+			btn.text = "⚔ CALL EARLY  +%d✦  (T)" % bonus
+		else:
+			btn.visible = true
+			btn.disabled = true
+			btn.text = "⚔ FIGHTING…"
 
 
 func _on_essence(v: int) -> void:
@@ -270,6 +461,9 @@ func _process(_delta: float) -> void:
 	if dust_label and GameState and not _paused:
 		_on_dust(GameState.crystal_dust)
 	_update_burst_hud()
+	# Smooth timer bar during prep
+	if has_node("Root/WavePrep") and not _paused:
+		_refresh_wave_prep()
 
 
 func _ensure_burst_hud() -> void:

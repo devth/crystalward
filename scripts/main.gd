@@ -67,8 +67,10 @@ func _apply_campaign_map() -> void:
 	# Wave manager pacing from map (tutorial glade is intentionally chill)
 	if _wave_manager:
 		if m.has("first_wave_delay"):
-			_wave_manager.set("first_wave_delay", float(m.get("first_wave_delay")))
-			_wave_manager.set("_timer", float(m.get("first_wave_delay")))
+			var fwd := float(m.get("first_wave_delay"))
+			_wave_manager.set("first_wave_delay", fwd)
+			_wave_manager.set("_timer", fwd)
+			_wave_manager.set("_prep_total", maxf(0.1, fwd))
 		if m.has("calm_between_waves"):
 			_wave_manager.set("calm_between_waves", float(m.get("calm_between_waves")))
 
