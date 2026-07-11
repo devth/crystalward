@@ -3,16 +3,19 @@ extends Node2D
 ## All ground art stays under actors (Ground node z=-200 absolute). Props use local z only.
 
 # Spec: Dark Crystal + Legend — cool canopy under violet night, not dull lime
-const FOREST_MODULATE := Color(0.55, 0.72, 0.68)
-const FLOOR_EXTENT := 2200.0
+const FOREST_MODULATE := Color(0.52, 0.84, 0.62)
+const FLOOR_EXTENT := 2800.0
 
 const Z_FLOOR := 0
-const Z_PLAZA := 1
+const Z_WATER := 2
+const Z_HILL := 4
+const Z_PLAZA := 6
 const Z_PATH_EDGE := 10
 const Z_PATH := 12
 const Z_PATH_DETAIL := 14
 const Z_PORTAL := 20
 const Z_DECOR := 30
+const Z_MOUNTAIN := 40
 ## Nothing solid on the road (path half-width ~58 + margin).
 const PATH_CLEAR := 110.0
 
@@ -40,13 +43,14 @@ func _on_paths_rebuilt() -> void:
 
 func _build() -> void:
 	_build_floor()
+	_build_elevation_base()  # soft hill/valley washes under props
 	_build_plaza()
-	_build_paths()  # must be after floor, higher z
+	_build_paths()
 	_build_mist_fields()
-	_build_terrain_features()  # forests / fairy rings / crystal groves
+	_build_terrain_features()  # mountains, hills, lakes, forests
 	_build_landmarks()
 	_scatter_forest_props()
-	_build_botanicals()  # Legend soft-dark blooms (restrained)
+	_build_botanicals()
 	_build_atmosphere_light()
 
 
@@ -54,11 +58,11 @@ func _build_floor() -> void:
 	var e := FLOOR_EXTENT
 	var floor_poly := Polygon2D.new()
 	floor_poly.polygon = PackedVector2Array([
-		Vector2(-e, -e * 0.75), Vector2(e, -e * 0.75), Vector2(e, e * 0.75), Vector2(-e, e * 0.75)
+		Vector2(-e, -e * 0.85), Vector2(e, -e * 0.85), Vector2(e, e * 0.95), Vector2(-e, e * 0.95)
 	])
-	# Tighter UV tiling so dirt/grass/rock patches read at play zoom
+	# Dense UV so elevation/biome noise reads lush at play zoom
 	floor_poly.uv = PackedVector2Array([
-		Vector2(0, 0), Vector2(22, 0), Vector2(22, 16), Vector2(0, 16)
+		Vector2(0, 0), Vector2(36, 0), Vector2(36, 30), Vector2(0, 30)
 	])
 	floor_poly.color = Color.WHITE
 	floor_poly.z_index = Z_FLOOR
@@ -68,8 +72,66 @@ func _build_floor() -> void:
 		fm.shader = lush
 		floor_poly.material = fm
 	else:
-		floor_poly.color = Color(0.22, 0.38, 0.26)
+		floor_poly.color = Color(0.16, 0.42, 0.22)
 	add_child(floor_poly)
+
+
+func _build_elevation_base() -> void:
+	## Contour washes + stacked rings so hills/valleys read at a glance.
+	if PathNetwork == null:
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 4242
+	# Dense grid of soft elevation blobs across the whole basin
+	for ix in range(-11, 12):
+		for iy in range(-9, 12):
+			var pos := Vector2(
+				float(ix) * 180.0 + rng.randf_range(-50, 50),
+				float(iy) * 165.0 + rng.randf_range(-40, 40)
+			)
+			if pos.length() < 160.0:
+				continue
+			if PathNetwork.dist_to_path(pos) < PATH_CLEAR * 0.75:
+				continue
+			var elev := PathNetwork.elevation_at(pos)
+			if absf(elev) < 0.08:
+				continue
+			if elev > 0.0:
+				var r := 55.0 + elev * 110.0
+				var a := 0.14 + elev * 0.18
+				var hill := _ellipse(pos, r, r * 0.58, Color(0.1, 0.34, 0.16, a), Z_HILL)
+				add_child(hill)
+				var mid := _ellipse(pos + Vector2(0, -r * 0.1), r * 0.62, r * 0.36, Color(0.16, 0.42, 0.2, a * 0.9), Z_HILL + 1)
+				add_child(mid)
+				var crest := _ellipse(pos + Vector2(0, -r * 0.2), r * 0.32, r * 0.18, Color(0.28, 0.52, 0.26, 0.12 + elev * 0.14), Z_HILL + 2)
+				add_child(crest)
+				# Shadow on "north" slope for depth
+				var shade := _ellipse(pos + Vector2(0, r * 0.22), r * 0.7, r * 0.22, Color(0.04, 0.08, 0.06, 0.1 + elev * 0.08), Z_HILL)
+				add_child(shade)
+			else:
+				var r2 := 50.0 + absf(elev) * 100.0
+				var a2 := 0.16 + absf(elev) * 0.18
+				var hollow := _ellipse(pos, r2, r2 * 0.58, Color(0.06, 0.12, 0.16, a2), Z_HILL)
+				add_child(hollow)
+				var wet := _ellipse(pos, r2 * 0.65, r2 * 0.38, Color(0.08, 0.18, 0.22, a2 * 0.7), Z_HILL + 1)
+				add_child(wet)
+	# Explicit contour rings around major landmarks
+	for f in PathNetwork.features:
+		var kind: String = str(f.get("kind", ""))
+		if kind not in ["mountain", "hill", "lake"]:
+			continue
+		var c: Vector2 = f.get("pos", Vector2.ZERO)
+		var rad: float = float(f.get("radius", 100.0))
+		var elev_f: float = float(f.get("elev", 0.0))
+		for ring_i in 3:
+			var t := 0.45 + float(ring_i) * 0.28
+			var rr := rad * t
+			if elev_f > 0.0:
+				var ring := _ellipse(c, rr * 1.15, rr * 0.62, Color(0.12, 0.36, 0.18, 0.08 + elev_f * 0.06), Z_HILL)
+				add_child(ring)
+			else:
+				var bowl := _ellipse(c, rr * 1.1, rr * 0.6, Color(0.06, 0.12, 0.18, 0.1 + absf(elev_f) * 0.08), Z_HILL)
+				add_child(bowl)
 
 
 func _build_plaza() -> void:
@@ -97,16 +159,22 @@ func _build_plaza() -> void:
 
 
 func _build_mist_fields() -> void:
-	# Soft ethereal mist banks (behind props, local z under Ground)
+	# Soft ethereal mist banks across valleys and lake bowls
 	var banks := [
-		[Vector2(-420, -200), Vector2(320, 140)],
-		[Vector2(480, 180), Vector2(280, 120)],
-		[Vector2(-200, 520), Vector2(360, 160)],
-		[Vector2(300, -480), Vector2(260, 130)],
-		[Vector2(-600, 100), Vector2(240, 100)],
+		[Vector2(-420, -200), Vector2(340, 150)],
+		[Vector2(480, 180), Vector2(300, 130)],
+		[Vector2(-200, 520), Vector2(380, 170)],
+		[Vector2(300, -480), Vector2(280, 140)],
+		[Vector2(-600, 100), Vector2(260, 110)],
+		[Vector2(100, 1100), Vector2(320, 150)],
+		[Vector2(-400, 900), Vector2(280, 130)],
+		[Vector2(360, 640), Vector2(300, 140)],
+		[Vector2(-500, 480), Vector2(260, 120)],
+		[Vector2(0, 1600), Vector2(360, 160)],
+		[Vector2(200, 200), Vector2(240, 110)],
 	]
 	for b in banks:
-		var mist := _ellipse(b[0], b[1].x * 0.5, b[1].y * 0.5, Color(0.38, 0.28, 0.55, 0.14), Z_PLAZA + 2)
+		var mist := _ellipse(b[0], b[1].x * 0.5, b[1].y * 0.5, Color(0.36, 0.26, 0.52, 0.16), Z_PLAZA + 2)
 		add_child(mist)
 
 
@@ -147,12 +215,150 @@ func _build_terrain_features() -> void:
 		if PathNetwork.dist_to_path(pos) < PATH_CLEAR:
 			continue
 		match kind:
-			"fairy_ring", "mountain":  # mountain legacy → fairy rings
+			"mountain":
+				_add_mountain(pos, radius, rng)
+			"hill":
+				_add_hill(pos, radius, rng, round_tree, pine_tree)
+			"lake":
+				_add_lake(pos, radius, rng)
+			"fairy_ring":
 				_add_fairy_ring(pos, radius, rng)
 			"crystal_grove", "crystals":
 				_add_crystal_grove(pos, radius, rng)
 			_:
 				_add_forest_cluster(pos, radius, round_tree, pine_tree, rng)
+
+
+func _add_mountain(center: Vector2, radius: float, rng: RandomNumberGenerator) -> void:
+	## Layered rock peaks with moss shoulders — path winds around these.
+	var base := _ellipse(center + Vector2(0, 22), radius * 1.15, radius * 0.52, Color(0.09, 0.08, 0.13, 0.9), Z_MOUNTAIN - 5)
+	add_child(base)
+	# Moss skirts (two layers for lush foothills)
+	var skirt := _ellipse(center + Vector2(0, 12), radius * 1.05, radius * 0.46, Color(0.12, 0.3, 0.16, 0.62), Z_MOUNTAIN - 4)
+	add_child(skirt)
+	var foothill := _ellipse(center + Vector2(0, 28), radius * 1.25, radius * 0.38, Color(0.1, 0.26, 0.14, 0.4), Z_MOUNTAIN - 6)
+	add_child(foothill)
+	var peaks := 6 + int(radius / 40.0)
+	for i in peaks:
+		var ang := -0.55 + float(i) * 0.32 + rng.randf() * 0.1
+		var o := Vector2(cos(ang), sin(ang) * 0.42) * radius * rng.randf_range(0.02, 0.5)
+		var h := rng.randf_range(radius * 0.65, radius * 1.15)
+		var w := rng.randf_range(radius * 0.16, radius * 0.34)
+		var peak := Polygon2D.new()
+		peak.polygon = PackedVector2Array([
+			Vector2(-w, 16), Vector2(-w * 0.5, -h * 0.48), Vector2(0, -h),
+			Vector2(w * 0.42, -h * 0.46), Vector2(w, 16)
+		])
+		peak.color = Color(0.24, 0.22, 0.3).darkened(rng.randf() * 0.12)
+		peak.position = center + o
+		peak.z_index = Z_MOUNTAIN + clampi(int((center.y + o.y) / 60.0), -5, 15)
+		add_child(peak)
+		# Moss shoulder on lower slope of peak
+		var moss_s := Polygon2D.new()
+		moss_s.polygon = PackedVector2Array([
+			Vector2(-w * 0.7, 10), Vector2(-w * 0.25, -h * 0.25), Vector2(w * 0.2, -h * 0.22), Vector2(w * 0.65, 10)
+		])
+		moss_s.color = Color(0.18, 0.36, 0.2, 0.55)
+		moss_s.position = peak.position
+		moss_s.z_index = peak.z_index + 1
+		add_child(moss_s)
+		# Snow / crystal cap
+		var cap := Polygon2D.new()
+		cap.polygon = PackedVector2Array([
+			Vector2(0, -h), Vector2(-w * 0.3, -h * 0.7), Vector2(w * 0.24, -h * 0.68)
+		])
+		cap.color = Color(0.78, 0.88, 0.96, 0.8) if i % 2 == 0 else Color(0.92, 0.78, 0.48, 0.7)
+		cap.position = peak.position
+		cap.z_index = peak.z_index + 2
+		add_child(cap)
+	# Standing stones + small pines on slope
+	for j in 6:
+		var a2 := rng.randf() * TAU
+		var sp := center + Vector2(cos(a2), sin(a2) * 0.65) * radius * rng.randf_range(0.55, 0.95)
+		if PathNetwork and PathNetwork.dist_to_path(sp) < PATH_CLEAR:
+			continue
+		_add_standing_stone(sp, rng.randf_range(0.7, 1.2))
+
+
+func _add_hill(
+	center: Vector2,
+	radius: float,
+	rng: RandomNumberGenerator,
+	round_tree: Texture2D,
+	pine_tree: Texture2D
+) -> void:
+	## Soft elevated moss mound with dense crown of trees.
+	var r := maxf(60.0, radius)
+	var base := _ellipse(center + Vector2(0, 10), r * 1.2, r * 0.62, Color(0.08, 0.24, 0.12, 0.55), Z_HILL)
+	add_child(base)
+	var mid := _ellipse(center, r * 0.92, r * 0.52, Color(0.12, 0.36, 0.16, 0.52), Z_HILL + 1)
+	add_child(mid)
+	var upper := _ellipse(center + Vector2(0, -r * 0.08), r * 0.68, r * 0.36, Color(0.18, 0.42, 0.2, 0.48), Z_HILL + 2)
+	add_child(upper)
+	var crown := _ellipse(center + Vector2(0, -r * 0.16), r * 0.42, r * 0.24, Color(0.26, 0.5, 0.26, 0.42), Z_HILL + 3)
+	add_child(crown)
+	# North-side shade for elevation read
+	var shade := _ellipse(center + Vector2(0, r * 0.28), r * 0.85, r * 0.2, Color(0.04, 0.08, 0.05, 0.22), Z_HILL)
+	add_child(shade)
+	# Trees denser on hilltop
+	var count := int(clampf(r / 16.0, 8.0, 20.0))
+	for i in count:
+		var ang := rng.randf() * TAU
+		var rr := r * sqrt(rng.randf()) * 0.75
+		var p := center + Vector2(cos(ang), sin(ang) * 0.7) * rr + Vector2(0, -r * 0.1)
+		if PathNetwork and PathNetwork.dist_to_path(p) < PATH_CLEAR:
+			continue
+		var tex: Texture2D = pine_tree if (pine_tree and rng.randf() < 0.55) else round_tree
+		if tex:
+			_place_sprite(tex, p, rng.randf_range(2.1, 3.1), 0.97)
+	# Undergrowth
+	_add_thicket(center + Vector2(rng.randf_range(-20, 20), rng.randf_range(-8, 12)), rng.randf_range(-0.2, 0.2))
+
+
+func _add_lake(center: Vector2, radius: float, rng: RandomNumberGenerator) -> void:
+	## Still water with shore moss and reed flecks — road skirts the shore.
+	var r := maxf(70.0, radius)
+	# Wide marshy shore for lush wet-land feel
+	var marsh := _ellipse(center, r * 1.28, r * 0.82, Color(0.12, 0.26, 0.14, 0.45), Z_WATER)
+	add_child(marsh)
+	var shore := _ellipse(center, r * 1.14, r * 0.74, Color(0.14, 0.22, 0.14, 0.7), Z_WATER + 1)
+	add_child(shore)
+	var wet := _ellipse(center, r * 1.04, r * 0.66, Color(0.09, 0.16, 0.14, 0.55), Z_WATER + 2)
+	add_child(wet)
+	# Water body
+	var water := _ellipse(center, r * 0.94, r * 0.6, Color(0.1, 0.3, 0.42, 0.82), Z_WATER + 3)
+	add_child(water)
+	var deep := _ellipse(center + Vector2(10, 5), r * 0.58, r * 0.36, Color(0.06, 0.16, 0.32, 0.7), Z_WATER + 4)
+	add_child(deep)
+	var shallows := _ellipse(center + Vector2(-r * 0.15, -r * 0.08), r * 0.35, r * 0.2, Color(0.2, 0.45, 0.48, 0.35), Z_WATER + 4)
+	add_child(shallows)
+	# Specular glints
+	for i in 8:
+		var g := _ellipse(
+			center + Vector2(rng.randf_range(-r * 0.45, r * 0.45), rng.randf_range(-r * 0.28, r * 0.28)),
+			rng.randf_range(8, 20), rng.randf_range(3, 8),
+			Color(0.55, 0.88, 0.98, 0.22), Z_WATER + 5
+		)
+		add_child(g)
+	# Ethereal mist over water
+	var mist := _ellipse(center + Vector2(0, -8), r * 0.78, r * 0.45, Color(0.48, 0.38, 0.72, 0.16), Z_WATER + 6)
+	add_child(mist)
+	# Shore crystals / reeds / grass
+	for i in 10:
+		var ang := TAU * float(i) / 10.0 + rng.randf() * 0.18
+		var p := center + Vector2(cos(ang), sin(ang) * 0.65) * r * rng.randf_range(0.9, 1.15)
+		if PathNetwork and PathNetwork.dist_to_path(p) < PATH_CLEAR * 0.7:
+			continue
+		if rng.randf() < 0.35:
+			_add_ethereal_crystal(p, rng.randf_range(0.45, 0.8), Color(0.5, 0.85, 0.95, 0.7), rng)
+		else:
+			var reed := Line2D.new()
+			reed.width = 2.2
+			reed.default_color = Color(0.22, 0.48, 0.28, 0.9)
+			reed.points = PackedVector2Array([Vector2(0, 4), Vector2(rng.randf_range(-4, 4), -16 - rng.randf() * 14)])
+			reed.position = p
+			reed.z_index = Z_DECOR
+			add_child(reed)
 
 
 func _add_fairy_ring(center: Vector2, radius: float, rng: RandomNumberGenerator) -> void:
@@ -247,10 +453,10 @@ func _add_forest_cluster(
 	pine_tree: Texture2D,
 	rng: RandomNumberGenerator
 ) -> void:
-	var count := int(clampf(radius / 18.0, 6.0, 16.0))
+	var count := int(clampf(radius / 12.0, 10.0, 28.0))
 	for i in count:
 		var ang := rng.randf() * TAU
-		var r := radius * sqrt(rng.randf()) * 0.9
+		var r := radius * sqrt(rng.randf()) * 0.95
 		var pos := center + Vector2(cos(ang), sin(ang) * 0.78) * r
 		# Stay off the roads
 		if PathNetwork and PathNetwork.dist_to_path(pos) < PATH_CLEAR:
@@ -258,9 +464,13 @@ func _add_forest_cluster(
 		var tex: Texture2D = pine_tree if (pine_tree and rng.randf() < 0.45) else round_tree
 		if tex == null:
 			continue
-		_place_sprite(tex, pos, rng.randf_range(1.9, 2.9), 0.96)
-	# Undergrowth thicket at center
-	_add_thicket(center + Vector2(rng.randf_range(-20, 20), rng.randf_range(-10, 10)), rng.randf_range(-0.2, 0.2))
+		_place_sprite(tex, pos, rng.randf_range(2.0, 3.2), 0.97)
+	# Undergrowth thickets
+	for t in 3:
+		var o := Vector2(rng.randf_range(-radius * 0.4, radius * 0.4), rng.randf_range(-radius * 0.3, radius * 0.3))
+		if PathNetwork and PathNetwork.dist_to_path(center + o) < PATH_CLEAR:
+			continue
+		_add_thicket(center + o, rng.randf_range(-0.25, 0.25))
 
 
 func _build_landmarks() -> void:
@@ -327,7 +537,7 @@ func _ellipse(pos: Vector2, rx: float, ry: float, col: Color, z: int) -> Polygon
 
 
 func _scatter_forest_props() -> void:
-	## Sparse filler only — main mass is feature clusters. No DawnLike (black tiles).
+	## Dense canopy filler across the basin — main mass still from feature clusters.
 	var tree_tex: Texture2D = AssetPaths.load_texture(AssetPaths.FOREST_TREES) if AssetPaths else null
 	var bush_tex: Texture2D = AssetPaths.load_texture(AssetPaths.FOREST_BUSHES) if AssetPaths else null
 	var stone_tex: Texture2D = AssetPaths.load_texture(AssetPaths.FOREST_STONES) if AssetPaths else null
@@ -342,46 +552,68 @@ func _scatter_forest_props() -> void:
 	elif tree_tex:
 		tree_sprites.append(tree_tex)
 
-	for i in 28:
-		var pos := _rand_map_pos(rng, 380, 1900)
-		if pos.length() < 360.0:
+	for i in 110:
+		var pos := _rand_map_pos(rng, 280, 2300)
+		if pos.length() < 260.0:
 			continue
 		if PathNetwork and PathNetwork.dist_to_path(pos) < PATH_CLEAR:
 			continue
 		if tree_sprites.is_empty():
 			break
-		_place_sprite(tree_sprites[i % tree_sprites.size()], pos, rng.randf_range(2.1, 3.1), 0.96)
+		# Prefer denser growth on high ground; keep some in mid elevations
+		var elev := PathNetwork.elevation_at(pos) if PathNetwork else 0.0
+		if elev < -0.2 and rng.randf() < 0.65:
+			continue  # sparse canopy over lake bowls
+		if elev < 0.05 and rng.randf() < 0.25:
+			continue
+		var sc := rng.randf_range(2.1, 3.4) * (1.0 + clampf(elev, 0.0, 0.7) * 0.25)
+		_place_sprite(tree_sprites[i % tree_sprites.size()], pos, sc, 0.97)
 
 	if bush_tex:
-		for i in 16:
-			var pos := _rand_map_pos(rng, 300, 1700)
+		for i in 55:
+			var pos := _rand_map_pos(rng, 220, 2100)
 			if PathNetwork and PathNetwork.dist_to_path(pos) < PATH_CLEAR:
 				continue
-			_place_sprite(bush_tex, pos, rng.randf_range(1.8, 2.7), 0.92)
+			_place_sprite(bush_tex, pos, rng.randf_range(1.8, 3.0), 0.94)
 
 	if stone_tex:
-		for i in 14:
-			var pos := _rand_map_pos(rng, 320, 1650)
+		for i in 32:
+			var pos := _rand_map_pos(rng, 240, 2000)
 			if PathNetwork and PathNetwork.dist_to_path(pos) < PATH_CLEAR:
 				continue
-			_place_sprite(stone_tex, pos, rng.randf_range(1.4, 2.3), 0.9)
+			_place_sprite(stone_tex, pos, rng.randf_range(1.4, 2.5), 0.9)
 
-	# Small rock clusters near path verge (read as dirt/rock variety)
-	for i in 12:
-		var pos := _rand_map_pos(rng, 200, 1200)
+	# Rock clusters on high ground / path verges
+	for i in 36:
+		var pos := _rand_map_pos(rng, 180, 1900)
 		if PathNetwork == null:
 			break
 		var d := PathNetwork.dist_to_path(pos)
-		if d < PATH_CLEAR or d > 200.0:
+		if d < PATH_CLEAR or d > 260.0:
 			continue
-		_add_standing_stone(pos, rng.randf_range(0.45, 0.85))
+		var elev2 := PathNetwork.elevation_at(pos)
+		if elev2 < 0.1 and rng.randf() < 0.4:
+			continue
+		_add_standing_stone(pos, rng.randf_range(0.55, 1.25))
+
+	# Extra thickets for undergrowth density
+	for i in 24:
+		var pos := _rand_map_pos(rng, 300, 1800)
+		if PathNetwork and PathNetwork.dist_to_path(pos) < PATH_CLEAR + 20.0:
+			continue
+		_add_thicket(pos, rng.randf_range(-0.3, 0.3))
 
 
 func _rand_map_pos(rng: RandomNumberGenerator, min_r: float, max_r: float) -> Vector2:
 	var ang := rng.randf() * TAU
 	var t := rng.randf()
-	var r := lerpf(min_r, max_r, t * t * 0.35 + t * 0.65)
-	return Vector2(cos(ang), sin(ang) * 0.78) * r + Vector2(rng.randf_range(-24, 24), rng.randf_range(-16, 16))
+	# Bias slightly south so the long approach road is flanked by forest
+	var r := lerpf(min_r, max_r, t * t * 0.3 + t * 0.7)
+	var pos := Vector2(cos(ang), sin(ang) * 0.85) * r
+	# Stretch south for long path maps
+	if pos.y > 0.0:
+		pos.y *= 1.15
+	return pos + Vector2(rng.randf_range(-28, 28), rng.randf_range(-18, 18))
 
 
 func _atlas(tex: Texture2D, region: Rect2) -> Texture2D:

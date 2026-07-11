@@ -104,17 +104,17 @@ func _expand_map_content() -> void:
 	# Tower sites first (along path arc), then essence in gaps between them.
 	if _site_scene and PathNetwork:
 		var single_lane := PathNetwork.lane_count() <= 1
-		var site_spacing := 260.0 if single_lane else 300.0
-		var pad_offset := 78.0  # off road enough to not block walking the dirt
+		var site_spacing := 300.0 if single_lane else 340.0
+		var pad_offset := 80.0  # off road enough to not block walking the dirt
 		var lane_i := 0
 		for lane in PathNetwork.lanes:
 			var pts: PackedVector2Array = lane
 			if pts.size() < 3:
 				continue
 			var length := PathNetwork.lane_length(pts)
-			var d := 180.0  # skip spawn mouth
+			var d := 280.0  # skip spawn mouth on long winding paths
 			var side_flip := 1.0 if lane_i % 2 == 0 else -1.0
-			while d < length - 160.0:
+			while d < length - 240.0:
 				var sample: Dictionary = PathNetwork.sample_lane(pts, d)
 				var center: Vector2 = sample.get("pos", Vector2.ZERO)
 				var normal: Vector2 = sample.get("normal", Vector2.RIGHT)

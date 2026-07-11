@@ -17,29 +17,52 @@ func paint(parent: Node2D) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 1985  # year of Legend
 
-	# Lightwell meadow — ethereal blooms in the amber/cyan glow
-	_meadow_ring(parent, Vector2(0, 40), 100.0, 260.0, 28, rng)
+	# Lightwell meadow — dense ethereal blooms in the amber/cyan glow
+	_meadow_ring(parent, Vector2(0, 40), 90.0, 300.0, 42, rng)
+	_meadow_ring(parent, Vector2(0, 40), 300.0, 480.0, 24, rng)
 	if PathNetwork:
 		for lane in PathNetwork.lanes:
 			var pts: PackedVector2Array = lane
-			for i in range(0, pts.size() - 1, 2):
+			# Dense Catmull samples — walk by arc length, not every micro-segment
+			var walked := 0.0
+			var next_mark := 55.0
+			for i in range(pts.size() - 1):
+				var seg_len := pts[i].distance_to(pts[i + 1])
+				walked += seg_len
+				if walked < next_mark:
+					continue
+				next_mark += 55.0
 				_path_edge_flowers(parent, pts[i], pts[i + 1], rng)
-	# A few fairy rings — soft dark magic, not everywhere
+		# Extra verdure near lakes and hills
+		for f in PathNetwork.features:
+			var kind: String = str(f.get("kind", ""))
+			var c: Vector2 = f.get("pos", Vector2.ZERO)
+			var rad: float = float(f.get("radius", 100.0))
+			if kind == "lake":
+				_meadow_ring(parent, c, rad * 0.85, rad * 1.35, 16, rng)
+			elif kind in ["hill", "forest"]:
+				_botanical_cluster(parent, c + Vector2(rng.randf_range(-40, 40), rng.randf_range(-30, 30)), rng)
+	# Fairy rings — soft dark magic across the basin
 	var rings: Array[Vector2] = [
 		Vector2(-280, 200), Vector2(300, -80), Vector2(-100, 480),
+		Vector2(180, 900), Vector2(-360, 700), Vector2(420, 400),
+		Vector2(-200, 1300), Vector2(100, 1600),
 	]
 	for c in rings:
 		if PathNetwork and PathNetwork.dist_to_path(c) < 120.0:
 			continue
-		_fairy_ring(parent, c, rng.randf_range(32.0, 48.0), rng)
-	for i in 6:
+		_fairy_ring(parent, c, rng.randf_range(34.0, 52.0), rng)
+	for i in 32:
 		var ang := rng.randf() * TAU
-		var r := rng.randf_range(350.0, 900.0)
-		var pos := Vector2(cos(ang), sin(ang) * 0.82) * r
-		if PathNetwork and PathNetwork.dist_to_path(pos) < 120.0:
+		var r := rng.randf_range(220.0, 1900.0)
+		var pos := Vector2(cos(ang), sin(ang) * 0.88) * r
+		if pos.y > 0.0:
+			pos.y *= 1.1
+		if PathNetwork and PathNetwork.dist_to_path(pos) < 115.0:
 			continue
 		_botanical_cluster(parent, pos, rng)
 	_scatter_glow_blossoms(parent, rng)
+	_scatter_grass_meadows(parent, rng)
 	_pollen_clouds(parent)
 	# Skip RGB plant sheet (reads as solid rectangles)
 
@@ -65,25 +88,28 @@ func _meadow_ring(parent: Node2D, center: Vector2, r0: float, r1: float, count: 
 func _path_edge_flowers(parent: Node2D, a: Vector2, b: Vector2, rng: RandomNumberGenerator) -> void:
 	var dir := b - a
 	var len := dir.length()
-	if len < 40.0:
+	if len < 30.0:
 		return
 	var n := Vector2(-dir.y, dir.x).normalized()
-	var steps := int(len / 110.0)
+	var steps := maxi(1, int(len / 70.0))
 	for s in steps:
 		var t := (float(s) + 0.5) / float(maxi(1, steps))
 		var base: Vector2 = a.lerp(b, t)
 		for side_f in [-1.0, 1.0]:
-			if rng.randf() < 0.55:
+			if rng.randf() < 0.28:
 				continue
 			var side: float = float(side_f)
 			# Outside road bed (~58 half-width) so the dirt stays clear
-			var pos: Vector2 = base + n * side * rng.randf_range(78.0, 115.0)
-			if PathNetwork and PathNetwork.dist_to_path(pos) < 70.0:
+			var pos: Vector2 = base + n * side * rng.randf_range(76.0, 125.0)
+			if PathNetwork and PathNetwork.dist_to_path(pos) < 68.0:
 				continue
-			if rng.randf() < 0.45:
-				_flower(parent, pos, _rand_bloom(rng), rng.randf_range(0.65, 1.1))
-			else:
-				_grass_tuft(parent, pos, rng)
+			match rng.randi() % 5:
+				0, 1:
+					_flower(parent, pos, _rand_bloom(rng), rng.randf_range(0.65, 1.15))
+				2:
+					_fern(parent, pos, rng.randf_range(0.7, 1.2), rng.randf_range(-0.3, 0.3))
+				_:
+					_grass_tuft(parent, pos, rng)
 
 
 func _fairy_ring(parent: Node2D, center: Vector2, radius: float, rng: RandomNumberGenerator) -> void:
@@ -107,29 +133,55 @@ func _fairy_ring(parent: Node2D, center: Vector2, radius: float, rng: RandomNumb
 
 func _botanical_cluster(parent: Node2D, center: Vector2, rng: RandomNumberGenerator) -> void:
 	# Dense Legend undergrowth pocket
-	for i in 8:
-		var o := Vector2(rng.randf_range(-50, 50), rng.randf_range(-40, 40))
+	for i in 12:
+		var o := Vector2(rng.randf_range(-58, 58), rng.randf_range(-48, 48))
 		var pos := center + o
-		match rng.randi() % 6:
+		if PathNetwork and PathNetwork.dist_to_path(pos) < 95.0:
+			continue
+		match rng.randi() % 7:
 			0, 1:
-				_fern(parent, pos, rng.randf_range(0.9, 1.6), rng.randf_range(-0.5, 0.5))
+				_fern(parent, pos, rng.randf_range(0.9, 1.7), rng.randf_range(-0.5, 0.5))
 			2, 3:
 				_flower(parent, pos, _rand_bloom(rng), rng.randf_range(0.7, 1.4))
 			4:
 				_grass_tuft(parent, pos, rng)
+			5:
+				_mushroom(parent, pos, rng)
 			_:
 				_leaf_bush(parent, pos, rng)
 
 
 func _scatter_glow_blossoms(parent: Node2D, rng: RandomNumberGenerator) -> void:
-	# Sparse night-blooming flowers that glow like crystal dust
-	for i in 14:
+	# Night-blooming flowers across the lush basin
+	for i in 48:
 		var ang := rng.randf() * TAU
-		var r := rng.randf_range(220.0, 900.0)
-		var pos := Vector2(cos(ang), sin(ang) * 0.8) * r
-		if PathNetwork and PathNetwork.dist_to_path(pos) < 110.0:
+		var r := rng.randf_range(180.0, 2000.0)
+		var pos := Vector2(cos(ang), sin(ang) * 0.85) * r
+		if pos.y > 0.0:
+			pos.y *= 1.12
+		if PathNetwork and PathNetwork.dist_to_path(pos) < 105.0:
 			continue
 		_glow_blossom(parent, pos, rng)
+
+
+func _scatter_grass_meadows(parent: Node2D, rng: RandomNumberGenerator) -> void:
+	## Broad grass/fern patches so open land reads as living meadow.
+	for i in 40:
+		var ang := rng.randf() * TAU
+		var r := rng.randf_range(250.0, 1800.0)
+		var center := Vector2(cos(ang), sin(ang) * 0.88) * r
+		if center.y > 0.0:
+			center.y *= 1.1
+		if PathNetwork and PathNetwork.dist_to_path(center) < 130.0:
+			continue
+		for j in 6:
+			var pos := center + Vector2(rng.randf_range(-40, 40), rng.randf_range(-30, 30))
+			if PathNetwork and PathNetwork.dist_to_path(pos) < 95.0:
+				continue
+			if rng.randf() < 0.55:
+				_grass_tuft(parent, pos, rng)
+			else:
+				_fern(parent, pos, rng.randf_range(0.7, 1.3), rng.randf_range(-0.4, 0.4))
 
 
 func _pollen_clouds(parent: Node2D) -> void:
