@@ -1,15 +1,17 @@
 extends Node
 ## Authored path lanes per campaign map. Autoloaded as PathNetwork.
-## Lanes are curvy polylines that wind around forest / mountain features.
+## Few winding roads; ethereal landmarks sit beside the path, never on it.
 
 signal paths_rebuilt
 
 const CRYSTAL := Vector2(0, 40)
+## Keep decor / pads outside this distance from road center.
+const PATH_CLEAR_RADIUS := 100.0
 
 var lanes: Array = []
 var spawn_anchors: Array[Vector2] = []
-var active_lane_set: String = "full"
-## Named landmarks for ground art to plant forests/mountains that roads bend around.
+var active_lane_set: String = "single"
+## Landmarks for ground art: forest | fairy_ring | crystal_grove
 var features: Array[Dictionary] = []  # { "id", "pos", "kind", "radius" }
 
 
@@ -20,12 +22,12 @@ func _ready() -> void:
 func _init_from_campaign() -> void:
 	if Campaign:
 		var m: Dictionary = Campaign.get_map(Campaign.selected_map_id)
-		rebuild(str(m.get("lane_set", "full")))
+		rebuild(str(m.get("lane_set", "single")))
 	else:
-		rebuild("full")
+		rebuild("single")
 
 
-func rebuild(lane_set: String = "full") -> void:
+func rebuild(lane_set: String = "single") -> void:
 	active_lane_set = lane_set
 	lanes.clear()
 	spawn_anchors.clear()
@@ -33,262 +35,218 @@ func rebuild(lane_set: String = "full") -> void:
 	_place_shared_features()
 	match lane_set:
 		"single", "simple":
-			_add_single()  # beginner: one road to the Lightwell
+			_add_single()
 		"dual":
 			_add_dual()
 		"meander":
 			_add_meander()
 		"cross":
 			_add_cross()
-		"diagonal":
-			_add_diagonal()
 		"winding":
 			_add_winding()
-		_:
+		"full", "diagonal":
 			_add_full()
+		_:
+			_add_single()
+	# Nudge any feature that landed on a road off the path.
+	_clear_features_from_paths()
 	paths_rebuilt.emit()
 
 
 func _place_shared_features() -> void:
-	# Forests and peaks — roads snake around these islands.
-	# Sparse on single-path maps so attention stays on the approach.
+	# Ethereal landmarks — forests, fairy rings, crystal groves (no rock mountains).
 	if active_lane_set in ["single", "simple"]:
-		_feature("flank_wood_e", Vector2(320, 280), "forest", 140.0)
-		_feature("flank_wood_w", Vector2(-340, 420), "forest", 130.0)
-		_feature("mid_knoll", Vector2(160, 620), "mountain", 100.0)
-		_feature("far_ridge", Vector2(-80, 980), "mountain", 120.0)
-		_feature("well_grove", Vector2(-280, -120), "forest", 100.0)
+		_feature("flank_wood_e", Vector2(380, 260), "forest", 130.0)
+		_feature("flank_wood_w", Vector2(-400, 440), "forest", 120.0)
+		_feature("mid_ring", Vector2(220, 680), "fairy_ring", 90.0)
+		_feature("far_crystals", Vector2(-120, 1000), "crystal_grove", 100.0)
+		_feature("well_grove", Vector2(-300, -140), "forest", 95.0)
+		_feature("side_ring", Vector2(-280, 720), "fairy_ring", 70.0)
 		return
-	_feature("north_peak", Vector2(-80, -680), "mountain", 150.0)
-	_feature("south_ridge", Vector2(100, 720), "mountain", 140.0)
-	_feature("west_wood", Vector2(-680, -80), "forest", 180.0)
-	_feature("east_wood", Vector2(700, 40), "forest", 170.0)
-	_feature("nw_grove", Vector2(-480, -420), "forest", 130.0)
-	_feature("ne_grove", Vector2(520, -380), "forest", 120.0)
-	_feature("sw_bogwood", Vector2(-440, 480), "forest", 140.0)
-	_feature("se_grove", Vector2(500, 520), "forest", 130.0)
-	_feature("west_crag", Vector2(-860, 240), "mountain", 110.0)
-	_feature("east_crag", Vector2(880, -220), "mountain", 110.0)
-	_feature("mid_north_knoll", Vector2(200, -400), "mountain", 80.0)
-	_feature("mid_south_knoll", Vector2(-180, 380), "forest", 90.0)
+	_feature("north_ring", Vector2(-100, -720), "fairy_ring", 120.0)
+	_feature("south_crystals", Vector2(120, 760), "crystal_grove", 110.0)
+	_feature("west_wood", Vector2(-700, -60), "forest", 160.0)
+	_feature("east_wood", Vector2(720, 60), "forest", 150.0)
+	_feature("nw_grove", Vector2(-500, -400), "forest", 120.0)
+	_feature("ne_ring", Vector2(540, -360), "fairy_ring", 100.0)
+	_feature("sw_crystals", Vector2(-460, 500), "crystal_grove", 110.0)
+	_feature("se_grove", Vector2(520, 540), "forest", 120.0)
+	_feature("mid_south_ring", Vector2(-200, 400), "fairy_ring", 80.0)
 
 
 func _feature(id: String, pos: Vector2, kind: String, radius: float) -> void:
 	features.append({"id": id, "pos": pos, "kind": kind, "radius": radius})
 
 
+func _clear_features_from_paths() -> void:
+	for i in features.size():
+		var f: Dictionary = features[i]
+		var pos: Vector2 = f.get("pos", Vector2.ZERO)
+		var need := PATH_CLEAR_RADIUS + 50.0
+		var d := dist_to_path(pos)
+		if d >= need:
+			continue
+		# Push outward along path normal so clusters never sit on the road.
+		var near := nearest_on_network(pos)
+		var away := pos - near
+		if away.length_squared() < 1.0:
+			away = Vector2.RIGHT
+		var pushed: Vector2 = near + away.normalized() * need
+		f["pos"] = pushed
+		features[i] = f
+
+
 func _add_single() -> void:
-	## Beginner: one long curving path from the south to the Lightwell.
-	## Clear chokepoints for tower pads; woods/peaks sit beside the road, not many fronts.
+	## One long winding approach — clear chokepoints, deep curves.
 	_add_curved_lane([
-		Vector2(40, 1350),       # spawn portal (south)
-		Vector2(-180, 1120),
-		Vector2(120, 920),
-		Vector2(280, 720),       # east of mid knoll
-		Vector2(60, 560),
-		Vector2(-200, 420),      # west swing past bog wood
-		Vector2(-80, 280),
-		Vector2(100, 180),
-		Vector2(20, 90),
+		Vector2(60, 1380),
+		Vector2(-220, 1180),
+		Vector2(160, 980),
+		Vector2(320, 780),
+		Vector2(40, 620),
+		Vector2(-280, 480),
+		Vector2(-160, 340),
+		Vector2(140, 240),
+		Vector2(-40, 150),
+		Vector2(30, 90),
 		CRYSTAL,
 	], 14)
 
 
 func _add_dual() -> void:
-	## Second map feel: two approaches so you learn to split attention.
+	## Two long winding roads (south + east).
 	_add_curved_lane([
-		Vector2(40, 1350),
-		Vector2(-160, 1080),
-		Vector2(140, 860),
-		Vector2(40, 560),
-		Vector2(-40, 280),
+		Vector2(40, 1380),
+		Vector2(-200, 1140),
+		Vector2(180, 920),
+		Vector2(-80, 720),
+		Vector2(200, 520),
+		Vector2(-60, 340),
+		Vector2(80, 200),
 		Vector2(10, 100),
 		CRYSTAL,
-	], 12)
+	], 13)
 	_add_curved_lane([
-		Vector2(1280, 80),
-		Vector2(980, -120),
-		Vector2(720, 100),
-		Vector2(480, -40),
-		Vector2(260, 80),
-		Vector2(120, 50),
+		Vector2(1320, 60),
+		Vector2(1080, -160),
+		Vector2(900, 120),
+		Vector2(700, -80),
+		Vector2(520, 140),
+		Vector2(360, -20),
+		Vector2(220, 90),
+		Vector2(100, 50),
 		CRYSTAL,
-	], 12)
+	], 13)
 
 
 func _add_meander() -> void:
-	## Tutorial+ network: 6 long S-curve approaches that weave past woods & peaks.
-	# North-west meander — S-curve around north peak and nw grove
+	## Two very windy approaches from south-west and north-east.
 	_add_curved_lane([
-		Vector2(-180, -1400),
-		Vector2(160, -1180),
-		Vector2(280, -960),
-		Vector2(40, -800),
-		Vector2(-300, -700),
-		Vector2(-380, -520),
-		Vector2(-160, -380),
-		Vector2(80, -280),
-		Vector2(-40, -140),
+		Vector2(-200, 1400),
+		Vector2(-420, 1180),
+		Vector2(-120, 980),
+		Vector2(260, 860),
+		Vector2(180, 660),
+		Vector2(-220, 540),
+		Vector2(-80, 360),
+		Vector2(160, 240),
+		Vector2(-20, 130),
 		CRYSTAL,
-	], 12)
-	# North-east loop — hugs east of peak, dips past mid knoll
+	], 13)
 	_add_curved_lane([
-		Vector2(220, -1380),
-		Vector2(420, -1120),
-		Vector2(360, -880),
-		Vector2(160, -720),
-		Vector2(320, -520),
-		Vector2(200, -340),
-		Vector2(60, -200),
-		Vector2(20, -80),
+		Vector2(280, -1380),
+		Vector2(480, -1120),
+		Vector2(200, -920),
+		Vector2(-160, -780),
+		Vector2(80, -600),
+		Vector2(280, -420),
+		Vector2(40, -260),
+		Vector2(-80, -120),
+		Vector2(20, -40),
 		CRYSTAL,
-	], 12)
-	# South-east serpentine
-	_add_curved_lane([
-		Vector2(120, 1400),
-		Vector2(-200, 1180),
-		Vector2(-280, 940),
-		Vector2(40, 800),
-		Vector2(340, 680),
-		Vector2(300, 480),
-		Vector2(80, 360),
-		Vector2(-60, 220),
-		Vector2(20, 120),
-		CRYSTAL,
-	], 12)
-	# South-west bog crawl
-	_add_curved_lane([
-		Vector2(-260, 1380),
-		Vector2(-480, 1120),
-		Vector2(-360, 880),
-		Vector2(-120, 720),
-		Vector2(-320, 540),
-		Vector2(-200, 360),
-		Vector2(-40, 240),
-		Vector2(10, 120),
-		CRYSTAL,
-	], 12)
-	# East river-bend — long switchback around east wood
-	_add_curved_lane([
-		Vector2(1400, -80),
-		Vector2(1180, 180),
-		Vector2(980, 320),
-		Vector2(720, 260),
-		Vector2(600, 60),
-		Vector2(720, -120),
-		Vector2(480, -80),
-		Vector2(340, 80),
-		Vector2(200, 40),
-		Vector2(100, 50),
-		CRYSTAL,
-	], 12)
-	# West thorn spiral — around west wood then south then in
-	_add_curved_lane([
-		Vector2(-1400, 40),
-		Vector2(-1180, -200),
-		Vector2(-960, -320),
-		Vector2(-720, -200),
-		Vector2(-640, 40),
-		Vector2(-780, 200),
-		Vector2(-520, 220),
-		Vector2(-360, 80),
-		Vector2(-200, 20),
-		Vector2(-90, 45),
-		CRYSTAL,
-	], 12)
+	], 13)
 
 
 func _add_cross() -> void:
-	_add_dual()
-	# Extra diagonal braids between groves
+	## Two long diagonals that cross the glade — still only two fronts.
 	_add_curved_lane([
-		Vector2(1200, -1200), Vector2(900, -980), Vector2(640, -700),
-		Vector2(480, -420), Vector2(300, -200), Vector2(140, -40),
-		Vector2(40, 30), CRYSTAL,
-	], 11)
-	_add_curved_lane([
-		Vector2(-1200, 1200), Vector2(-900, 960), Vector2(-620, 700),
-		Vector2(-400, 420), Vector2(-220, 220), Vector2(-80, 100),
+		Vector2(1200, -1100),
+		Vector2(880, -820),
+		Vector2(620, -520),
+		Vector2(360, -220),
+		Vector2(180, 40),
+		Vector2(40, 50),
 		CRYSTAL,
-	], 11)
-	_add_curved_lane([
-		Vector2(1100, 1000), Vector2(820, 760), Vector2(560, 500),
-		Vector2(360, 280), Vector2(180, 140), Vector2(60, 70), CRYSTAL,
-	], 11)
-	_add_curved_lane([
-		Vector2(-1100, -1000), Vector2(-800, -740), Vector2(-520, -460),
-		Vector2(-300, -220), Vector2(-120, -40), CRYSTAL,
-	], 11)
-
-
-func _add_diagonal() -> void:
-	_add_curved_lane([
-		Vector2(1350, -1350), Vector2(1000, -1100), Vector2(700, -780),
-		Vector2(520, -480), Vector2(280, -220), Vector2(100, 10), CRYSTAL,
 	], 12)
 	_add_curved_lane([
-		Vector2(-1350, -1350), Vector2(-980, -1050), Vector2(-700, -720),
-		Vector2(-420, -400), Vector2(-220, -140), Vector2(-70, 30), CRYSTAL,
-	], 12)
-	_add_curved_lane([
-		Vector2(1350, 1350), Vector2(1000, 1080), Vector2(680, 760),
-		Vector2(420, 440), Vector2(220, 220), Vector2(70, 90), CRYSTAL,
-	], 12)
-	_add_curved_lane([
-		Vector2(-1350, 1350), Vector2(-1000, 1080), Vector2(-680, 760),
-		Vector2(-420, 440), Vector2(-200, 220), Vector2(-70, 100), CRYSTAL,
-	], 12)
-	# Zigzag mid approaches
-	_add_curved_lane([
-		Vector2(80, -1450), Vector2(-260, -1100), Vector2(200, -820),
-		Vector2(-180, -520), Vector2(120, -280), Vector2(-20, -100), CRYSTAL,
-	], 12)
-	_add_curved_lane([
-		Vector2(1450, 60), Vector2(1100, -160), Vector2(820, 120),
-		Vector2(560, -40), Vector2(320, 100), Vector2(140, 30), CRYSTAL,
-	], 12)
-	_add_curved_lane([
-		Vector2(-1450, -40), Vector2(-1080, 180), Vector2(-780, -100),
-		Vector2(-500, 80), Vector2(-260, -20), Vector2(-100, 50), CRYSTAL,
+		Vector2(-1200, 1100),
+		Vector2(-880, 820),
+		Vector2(-560, 540),
+		Vector2(-300, 300),
+		Vector2(-120, 140),
+		Vector2(10, 70),
+		CRYSTAL,
 	], 12)
 
 
 func _add_winding() -> void:
+	## Two serpentine routes (west + south).
 	_add_curved_lane([
-		Vector2(480, -1450), Vector2(920, -1150), Vector2(700, -880),
-		Vector2(980, -620), Vector2(620, -420), Vector2(400, -200),
-		Vector2(160, -60), CRYSTAL,
-	], 12)
+		Vector2(-1400, 200),
+		Vector2(-1100, -80),
+		Vector2(-980, 200),
+		Vector2(-720, -40),
+		Vector2(-520, 180),
+		Vector2(-320, -20),
+		Vector2(-160, 100),
+		Vector2(-40, 50),
+		CRYSTAL,
+	], 13)
 	_add_curved_lane([
-		Vector2(-1480, 380), Vector2(-1100, 80), Vector2(-1200, -240),
-		Vector2(-800, -320), Vector2(-560, -80), Vector2(-300, 40), CRYSTAL,
-	], 12)
-	_add_curved_lane([
-		Vector2(1480, -400), Vector2(1100, 60), Vector2(960, 380),
-		Vector2(620, 420), Vector2(380, 200), Vector2(160, 80), CRYSTAL,
-	], 12)
-	_add_curved_lane([
-		Vector2(-580, 1480), Vector2(-120, 1180), Vector2(360, 1000),
-		Vector2(280, 700), Vector2(40, 480), Vector2(30, 220), CRYSTAL,
-	], 12)
-	_add_curved_lane([
-		Vector2(-80, 1450), Vector2(-320, 1050), Vector2(140, 820),
-		Vector2(-100, 560), Vector2(80, 340), Vector2(10, 140), CRYSTAL,
-	], 12)
-	_add_curved_lane([
-		Vector2(-1400, -220), Vector2(-1000, 40), Vector2(-720, -160),
-		Vector2(-480, 60), Vector2(-240, 10), CRYSTAL,
-	], 12)
-	_add_curved_lane([
-		Vector2(200, -1480), Vector2(-100, -1100), Vector2(280, -780),
-		Vector2(-60, -480), Vector2(100, -220), CRYSTAL,
-	], 12)
+		Vector2(80, 1420),
+		Vector2(-280, 1160),
+		Vector2(200, 940),
+		Vector2(-160, 720),
+		Vector2(240, 500),
+		Vector2(-80, 320),
+		Vector2(100, 180),
+		Vector2(10, 90),
+		CRYSTAL,
+	], 13)
 
 
 func _add_full() -> void:
-	_add_meander()
-	_add_diagonal()
-	_add_winding()
+	## Endgame: three long winding roads max — not a path spaghetti.
+	_add_curved_lane([
+		Vector2(40, 1400),
+		Vector2(-260, 1160),
+		Vector2(200, 940),
+		Vector2(-140, 700),
+		Vector2(220, 480),
+		Vector2(-40, 280),
+		Vector2(60, 140),
+		CRYSTAL,
+	], 13)
+	_add_curved_lane([
+		Vector2(1300, -80),
+		Vector2(1040, 160),
+		Vector2(820, -100),
+		Vector2(600, 140),
+		Vector2(400, -40),
+		Vector2(220, 80),
+		Vector2(90, 50),
+		CRYSTAL,
+	], 13)
+	_add_curved_lane([
+		Vector2(-200, -1380),
+		Vector2(180, -1120),
+		Vector2(-220, -880),
+		Vector2(160, -620),
+		Vector2(-100, -380),
+		Vector2(80, -180),
+		Vector2(-10, -40),
+		CRYSTAL,
+	], 13)
 
 
 ## Control points → dense Catmull-Rom polyline so roads look smoothly curved.
@@ -302,7 +260,6 @@ func _add_curved_lane(control: Array, samples_per_span: int = 12) -> void:
 		_add_lane(pts)
 		return
 	var dense: Array[Vector2] = []
-	# Pad ends for Catmull-Rom
 	var padded: Array[Vector2] = []
 	padded.append(pts[0] - (pts[1] - pts[0]) * 0.25)
 	for p in pts:

@@ -144,21 +144,24 @@ func _begin_wave() -> void:
 		Juice.shake(3.0 if int(map.get("difficulty", 3)) <= 1 else 5.0)
 
 	var count_scale := float(map.get("enemy_count_scale", 1.0))
-	var base_count := 8 + _wave * 5
+	# Gentle ramp: fewer early packs, slower growth across waves
+	var base_count := 5 + _wave * 3
 	_to_spawn = maxi(3, int(round(float(base_count) * count_scale)))
-	# Tutorial maps: no elites
+	# Tutorial / low maps: no elites; others introduce elites later
 	if map.get("elites", true) == false or int(map.get("difficulty", 3)) <= 1:
 		_elites_left = 0
 	else:
-		_elites_left = 1 if _wave >= 2 else 0
-		if _wave >= 4:
-			_elites_left = 2
+		_elites_left = 0
+		if _wave >= 3:
+			_elites_left = 1
 		if _wave >= 6:
-			_elites_left = 3
+			_elites_left = 2
 	_spawn_cd = 0.0
 	# Gentler spawn spacing on easy maps
 	if count_scale < 0.7:
-		_spawn_cd = 0.45
+		_spawn_cd = 0.55
+	elif count_scale < 0.95:
+		_spawn_cd = 0.28
 	_phase = Phase.SPAWNING
 	_can_call_early = false
 	GameState.wave_phase_changed.emit("combat", 0.0)
@@ -182,8 +185,9 @@ func _spawn_one(elite: bool = false) -> void:
 		return
 	var hp_s := float(map.get("enemy_hp_scale", 1.0))
 	var spd_s := float(map.get("enemy_speed_scale", 1.0))
-	e.set("max_hp", maxi(12, int((28 + _wave * 10) * hp_s)))
-	e.set("move_speed", maxf(28.0, (52.0 + _wave * 5.5) * spd_s))
+	# Soft HP/speed growth so mid-campaign stays readable
+	e.set("max_hp", maxi(12, int((26 + _wave * 7) * hp_s)))
+	e.set("move_speed", maxf(28.0, (48.0 + _wave * 3.8) * spd_s))
 	e.set("crystal_damage", 8)  # lives-style leak (GameState scales to 1 life)
 	# Parent under World for y-sort with players; path coords are world-space.
 	var host: Node = get_parent().get_node_or_null("World")

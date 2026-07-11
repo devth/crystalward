@@ -29,14 +29,14 @@ func paint(parent: Node2D) -> void:
 		Vector2(-280, 200), Vector2(300, -80), Vector2(-100, 480),
 	]
 	for c in rings:
-		if PathNetwork and PathNetwork.dist_to_path(c) < 90.0:
+		if PathNetwork and PathNetwork.dist_to_path(c) < 120.0:
 			continue
 		_fairy_ring(parent, c, rng.randf_range(32.0, 48.0), rng)
 	for i in 6:
 		var ang := rng.randf() * TAU
 		var r := rng.randf_range(350.0, 900.0)
 		var pos := Vector2(cos(ang), sin(ang) * 0.82) * r
-		if PathNetwork and PathNetwork.dist_to_path(pos) < 100.0:
+		if PathNetwork and PathNetwork.dist_to_path(pos) < 120.0:
 			continue
 		_botanical_cluster(parent, pos, rng)
 	_scatter_glow_blossoms(parent, rng)
@@ -49,6 +49,8 @@ func _meadow_ring(parent: Node2D, center: Vector2, r0: float, r1: float, count: 
 		var ang := TAU * float(i) / float(count) + rng.randf() * 0.4
 		var r := rng.randf_range(r0, r1)
 		var pos := center + Vector2(cos(ang), sin(ang) * 0.75) * r
+		if PathNetwork and PathNetwork.dist_to_path(pos) < 70.0:
+			continue
 		match rng.randi() % 5:
 			0, 1:
 				_flower(parent, pos, LEGEND_BLOOM_PINK if rng.randf() < 0.5 else LEGEND_BLOOM_LILAC, rng.randf_range(0.7, 1.3))
@@ -66,7 +68,7 @@ func _path_edge_flowers(parent: Node2D, a: Vector2, b: Vector2, rng: RandomNumbe
 	if len < 40.0:
 		return
 	var n := Vector2(-dir.y, dir.x).normalized()
-	var steps := int(len / 90.0)
+	var steps := int(len / 110.0)
 	for s in steps:
 		var t := (float(s) + 0.5) / float(maxi(1, steps))
 		var base: Vector2 = a.lerp(b, t)
@@ -74,9 +76,9 @@ func _path_edge_flowers(parent: Node2D, a: Vector2, b: Vector2, rng: RandomNumbe
 			if rng.randf() < 0.55:
 				continue
 			var side: float = float(side_f)
-			var pos: Vector2 = base + n * side * rng.randf_range(48.0, 88.0)
-			# Keep flowers on the verge, not on the dirt
-			if PathNetwork and PathNetwork.dist_to_path(pos) < 36.0:
+			# Outside road bed (~58 half-width) so the dirt stays clear
+			var pos: Vector2 = base + n * side * rng.randf_range(78.0, 115.0)
+			if PathNetwork and PathNetwork.dist_to_path(pos) < 70.0:
 				continue
 			if rng.randf() < 0.45:
 				_flower(parent, pos, _rand_bloom(rng), rng.randf_range(0.65, 1.1))
@@ -125,7 +127,7 @@ func _scatter_glow_blossoms(parent: Node2D, rng: RandomNumberGenerator) -> void:
 		var ang := rng.randf() * TAU
 		var r := rng.randf_range(220.0, 900.0)
 		var pos := Vector2(cos(ang), sin(ang) * 0.8) * r
-		if PathNetwork and PathNetwork.dist_to_path(pos) < 80.0:
+		if PathNetwork and PathNetwork.dist_to_path(pos) < 110.0:
 			continue
 		_glow_blossom(parent, pos, rng)
 

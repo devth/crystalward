@@ -13,6 +13,8 @@ const Z_PATH := 12
 const Z_PATH_DETAIL := 14
 const Z_PORTAL := 20
 const Z_DECOR := 30
+## Nothing solid on the road (path half-width ~58 + margin).
+const PATH_CLEAR := 110.0
 
 
 func _ready() -> void:
@@ -41,7 +43,7 @@ func _build() -> void:
 	_build_plaza()
 	_build_paths()  # must be after floor, higher z
 	_build_mist_fields()
-	_build_terrain_features()  # forests / mountains roads curve around
+	_build_terrain_features()  # forests / fairy rings / crystal groves
 	_build_landmarks()
 	_scatter_forest_props()
 	_build_botanicals()  # Legend soft-dark blooms (restrained)
@@ -130,43 +132,101 @@ func _build_terrain_features() -> void:
 		var pos: Vector2 = f.get("pos", Vector2.ZERO)
 		var kind: String = str(f.get("kind", "forest"))
 		var radius: float = float(f.get("radius", 120.0))
-		if kind == "mountain":
-			_add_mountain_cluster(pos, radius, rng)
-		else:
-			_add_forest_cluster(pos, radius, round_tree, pine_tree, rng)
+		# Never plant solid decor on the road
+		if PathNetwork.dist_to_path(pos) < PATH_CLEAR:
+			continue
+		match kind:
+			"fairy_ring", "mountain":  # mountain legacy → fairy rings
+				_add_fairy_ring(pos, radius, rng)
+			"crystal_grove", "crystals":
+				_add_crystal_grove(pos, radius, rng)
+			_:
+				_add_forest_cluster(pos, radius, round_tree, pine_tree, rng)
 
 
-func _add_mountain_cluster(center: Vector2, radius: float, rng: RandomNumberGenerator) -> void:
-	# Layered rock peaks — roads bend around these.
-	var base := _ellipse(center + Vector2(0, 12), radius * 0.85, radius * 0.45, Color(0.12, 0.1, 0.16, 0.8), Z_DECOR - 5)
-	add_child(base)
-	for i in 5:
-		var ang := TAU * float(i) / 5.0 + rng.randf() * 0.3
-		var o := Vector2(cos(ang), sin(ang) * 0.7) * radius * rng.randf_range(0.15, 0.55)
-		var peak := Polygon2D.new()
-		var h := rng.randf_range(48.0, 90.0)
-		var w := rng.randf_range(22.0, 40.0)
-		peak.polygon = PackedVector2Array([
-			Vector2(-w, 10), Vector2(-w * 0.4, -h * 0.55), Vector2(0, -h),
-			Vector2(w * 0.35, -h * 0.5), Vector2(w, 10)
-		])
-		peak.color = Color(0.2, 0.18, 0.28).darkened(rng.randf() * 0.12)
-		peak.position = center + o
-		peak.z_index = Z_DECOR + clampi(int((center.y + o.y) / 80.0), -5, 20)
-		add_child(peak)
-		# Crystal vein cap (title cyan/gold)
-		var cap := Polygon2D.new()
-		cap.polygon = PackedVector2Array([
-			Vector2(0, -h), Vector2(-w * 0.22, -h * 0.72), Vector2(w * 0.18, -h * 0.7)
-		])
-		cap.color = Color(0.9, 0.72, 0.4, 0.7)  # amber crystal veins
-		cap.position = peak.position
-		cap.z_index = peak.z_index + 1
-		add_child(cap)
-	# A few standing stones on the slope
-	for j in 3:
-		var a2 := rng.randf() * TAU
-		_add_standing_stone(center + Vector2(cos(a2), sin(a2) * 0.7) * radius * 0.7, rng.randf_range(0.7, 1.1))
+func _add_fairy_ring(center: Vector2, radius: float, rng: RandomNumberGenerator) -> void:
+	## Soft mushroom/moss circle — ethereal glade marker (replaces mountains).
+	var r := maxf(48.0, radius * 0.55)
+	var moss := _ellipse(center, r * 1.15, r * 0.72, Color(0.18, 0.32, 0.26, 0.55), Z_DECOR - 4)
+	add_child(moss)
+	var glow := _ellipse(center, r * 0.95, r * 0.58, Color(0.55, 0.4, 0.85, 0.12), Z_DECOR - 3)
+	add_child(glow)
+	var ring_n := 10
+	for i in ring_n:
+		var ang := TAU * float(i) / float(ring_n) + rng.randf() * 0.12
+		var p := center + Vector2(cos(ang), sin(ang) * 0.72) * r
+		if PathNetwork and PathNetwork.dist_to_path(p) < PATH_CLEAR:
+			continue
+		_add_mushroom(p, rng.randf_range(0.75, 1.25), rng)
+	# Center soft crystal sprout
+	if PathNetwork == null or PathNetwork.dist_to_path(center) >= PATH_CLEAR:
+		_add_ethereal_crystal(center + Vector2(0, -4), rng.randf_range(0.7, 1.0), Color(0.7, 0.5, 0.95, 0.85), rng)
+
+
+func _add_crystal_grove(center: Vector2, radius: float, rng: RandomNumberGenerator) -> void:
+	## Cluster of ethereal crystal spires (Dark Crystal vibe).
+	var bed := _ellipse(center + Vector2(0, 8), radius * 0.7, radius * 0.38, Color(0.14, 0.1, 0.2, 0.55), Z_DECOR - 5)
+	add_child(bed)
+	var n := clampi(int(radius / 28.0), 4, 9)
+	for i in n:
+		var ang := TAU * float(i) / float(n) + rng.randf() * 0.4
+		var o := Vector2(cos(ang), sin(ang) * 0.7) * radius * rng.randf_range(0.12, 0.72)
+		var p := center + o
+		if PathNetwork and PathNetwork.dist_to_path(p) < PATH_CLEAR:
+			continue
+		var tint := Color(0.55, 0.9, 0.95, 0.9) if i % 2 == 0 else Color(0.95, 0.75, 0.45, 0.88)
+		_add_ethereal_crystal(p, rng.randf_range(0.85, 1.45), tint, rng)
+
+
+func _add_mushroom(pos: Vector2, scale: float, rng: RandomNumberGenerator) -> void:
+	var root := Node2D.new()
+	root.position = pos
+	root.scale = Vector2(scale, scale)
+	root.z_index = Z_DECOR + clampi(int(pos.y / 80.0), -5, 20)
+	add_child(root)
+	var stem := Polygon2D.new()
+	stem.polygon = PackedVector2Array([Vector2(-3, 6), Vector2(3, 6), Vector2(2, -8), Vector2(-2, -8)])
+	stem.color = Color(0.75, 0.7, 0.8, 0.9)
+	root.add_child(stem)
+	var cap := Polygon2D.new()
+	var cw := rng.randf_range(8.0, 12.0)
+	cap.polygon = PackedVector2Array([
+		Vector2(-cw, -4), Vector2(-cw * 0.6, -14), Vector2(0, -16),
+		Vector2(cw * 0.6, -14), Vector2(cw, -4)
+	])
+	cap.color = Color(0.55, 0.35, 0.75, 0.92)
+	root.add_child(cap)
+	var spot := Polygon2D.new()
+	spot.polygon = PackedVector2Array([Vector2(-3, -10), Vector2(0, -13), Vector2(2, -9)])
+	spot.color = Color(0.95, 0.85, 0.55, 0.7)
+	root.add_child(spot)
+
+
+func _add_ethereal_crystal(pos: Vector2, scale: float, tint: Color, rng: RandomNumberGenerator) -> void:
+	var root := Node2D.new()
+	root.position = pos
+	root.scale = Vector2(scale, scale)
+	root.rotation = rng.randf_range(-0.15, 0.15)
+	root.z_index = Z_DECOR + clampi(int(pos.y / 80.0), -5, 22)
+	add_child(root)
+	var h := rng.randf_range(28.0, 52.0)
+	var w := rng.randf_range(7.0, 12.0)
+	var body := Polygon2D.new()
+	body.polygon = PackedVector2Array([
+		Vector2(0, -h), Vector2(w * 0.55, -h * 0.55), Vector2(w * 0.35, 6),
+		Vector2(-w * 0.3, 6), Vector2(-w * 0.5, -h * 0.5)
+	])
+	body.color = tint
+	root.add_child(body)
+	var facet := Polygon2D.new()
+	facet.polygon = PackedVector2Array([
+		Vector2(-w * 0.15, -h * 0.85), Vector2(w * 0.2, -h * 0.7), Vector2(0, -h * 0.35)
+	])
+	facet.color = tint.lightened(0.35)
+	facet.color.a = 0.75
+	root.add_child(facet)
+	var glow := _ellipse(Vector2(0, 2), w * 1.4, w * 0.7, Color(tint.r, tint.g, tint.b, 0.18), -1)
+	root.add_child(glow)
 
 
 func _add_forest_cluster(
@@ -182,7 +242,7 @@ func _add_forest_cluster(
 		var r := radius * sqrt(rng.randf()) * 0.9
 		var pos := center + Vector2(cos(ang), sin(ang) * 0.78) * r
 		# Stay off the roads
-		if PathNetwork and PathNetwork.dist_to_path(pos) < 70.0:
+		if PathNetwork and PathNetwork.dist_to_path(pos) < PATH_CLEAR:
 			continue
 		var tex: Texture2D = pine_tree if (pine_tree and rng.randf() < 0.45) else round_tree
 		if tex == null:
@@ -193,14 +253,18 @@ func _add_forest_cluster(
 
 
 func _build_landmarks() -> void:
-	# Plaza ring stones only — big forests/mountains come from features.
-	var stones: Array = [
-		[Vector2(-200, -80), 0.9], [Vector2(210, -60), 0.85],
-		[Vector2(-220, 140), 0.9], [Vector2(200, 130), 0.95],
+	# Plaza crystal markers — never on the road.
+	var crystals: Array = [
+		[Vector2(-240, -100), 0.95, Color(0.55, 0.9, 0.95, 0.9)],
+		[Vector2(250, -80), 0.9, Color(0.95, 0.75, 0.45, 0.88)],
+		[Vector2(-250, 160), 0.92, Color(0.7, 0.5, 0.95, 0.9)],
+		[Vector2(240, 150), 0.95, Color(0.55, 0.9, 0.95, 0.9)],
 	]
-	for s in stones:
-		if PathNetwork == null or PathNetwork.dist_to_path(s[0]) > 55.0:
-			_add_standing_stone(s[0], s[1])
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 77
+	for s in crystals:
+		if PathNetwork == null or PathNetwork.dist_to_path(s[0]) >= PATH_CLEAR:
+			_add_ethereal_crystal(s[0], s[1], s[2], rng)
 
 
 func _build_botanicals() -> void:
@@ -271,7 +335,7 @@ func _scatter_forest_props() -> void:
 		var pos := _rand_map_pos(rng, 420, 1900)
 		if pos.length() < 400.0:
 			continue
-		if PathNetwork and PathNetwork.dist_to_path(pos) < 95.0:
+		if PathNetwork and PathNetwork.dist_to_path(pos) < PATH_CLEAR:
 			continue
 		if tree_sprites.is_empty():
 			break
@@ -280,14 +344,14 @@ func _scatter_forest_props() -> void:
 	if bush_tex:
 		for i in 8:
 			var pos := _rand_map_pos(rng, 340, 1700)
-			if PathNetwork and PathNetwork.dist_to_path(pos) < 85.0:
+			if PathNetwork and PathNetwork.dist_to_path(pos) < PATH_CLEAR:
 				continue
 			_place_sprite(bush_tex, pos, rng.randf_range(1.9, 2.6), 0.9)
 
 	if stone_tex:
 		for i in 5:
 			var pos := _rand_map_pos(rng, 360, 1600)
-			if PathNetwork and PathNetwork.dist_to_path(pos) < 80.0:
+			if PathNetwork and PathNetwork.dist_to_path(pos) < PATH_CLEAR:
 				continue
 			_place_sprite(stone_tex, pos, rng.randf_range(1.5, 2.1), 0.88)
 
