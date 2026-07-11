@@ -202,6 +202,8 @@ func _physics_process(delta: float) -> void:
 		_try_attack()
 	if Input.is_action_just_pressed("call_wave"):
 		_try_call_wave()
+	if Input.is_action_just_pressed("spawn_fairy") or _action_just_pressed("fairy"):
+		_try_spawn_fairy()
 	# Cycle tower types on pad (Kingdom Rush shop feel)
 	if _near_build.size() > 0:
 		if _action_just_pressed("cycle_left") or Input.is_action_just_pressed("ui_left"):
@@ -265,6 +267,14 @@ func _cycle_pad(dir: int) -> void:
 			return
 	if TowerTypes:
 		TowerTypes.cycle(dir)
+
+
+func _try_spawn_fairy() -> void:
+	if GameState == null:
+		return
+	var f := GameState.try_spawn_fairy(global_position, player_index)
+	if f and FX:
+		FX.burst_particles(get_parent(), global_position + Vector2(0, -20), Color(0.8, 0.9, 1.0), 12, "star", 0.4)
 
 
 

@@ -27,6 +27,8 @@ const CRYSTAL_MAX_HP := 20  ## "lives" feel — each leak costs 1 (scaled)
 const CRYSTAL_DAMAGE_PER_LEAK := 1
 const WAVES_TO_WIN := 8
 const WORLD_BOUND := 1800.0
+const FAIRY_COST_ESSENCE := 20
+const FAIRY_MAX := 6  ## shared cap for co-op
 
 var essence: int = STARTING_ESSENCE:
 	set(v):
@@ -50,6 +52,7 @@ var enemies_killed: int = 0
 var essence_earned: int = 0
 
 var wardens: Array[Node2D] = []
+var fairies: Array[Node2D] = []
 
 
 func _ready() -> void:
@@ -71,6 +74,7 @@ func reset() -> void:
 	enemies_killed = 0
 	essence_earned = 0
 	wardens.clear()
+	fairies.clear()
 	crystal_hp_changed.emit(crystal_hp, crystal_max_hp)
 	wave_changed.emit(current_wave, waves_to_win)
 	stars_changed.emit(stars)
@@ -83,6 +87,59 @@ func register_warden(w: Node2D) -> void:
 
 func unregister_warden(w: Node2D) -> void:
 	wardens.erase(w)
+
+
+func register_fairy(f: Node2D) -> void:
+	if f not in fairies:
+		fairies.append(f)
+
+
+func unregister_fairy(f: Node2D) -> void:
+	fairies.erase(f)
+
+
+func fairy_count() -> int:
+	var alive: Array[Node2D] = []
+	for f in fairies:
+		if is_instance_valid(f):
+			alive.append(f)
+	fairies = alive
+	return fairies.size()
+
+
+func can_spawn_fairy() -> bool:
+	return not is_game_over and fairy_count() < FAIRY_MAX and essence >= FAIRY_COST_ESSENCE
+
+
+func try_spawn_fairy(at: Vector2, owner_index: int = 0) -> Node2D:
+	if fairy_count() >= FAIRY_MAX:
+		message.emit("Max fairies (%d)" % FAIRY_MAX)
+		return null
+	if not try_spend_essence(FAIRY_COST_ESSENCE):
+		return null
+	var scene: PackedScene = load("res://scenes/helper_fairy.tscn") as PackedScene
+	if scene == null:
+		add_essence(FAIRY_COST_ESSENCE)
+		return null
+	var fairy: Node2D = scene.instantiate() as Node2D
+	if fairy == null:
+		add_essence(FAIRY_COST_ESSENCE)
+		return null
+	fairy.set("owner_index", owner_index)
+	var parent := get_tree().current_scene
+	if parent == null:
+		fairy.queue_free()
+		add_essence(FAIRY_COST_ESSENCE)
+		return null
+	parent.add_child(fairy)
+	fairy.global_position = at + Vector2(randf_range(-20, 20), randf_range(-30, -10))
+	message.emit("Fairy helper! (%d/%d) — auto-gathers" % [fairy_count(), FAIRY_MAX])
+	if Sfx:
+		Sfx.gather()
+	if Juice:
+		Juice.flash(Color(0.7, 0.9, 1.0, 0.2), 0.1)
+	FloatingText.spawn(parent, at + Vector2(0, -24), "Fairy!", Color(0.85, 0.9, 1.0))
+	return fairy
 
 
 func clamp_world_position(pos: Vector2, bound: float = WORLD_BOUND) -> Vector2:

@@ -116,6 +116,14 @@ func _process(delta: float) -> void:
 		return
 
 
+func is_available() -> bool:
+	return not _depleted and not GameState.is_game_over
+
+
+func is_depleted() -> bool:
+	return _depleted
+
+
 func contribute_gather(delta: float) -> void:
 	if _depleted or GameState.is_game_over:
 		return

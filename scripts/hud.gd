@@ -49,7 +49,7 @@ func _ready() -> void:
 	_on_dust(GameState.crystal_dust)
 	_on_crystal(GameState.crystal_hp, GameState.crystal_max_hp)
 	_on_wave(GameState.current_wave, GameState.waves_to_win)
-	hint_label.text = "Z/X cycle towers · Q build/up · E gather/sell · T call wave · Esc pause"
+	hint_label.text = "F fairy auto-gather · Z/X towers · Q build · E gather/sell · T wave · Esc"
 	_ensure_minimap()
 	_ensure_call_wave_ui()
 
@@ -150,7 +150,13 @@ func _on_essence(v: int) -> void:
 
 
 func _on_dust(v: int) -> void:
-	dust_label.text = "✦ %d" % v
+	var fc := 0
+	var fmax := 6
+	if GameState:
+		if GameState.has_method("fairy_count"):
+			fc = GameState.fairy_count()
+		fmax = GameState.FAIRY_MAX
+	dust_label.text = "✦ %d · ✧%d/%d" % [v, fc, fmax]
 
 
 func _on_crystal(cur: int, mx: int) -> void:
@@ -176,6 +182,11 @@ func _on_message(text: String) -> void:
 	_msg_tween = create_tween()
 	_msg_tween.tween_interval(1.8)
 	_msg_tween.tween_property(message_label, "modulate:a", 0.0, 0.7)
+
+
+func _process(_delta: float) -> void:
+	if dust_label and GameState and not _paused:
+		_on_dust(GameState.crystal_dust)
 
 
 func _on_game_over(won: bool) -> void:
