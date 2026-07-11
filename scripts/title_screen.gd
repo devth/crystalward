@@ -28,27 +28,13 @@ func _build_ui() -> void:
 		add_child(fallback)
 	add_child(bg)
 
-	# Soft vignette so UI stays readable
+	# Soft top vignette only (no bottom dim — art stays clear)
 	var vig_top := ColorRect.new()
 	vig_top.set_anchors_preset(PRESET_TOP_WIDE)
 	vig_top.offset_bottom = 140
 	vig_top.color = Color(0.05, 0.04, 0.1, 0.35)
 	vig_top.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(vig_top)
-
-	var vig_bot := ColorRect.new()
-	vig_bot.set_anchors_preset(PRESET_BOTTOM_WIDE)
-	vig_bot.offset_top = -280
-	vig_bot.color = Color(0.04, 0.03, 0.08, 0.55)
-	vig_bot.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(vig_bot)
-
-	# Gentle darken sides
-	var vig_full := ColorRect.new()
-	vig_full.set_anchors_preset(PRESET_FULL_RECT)
-	vig_full.color = Color(0.08, 0.06, 0.12, 0.18)
-	vig_full.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(vig_full)
 
 	var center := VBoxContainer.new()
 	center.set_anchors_preset(PRESET_CENTER)
