@@ -12,6 +12,8 @@ export_presets.cfg
 *.pck
 *.exe
 *.app
+!Crystalward.app/
+!Crystalward.app/**
 *.dmg
 *.x86_64
 *.arm64

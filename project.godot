@@ -10,9 +10,12 @@ config/description="Local co-op action tower defense — protect the crystal fro
 run/main_scene="res://scenes/title.tscn"
 config/features=PackedStringArray("4.3", "4.7", "Forward Plus")
 config/icon="res://icon.svg"
+config/macos_bundle_identifier="com.devth.crystalward"
+config/version="0.1.0"
 
 [autoload]
 
+AppIdentity="*res://scripts/app_identity.gd"
 GameState="*res://scripts/game_state.gd"
 AssetPaths="*res://scripts/asset_paths.gd"
 FX="*res://scripts/fx.gd"

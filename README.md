@@ -15,12 +15,18 @@ The ritual forest is **large**: floor ~±2200, soft player/camera bounds ~±1800
 ## Play (macOS)
 
 1. Install [Godot 4.3+](https://godotengine.org/download) (or `brew install --cask godot`).
-2. Open this folder in Godot, or from a terminal:
+2. Launch Crystalward (so the Dock shows **Crystalward**, not Godot):
+
+   - **Double-click `Crystalward.app`** in the project root, or
+   - From a terminal:
 
 ```bash
 cd ~/crystalward
-godot --path .
+./bin/crystalward.sh
+# or: open Crystalward.app
 ```
+
+   Running raw `godot --path .` works, but the Dock/app name will be **Godot**. Prefer `Crystalward.app` or `./bin/crystalward.sh` for the correct name.
 
 3. **Title → Campaign** map select → battle. Progress saves unlocks.
 
