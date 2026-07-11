@@ -27,7 +27,10 @@ godot .   # or: open -a Godot .
 | Gather | E (hold) | `.` (hold) |
 | Queue tower | Q | `,` |
 | Attack | Space | `/` |
+| **Pause / help** | **Esc** or **P** or pad **Start** | same |
 | Restart | R | R |
+
+In-game: **Esc / Start** opens the full controls panel and pauses. Press again to resume.
 
 Switch Pro / Joy-Cons: device 0 → P1, device 1 → P2 (A gather, B attack, X build — layout may vary by OS mapping).
 
