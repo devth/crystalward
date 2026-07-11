@@ -38,6 +38,14 @@ var _ground_y_bob: float = 0.0
 
 const BASE_GRAVITY := 1100.0
 
+## Temporary burst powerups (activate in dire situations)
+var _sprint_t: float = 0.0
+var _sprint_cd: float = 0.0
+var _sky_t: float = 0.0
+var _sky_cd: float = 0.0
+var _dire_cd: float = 0.0
+var _sky_bonus_jumps: int = 0
+
 @onready var _label: Label = $Label
 
 
@@ -173,17 +181,22 @@ func _physics_process(delta: float) -> void:
 		return
 
 	_attack_cd = maxf(0.0, _attack_cd - delta)
+	_tick_bursts(delta)
 	_bob_t += delta * (8.0 if velocity.length() > 10.0 else 3.0)
 	_update_jump(delta)
 	_update_power_auras(delta)
 
 	var dir := _read_move()
 	var air_control := 0.85 if is_airborne() else 1.0
+	var speed_mult := BurstPowerups.SPRINT_MULT if _sprint_t > 0.0 else 1.0
 	if dir.length_squared() > 0.01:
 		_facing = dir.normalized()
 		if absf(_facing.x) > 0.15:
 			_face_sign = -1.0 if _facing.x < 0.0 else 1.0
-		velocity = velocity.move_toward(dir.normalized() * move_speed * air_control, move_accel * air_control * delta)
+		velocity = velocity.move_toward(
+			dir.normalized() * move_speed * air_control * speed_mult,
+			move_accel * air_control * delta
+		)
 		if _use_sprite and _skin_frames.size() > 1 and _body_sprite and not is_airborne():
 			_frame_flip_t += delta
 			if _frame_flip_t >= 0.16:
@@ -224,6 +237,14 @@ func _physics_process(delta: float) -> void:
 	# Glide: hold jump while falling (negative height_vel) to cap fall speed
 	if is_airborne() and _action_pressed("jump") and Powers and Powers.has("crystal_glide") and _height_vel < 0.0:
 		_height_vel = maxf(_height_vel, -90.0)
+
+	# Temporary powerups: Rush / Skybound / Dire Strike (per-player: p1_burst_* / p2_burst_*)
+	if _action_just_pressed("burst_sprint"):
+		_activate_sprint()
+	if _action_just_pressed("burst_sky"):
+		_activate_skybound()
+	if _action_just_pressed("burst_dire"):
+		_activate_dire_strike()
 
 	if _action_just_pressed("gather") and not is_airborne():
 		# Gather wins over sell when an essence node is in range (no accidental sells).
@@ -317,13 +338,121 @@ func _try_spawn_fairy() -> void:
 		FX.burst_particles(get_parent(), global_position + Vector2(0, -20), Color(0.8, 0.9, 1.0), 12, "star", 0.4)
 
 
+func _tick_bursts(delta: float) -> void:
+	if _sprint_t > 0.0:
+		_sprint_t = maxf(0.0, _sprint_t - delta)
+	if _sky_t > 0.0:
+		_sky_t = maxf(0.0, _sky_t - delta)
+		if _sky_t <= 0.0:
+			_sky_bonus_jumps = 0
+	_sprint_cd = maxf(0.0, _sprint_cd - delta)
+	_sky_cd = maxf(0.0, _sky_cd - delta)
+	_dire_cd = maxf(0.0, _dire_cd - delta)
+
+
+func _activate_sprint() -> void:
+	if _sprint_cd > 0.0 or GameState.is_game_over:
+		return
+	_sprint_t = BurstPowerups.SPRINT_DURATION
+	_sprint_cd = BurstPowerups.SPRINT_CD
+	GameState.message.emit("Rush!")
+	FloatingText.spawn(get_parent(), global_position + Vector2(0, -30), "RUSH", Color(1.0, 0.85, 0.3))
+	if FX:
+		FX.burst_particles(get_parent(), global_position, Color(1.0, 0.9, 0.4), 10, "star", 0.3)
+	if Sfx:
+		Sfx.build()
+	if Juice:
+		Juice.flash(Color(1.0, 0.9, 0.3, 0.15), 0.1)
+
+
+func _activate_skybound() -> void:
+	if _sky_cd > 0.0 or GameState.is_game_over:
+		return
+	_sky_t = BurstPowerups.SKY_DURATION
+	_sky_cd = BurstPowerups.SKY_CD
+	_sky_bonus_jumps = BurstPowerups.SKY_EXTRA_JUMPS
+	_jumps_left = _max_jumps_now()
+	GameState.message.emit("Skybound!")
+	FloatingText.spawn(get_parent(), global_position + Vector2(0, -30), "SKY", Color(0.6, 0.85, 1.0))
+	if FX:
+		FX.burst_particles(get_parent(), global_position, Color(0.6, 0.85, 1.0), 12, "magic", 0.35)
+	if Sfx:
+		Sfx.wave_start()
+
+
+func _activate_dire_strike() -> void:
+	if _dire_cd > 0.0 or GameState.is_game_over:
+		return
+	var target := _nearest_enemy(BurstPowerups.DIRE_RANGE)
+	if target == null:
+		GameState.message.emit("No foe in range for Dire Strike")
+		return
+	_dire_cd = BurstPowerups.DIRE_CD
+	# Lunge toward target
+	var to: Vector2 = target.global_position - global_position
+	if to.length() > 1.0:
+		global_position += to.normalized() * minf(BurstPowerups.DIRE_LUNGE, to.length() - 12.0)
+		global_position = GameState.clamp_world_position(global_position)
+	# Hop flourish
+	if _height < 8.0:
+		_height_vel = 220.0
+		_height = maxf(_height, 4.0)
+	if target.has_method("take_damage"):
+		target.take_damage(BurstPowerups.DIRE_DAMAGE)
+	FloatingText.spawn(get_parent(), target.global_position + Vector2(0, -20), str(BurstPowerups.DIRE_DAMAGE), Color(1.0, 0.4, 0.35))
+	GameState.message.emit("Dire Strike!")
+	if FX:
+		FX.burst_particles(get_parent(), target.global_position, Color(1.0, 0.35, 0.4), 18, "spark", 0.4)
+		FX.burst_particles(get_parent(), global_position, Color(1.0, 0.7, 0.5), 10, "magic", 0.3)
+	if Juice:
+		Juice.shake(7.0)
+		Juice.flash(Color(1.0, 0.3, 0.25, 0.25), 0.12)
+	if Sfx:
+		Sfx.hit()
+	# Brief attack arc flash
+	_facing = to.normalized() if to.length() > 0.1 else _facing
+	_flash_attack()
+
+
+func _nearest_enemy(max_range: float) -> Node2D:
+	var best: Node2D = null
+	var best_d := max_range
+	for e in get_tree().get_nodes_in_group("enemies"):
+		if e is Node2D:
+			var d: float = global_position.distance_to(e.global_position)
+			if d < best_d:
+				best_d = d
+				best = e
+	return best
+
+
+func _max_jumps_now() -> int:
+	var base := Powers.max_jumps() if Powers else 2
+	if _sky_t > 0.0:
+		return base + _sky_bonus_jumps
+	return base
+
+
+func get_burst_status() -> Dictionary:
+	return {
+		"sprint_t": _sprint_t,
+		"sprint_cd": _sprint_cd,
+		"sky_t": _sky_t,
+		"sky_cd": _sky_cd,
+		"dire_cd": _dire_cd,
+	}
+
+
 func _try_jump() -> void:
-	var max_j := Powers.max_jumps() if Powers else 2
+	var max_j := _max_jumps_now()
 	if _jumps_left <= 0:
 		return
 	var is_double := _height > 4.0 or _jumps_left < max_j
 	_jumps_left -= 1
-	_height_vel = Powers.jump_velocity() if Powers else 380.0
+	var jv := Powers.jump_velocity() if Powers else 380.0
+	if _sky_t > 0.0:
+		jv *= BurstPowerups.SKY_JUMP_MULT
+	_height_vel = jv
 	if is_double:
 		_height_vel *= 0.92
 		if FX:
@@ -344,14 +473,14 @@ func _update_jump(delta: float) -> void:
 			var from_double := _jumps_left == 0
 			_height = 0.0
 			_height_vel = 0.0
-			_jumps_left = Powers.max_jumps() if Powers else 2
+			_jumps_left = _max_jumps_now()
 			if _was_airborne:
 				_on_landed(was_high, from_double)
 			_was_airborne = false
 		else:
 			_was_airborne = true
 	else:
-		_jumps_left = Powers.max_jumps() if Powers else 2
+		_jumps_left = _max_jumps_now()
 		_was_airborne = false
 
 

@@ -51,7 +51,8 @@ Switch Pro / Joy-Cons: device 0 → P1, device 1 → P2 (A gather, B attack, X b
 - **Stone build pads** → **Q** build / upgrade (Lv1–3). Near pad **E** sells (60% refund) if not gathering.
 - **T / LB** = **Call Wave early** for bonus gold (prep phase only).
 - **F / Y** = summon **fairy** (20 Essence, max 6) — auto-**loot** + auto-**gather**.
-- **Space / RB** = **jump** + **double jump**. Unlock auras (low gravity, glide, stomp…) on Campaign → Powers with dust.
+- **Space / RB** = **jump** + **double jump**. Campaign → Powers for permanent auras (dust).
+- **1 Rush** (sprint) · **2 Skybound** (super jumps) · **3 Dire Strike** (lunge nearest foe) — temporary CDs for emergencies.
 - Nightspawn march **path lanes**; leaks cost **Lives** (♥). Stars 1–3 on victory.
 - Towers auto-fire (prefer enemies closest to crystal); floating dmg/+gold text.
 - Survive **8 waves**. **R** restart. Esc pause. Minimap top-right.
