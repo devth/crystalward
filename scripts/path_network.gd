@@ -6,6 +6,8 @@ signal paths_rebuilt
 
 const CRYSTAL := Vector2(0, 40)
 const PATH_CLEAR_RADIUS := 100.0
+## Keep dirt road outside this radius until the final approach segment.
+const CRYSTAL_KEEP_OUT := 200.0
 
 var lanes: Array = []
 var spawn_anchors: Array[Vector2] = []
@@ -52,6 +54,7 @@ func rebuild(lane_set: String = "single") -> void:
 		_:
 			_add_single()
 	_clear_features_from_paths()
+	_apply_crystal_clearance()
 	_rebuild_water_bodies()
 	paths_rebuilt.emit()
 
@@ -347,17 +350,20 @@ func _add_single() -> void:
 		Vector2(720, 620),
 		# East inner → north of amber lake
 		Vector2(580, 360),
-		Vector2(360, 160),
-		Vector2(80, -40),
-		# West of north ridge, then south along west lake
-		Vector2(-200, -120),
-		Vector2(-420, 80),
-		Vector2(-500, 280),
-		Vector2(-380, 480),
-		# Final approach from southwest glade
-		Vector2(-200, 320),
-		Vector2(-40, 180),
-		Vector2(20, 100),
+		Vector2(420, 220),
+		# Stay outside crystal plaza — ring south/west, then approach
+		Vector2(200, 280),
+		Vector2(-80, 340),
+		Vector2(-360, 300),
+		Vector2(-420, 200),
+		Vector2(-360, 80),
+		Vector2(-200, -40),
+		Vector2(40, -80),
+		Vector2(180, 40),
+		Vector2(160, 200),
+		# Final approach from south (clear of well)
+		Vector2(40, 260),
+		Vector2(10, 180),
 		CRYSTAL,
 	], 16)
 
@@ -378,8 +384,9 @@ func _add_dual() -> void:
 		Vector2(-560, -80),
 		Vector2(-620, 280),
 		Vector2(-420, 520),
-		Vector2(-120, 360),
-		Vector2(40, 160),
+		Vector2(-200, 400),
+		Vector2(40, 300),
+		Vector2(20, 200),
 		CRYSTAL,
 	], 15)
 	_add_curved_lane([
@@ -388,10 +395,10 @@ func _add_dual() -> void:
 		Vector2(1320, -320),
 		Vector2(980, -400),
 		Vector2(640, -200),
-		Vector2(420, 80),
-		Vector2(280, 240),
-		Vector2(120, 140),
-		Vector2(40, 70),
+		Vector2(420, 40),
+		Vector2(280, 200),
+		Vector2(120, 260),
+		Vector2(30, 190),
 		CRYSTAL,
 	], 15)
 
@@ -408,9 +415,10 @@ func _add_meander() -> void:
 		Vector2(120, 420),
 		Vector2(-320, 480),
 		Vector2(-520, 280),
-		Vector2(-360, 40),
-		Vector2(-40, -40),
-		Vector2(80, 80),
+		Vector2(-400, 120),
+		Vector2(-200, 240),
+		Vector2(40, 280),
+		Vector2(20, 190),
 		CRYSTAL,
 	], 15)
 	_add_curved_lane([
@@ -420,9 +428,11 @@ func _add_meander() -> void:
 		Vector2(-960, -980),
 		Vector2(-880, -520),
 		Vector2(-520, -240),
-		Vector2(-120, -160),
-		Vector2(160, -40),
-		Vector2(40, 40),
+		Vector2(-200, -200),
+		Vector2(120, -160),
+		Vector2(200, 40),
+		Vector2(80, 220),
+		Vector2(20, 180),
 		CRYSTAL,
 	], 15)
 
@@ -435,9 +445,10 @@ func _add_cross() -> void:
 		Vector2(1100, -700),
 		Vector2(980, -320),
 		Vector2(720, -40),
-		Vector2(400, 120),
-		Vector2(160, 80),
-		Vector2(40, 55),
+		Vector2(480, 80),
+		Vector2(280, 220),
+		Vector2(80, 260),
+		Vector2(20, 180),
 		CRYSTAL,
 	], 14)
 	_add_curved_lane([
@@ -445,9 +456,10 @@ func _add_cross() -> void:
 		Vector2(-1280, 1100),
 		Vector2(-1040, 720),
 		Vector2(-860, 360),
-		Vector2(-560, 160),
-		Vector2(-240, 120),
-		Vector2(-40, 70),
+		Vector2(-560, 200),
+		Vector2(-280, 240),
+		Vector2(-40, 260),
+		Vector2(20, 180),
 		CRYSTAL,
 	], 14)
 
@@ -461,9 +473,9 @@ func _add_winding() -> void:
 		Vector2(-1000, -360),
 		Vector2(-720, -40),
 		Vector2(-560, 280),
-		Vector2(-320, 200),
-		Vector2(-80, 100),
-		Vector2(20, 55),
+		Vector2(-360, 300),
+		Vector2(-120, 280),
+		Vector2(30, 200),
 		CRYSTAL,
 	], 15)
 	_add_curved_lane([
@@ -473,10 +485,9 @@ func _add_winding() -> void:
 		Vector2(1020, 1160),
 		Vector2(920, 720),
 		Vector2(600, 420),
-		Vector2(200, 320),
-		Vector2(-160, 260),
-		Vector2(-80, 120),
-		Vector2(30, 70),
+		Vector2(280, 340),
+		Vector2(40, 280),
+		Vector2(20, 190),
 		CRYSTAL,
 	], 15)
 
@@ -490,8 +501,8 @@ func _add_full() -> void:
 		Vector2(920, 1120),
 		Vector2(760, 700),
 		Vector2(400, 420),
-		Vector2(80, 280),
-		Vector2(-40, 120),
+		Vector2(120, 300),
+		Vector2(20, 200),
 		CRYSTAL,
 	], 15)
 	_add_curved_lane([
@@ -499,9 +510,10 @@ func _add_full() -> void:
 		Vector2(1520, -280),
 		Vector2(1180, -360),
 		Vector2(820, -160),
-		Vector2(520, 80),
-		Vector2(280, 160),
-		Vector2(100, 70),
+		Vector2(520, 40),
+		Vector2(300, 200),
+		Vector2(100, 260),
+		Vector2(20, 180),
 		CRYSTAL,
 	], 15)
 	_add_curved_lane([
@@ -510,10 +522,45 @@ func _add_full() -> void:
 		Vector2(-760, -1200),
 		Vector2(-880, -720),
 		Vector2(-640, -320),
-		Vector2(-280, -80),
-		Vector2(20, 20),
+		Vector2(-320, -120),
+		Vector2(-80, 160),
+		Vector2(20, 200),
 		CRYSTAL,
 	], 15)
+
+
+func _apply_crystal_clearance() -> void:
+	## Push path samples outside the crystal plaza so the road doesn't clip the well.
+	## Final ~12% of each lane may enter for the approach; everything else stays out.
+	for li in lanes.size():
+		var lane: PackedVector2Array = lanes[li]
+		if lane.size() < 4:
+			continue
+		var total := lane_length(lane)
+		if total < 1.0:
+			continue
+		var keep_out := CRYSTAL_KEEP_OUT
+		var approach_start := total * 0.88  # only last stretch may enter
+		var walked := 0.0
+		var out := PackedVector2Array()
+		out.append(lane[0])
+		for i in range(1, lane.size()):
+			var a: Vector2 = lane[i - 1]
+			var b: Vector2 = lane[i]
+			var seg := a.distance_to(b)
+			var mid_dist := walked + seg * 0.5
+			var p: Vector2 = b
+			if mid_dist < approach_start:
+				var d := p.distance_to(CRYSTAL)
+				if d < keep_out and d > 0.5:
+					p = CRYSTAL + (p - CRYSTAL).normalized() * keep_out
+			out.append(p)
+			walked += seg
+		# Always end exactly on crystal
+		out[out.size() - 1] = CRYSTAL
+		lanes[li] = out
+		if spawn_anchors.size() > li:
+			spawn_anchors[li] = out[0]
 
 
 func _add_curved_lane(control: Array, samples_per_span: int = 14) -> void:
