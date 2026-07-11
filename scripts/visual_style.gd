@@ -21,19 +21,24 @@ const LEGEND_BLOOM := Color(0.65, 0.45, 0.85)
 const LEGEND_GOLDEN_HOUR := Color(0.85, 0.75, 0.4)
 
 ## Z layers — ground always under actors. Never use Main y_sort (covers north map).
+## Godot CanvasItem.z_index is clamped to [-4096, 4096]; stay well inside that.
 const Z_GROUND := -200
 const Z_PATH := -180
-const Z_PROP_BASE := 0      # + int(y) for decor
-const Z_ACTOR_BASE := 5000  # + int(y) — always above all ground props
+const Z_PROP_BASE := 0
+## Actors map world Y into a positive band so they always draw above Ground (z≈-200).
+const Z_ACTOR_MIN := 50
+const Z_ACTOR_MAX := 4000
+const Z_WORLD_Y_BIAS := 2000  # world y -2000..2000 → mapped 0..4000
 
 
 func actor_z(world_y: float, height: float = 0.0) -> int:
-	## Stable draw order: higher world Y (south) draws later; height lifts slightly.
-	return Z_ACTOR_BASE + int(world_y) - int(height * 0.1)
+	## Higher world Y (south) draws later; always above ground art.
+	var z := Z_ACTOR_MIN + int(world_y) + Z_WORLD_Y_BIAS - int(height * 0.1)
+	return clampi(z, Z_ACTOR_MIN, Z_ACTOR_MAX)
 
 
 func prop_z(world_y: float) -> int:
-	return Z_PROP_BASE + int(world_y)
+	return clampi(Z_PROP_BASE + int(world_y), -4000, 4000)
 
 var _outline_shader: Shader
 var _outline_mat: ShaderMaterial

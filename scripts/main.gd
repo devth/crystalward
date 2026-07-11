@@ -120,10 +120,11 @@ func _expand_map_content() -> void:
 				var n := PathNetwork.path_normal_at(pts, wi)
 				var sides: Array = [-1.0, 1.0] if single_lane else [1.0 if (lane_i + wi) % 2 == 0 else -1.0]
 				for side in sides:
-					var pos: Vector2 = pts[wi] + n * (95.0 * float(side))
+					# Closer to the road so tower ranges cover the path reliably
+					var pos: Vector2 = pts[wi] + n * (55.0 * float(side))
 					if pos.length() < 140.0:
 						continue
-					var min_d := 100.0 if single_lane else 140.0
+					var min_d := 120.0 if single_lane else 150.0
 					if _too_close_to_existing_sites(pos, min_d):
 						continue
 					var site: Node2D = _site_scene.instantiate() as Node2D

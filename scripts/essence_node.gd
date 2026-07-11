@@ -41,9 +41,9 @@ func _ready() -> void:
 	_label.visible = false
 	z_as_relative = false
 	if VisualStyle:
-		z_index = VisualStyle.actor_z(global_position.y) - 2
+		z_index = maxi(0, VisualStyle.actor_z(global_position.y) - 2)
 	else:
-		z_index = 4998 + int(global_position.y)
+		z_index = clampi(48 + int(global_position.y) + 2000, 0, 4000)
 	add_to_group("essence_nodes")
 
 

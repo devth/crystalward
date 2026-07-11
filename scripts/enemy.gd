@@ -261,7 +261,7 @@ func _finish_frame() -> void:
 	if VisualStyle:
 		z_index = VisualStyle.actor_z(global_position.y)
 	else:
-		z_index = 5000 + int(global_position.y)
+		z_index = clampi(50 + int(global_position.y) + 2000, 50, 4000)
 	if _visual:
 		_visual.position.y = 0.0
 		if _move_dir.x < -0.12:
@@ -295,6 +295,10 @@ func apply_mark(mult: float, duration: float) -> void:
 
 func is_marked() -> bool:
 	return _mark_t > 0.0 and _mark_mult > 1.0
+
+
+func is_elite() -> bool:
+	return _is_elite
 
 
 func take_damage(amount: int) -> void:

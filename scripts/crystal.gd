@@ -24,7 +24,7 @@ func _ready() -> void:
 	if VisualStyle:
 		z_index = VisualStyle.actor_z(global_position.y) + 20
 	else:
-		z_index = 5020 + int(global_position.y)
+		z_index = clampi(70 + int(global_position.y) + 2000, 50, 4000)
 	FX.style_progress_bar(_hp_bar, Color(0.55, 0.85, 0.95), Color(0.06, 0.08, 0.1, 0.9))
 	_hp_bar.position = Vector2(-52, 62)
 	_hp_bar.size = Vector2(104, 12)

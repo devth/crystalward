@@ -259,7 +259,7 @@ func _physics_process(delta: float) -> void:
 	if VisualStyle:
 		z_index = VisualStyle.actor_z(global_position.y, _height)
 	else:
-		z_index = 5000 + int(global_position.y)
+		z_index = clampi(50 + int(global_position.y) + 2000, 50, 4000)
 
 	_update_sprite_anim(delta)
 

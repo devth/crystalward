@@ -91,7 +91,7 @@ func _process(delta: float) -> void:
 	if VisualStyle:
 		z_index = VisualStyle.actor_z(global_position.y) + 10
 	else:
-		z_index = 5010 + int(global_position.y)
+		z_index = clampi(60 + int(global_position.y) + 2000, 50, 4000)
 
 	# Always prefer nearby loot if any exists
 	if mode != Mode.SEEK_LOOT:

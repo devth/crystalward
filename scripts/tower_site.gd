@@ -42,9 +42,9 @@ func _ready() -> void:
 	_update_presence_visuals()
 	z_as_relative = false
 	if VisualStyle:
-		z_index = VisualStyle.actor_z(global_position.y) - 5
+		z_index = maxi(0, VisualStyle.actor_z(global_position.y) - 5)
 	else:
-		z_index = 4995 + int(global_position.y)
+		z_index = clampi(45 + int(global_position.y) + 2000, 0, 4000)
 	add_to_group("tower_sites")
 
 
@@ -68,7 +68,8 @@ func _build_visuals() -> void:
 	_type_swatch.position = Vector2(0, -2)
 	_type_swatch.visible = false
 	_platform.add_child(_type_swatch)
-	_range_preview = FX.make_ellipse_poly(85, 52, 40, Color(0.3, 0.85, 0.4, 0.12))
+	# Base ring = 100px radius; scaled so preview matches tower fire_range.
+	_range_preview = FX.make_ellipse_poly(100, 72, 48, Color(0.3, 0.85, 0.4, 0.14))
 	_range_preview.z_index = -2
 	_range_preview.visible = false
 	add_child(_range_preview)
@@ -228,17 +229,15 @@ func _update_range_preview() -> void:
 	_range_preview.visible = show
 	if _tower and _tower.has_method("set_range_visible"):
 		_tower.call("set_range_visible", show)
+	# Preview poly is radius 100; scale so displayed radius == fire_range.
 	if state == State.BUILT and _tower and "fire_range" in _tower:
-		_range_preview.scale = Vector2.ONE * (float(_tower.fire_range) / 170.0)
+		var fr := float(_tower.fire_range)
+		_range_preview.scale = Vector2.ONE * (fr / 100.0)
 	elif state == State.EMPTY and TowerTypes:
-		var r: float = float(TowerTypes.selected_def().get("range", 170.0))
-		_range_preview.color = Color(
-			TowerTypes.selected_def().get("color", Color.GREEN).r,
-			TowerTypes.selected_def().get("color", Color.GREEN).g,
-			TowerTypes.selected_def().get("color", Color.GREEN).b,
-			0.12
-		)
-		_range_preview.scale = Vector2.ONE * (r / 170.0)
+		var r: float = float(TowerTypes.selected_def().get("range", 340.0))
+		var col: Color = TowerTypes.selected_def().get("color", Color.GREEN) as Color
+		_range_preview.color = Color(col.r, col.g, col.b, 0.14)
+		_range_preview.scale = Vector2.ONE * (r / 100.0)
 
 
 func _on_body_entered(body: Node) -> void:

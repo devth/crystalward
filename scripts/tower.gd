@@ -5,9 +5,9 @@ class_name DefenseTower
 var type_id: String = "thornspire"
 var level: int = 1
 var invested_essence: int = 0
-var fire_range: float = 170.0
-var fire_rate: float = 0.5
-var damage: int = 15
+var fire_range: float = 340.0
+var fire_rate: float = 0.42
+var damage: int = 18
 var role: String = "dps"
 var channel: String = "thorn"
 var aura_slow: float = 0.0
@@ -33,10 +33,7 @@ var _configured: bool = false
 func _ready() -> void:
 	add_to_group("towers")
 	z_as_relative = false
-	if VisualStyle:
-		z_index = VisualStyle.actor_z(global_position.y)
-	else:
-		z_index = 5000 + int(global_position.y)
+	_refresh_z()
 	# Hide scene placeholders (RangeHint / Body / CrystalTip); code builds type-specific art.
 	for n in ["RangeHint", "Body", "CrystalTip"]:
 		if has_node(n):
@@ -47,6 +44,13 @@ func _ready() -> void:
 		_build_visuals()
 	_bob = randf() * TAU
 	set_range_visible(false)
+
+
+func _refresh_z() -> void:
+	if VisualStyle:
+		z_index = VisualStyle.actor_z(global_position.y)
+	else:
+		z_index = clampi(50 + int(global_position.y) + 2000, 50, 4000)
 
 
 func configure(id: String, invested: int = 0) -> void:
@@ -140,9 +144,21 @@ func _apply_level_look() -> void:
 		_level_label.text = "Lv%d" % level
 	if _body:
 		_body.scale = Vector2.ONE * (1.0 + (level - 1) * 0.12)
-	if _range_ring:
-		var base_r := float(TowerTypes.def_for(type_id).get("range", 170.0))
-		_range_ring.scale = Vector2.ONE * (fire_range / maxf(1.0, base_r * 0.5) * 0.5)
+	_rebuild_range_ring()
+
+
+func _rebuild_range_ring() -> void:
+	## Ring radius matches combat fire_range (circle check uses full fire_range).
+	if _visual == null:
+		return
+	if _range_ring and is_instance_valid(_range_ring):
+		_range_ring.queue_free()
+		_range_ring = null
+	var col := Color(_def_color.r, _def_color.g, _def_color.b, 0.16)
+	_range_ring = FX.make_ellipse_poly(fire_range, fire_range * 0.72, 56, col)
+	_range_ring.z_index = -2
+	_range_ring.visible = show_range
+	_visual.add_child(_range_ring)
 
 
 func _build_visuals() -> void:
@@ -154,9 +170,7 @@ func _build_visuals() -> void:
 	else:
 		FX.add_soft_shadow(_visual, 24, 10, 14)
 
-	_range_ring = FX.make_ellipse_poly(fire_range * 0.5, fire_range * 0.32, 48, Color(_def_color.r, _def_color.g, _def_color.b, 0.14))
-	_range_ring.z_index = -2
-	_visual.add_child(_range_ring)
+	_rebuild_range_ring()
 
 	match role:
 		"snipe":
@@ -302,7 +316,7 @@ func _build_bonehowl() -> void:
 
 
 func _process(delta: float) -> void:
-	if GameState.is_game_over:
+	if GameState != null and GameState.is_game_over:
 		return
 	_bob += delta
 	if _visual:
@@ -310,7 +324,13 @@ func _process(delta: float) -> void:
 	if _accent and role != "slow":
 		_accent.modulate.a = 0.7 + 0.3 * sin(_bob * 3.0)
 
-	# Auras
+	# Haste timer (keep in _process so combat always sees it)
+	if _haste_t > 0.0:
+		_haste_t -= delta
+		if _haste_t <= 0.0:
+			_haste = 0.0
+
+	# Auras every frame while active
 	if aura_slow > 0.0:
 		_apply_slow_aura()
 	if aura_haste > 0.0:
@@ -319,29 +339,40 @@ func _process(delta: float) -> void:
 	_cd = maxf(0.0, _cd - delta)
 	if _cd > 0.0:
 		return
-	if role == "buff" and aura_haste > 0.0:
-		_cd = fire_rate
-		return  # pure support ticks via aura
+
 	var target := _find_target()
-	if target:
-		_cd = fire_rate * (1.0 - clampf(_haste, 0.0, 0.5))
-		_fire_at(target)
+	if target == null or not is_instance_valid(target):
+		# Buff-only towers still pulse aura on cooldown so they feel "alive"
+		if role == "buff" and aura_haste > 0.0:
+			_cd = fire_rate
+		return
+
+	_cd = maxf(0.12, fire_rate * (1.0 - clampf(_haste, 0.0, 0.5)))
+	_fire_at(target)
 
 
 func _apply_slow_aura() -> void:
-	for e in get_tree().get_nodes_in_group("enemies"):
-		if e is Node2D and global_position.distance_to(e.global_position) <= fire_range:
+	var tree := get_tree()
+	if tree == null:
+		return
+	var r2 := fire_range * fire_range
+	for e in tree.get_nodes_in_group("enemies"):
+		if e is Node2D and global_position.distance_squared_to(e.global_position) <= r2:
 			if e.has_method("apply_slow"):
-				e.call("apply_slow", aura_slow, 0.35)
+				e.call("apply_slow", aura_slow, 0.4)
 
 
 func _apply_haste_aura() -> void:
-	for t in get_tree().get_nodes_in_group("towers"):
+	var tree := get_tree()
+	if tree == null:
+		return
+	var r2 := (fire_range * 0.9) * (fire_range * 0.9)
+	for t in tree.get_nodes_in_group("towers"):
 		if t == self or not (t is Node2D):
 			continue
-		if global_position.distance_to(t.global_position) <= fire_range * 0.85:
+		if global_position.distance_squared_to(t.global_position) <= r2:
 			if t.has_method("apply_haste"):
-				t.call("apply_haste", aura_haste, 0.4)
+				t.call("apply_haste", aura_haste, 0.45)
 
 
 func apply_haste(amount: float, duration: float) -> void:
@@ -350,36 +381,55 @@ func apply_haste(amount: float, duration: float) -> void:
 
 
 func _fire_at(target: Node2D) -> void:
+	if target == null or not is_instance_valid(target):
+		return
 	var dmg := damage
-	if target.has_method("is_marked") and target.call("is_marked"):
-		dmg = int(dmg * 1.35)
+	if target.has_method("is_marked") and bool(target.call("is_marked")):
+		dmg = int(float(dmg) * 1.35)
+	var host: Node = get_parent()
+	if host == null:
+		host = self
+
 	if target.has_method("take_damage"):
 		if splash > 0.0:
-			for e in get_tree().get_nodes_in_group("enemies"):
-				if e is Node2D and target.global_position.distance_to(e.global_position) <= splash:
-					var mult := 1.0 if e == target else 0.55
-					e.call("take_damage", int(dmg * mult))
-					FloatingText.spawn(get_parent(), e.global_position + Vector2(0, -12), str(int(dmg * mult)), _def_color)
+			var tree := get_tree()
+			if tree:
+				for e in tree.get_nodes_in_group("enemies"):
+					if not (e is Node2D) or not is_instance_valid(e):
+						continue
+					if target.global_position.distance_to(e.global_position) <= splash:
+						var mult := 1.0 if e == target else 0.55
+						var hit := maxi(1, int(float(dmg) * mult))
+						e.call("take_damage", hit)
+						FloatingText.spawn(host, e.global_position + Vector2(0, -12), str(hit), _def_color)
 		else:
-			target.take_damage(dmg)
-			FloatingText.spawn(get_parent(), target.global_position + Vector2(0, -16), str(dmg), _def_color)
-	if role == "mark" and target.has_method("apply_mark"):
+			target.call("take_damage", dmg)
+			FloatingText.spawn(host, target.global_position + Vector2(0, -16), str(dmg), _def_color)
+
+	if role == "mark" and target.has_method("apply_mark") and is_instance_valid(target):
 		target.call("apply_mark", mark_mult, 3.0)
-	_muzzle_flash(target.global_position)
+	if is_instance_valid(target):
+		_muzzle_flash(target.global_position)
 
 
 func _find_target() -> Node2D:
+	var tree := get_tree()
+	if tree == null:
+		return null
 	var crystal_pos := PathNetwork.CRYSTAL if PathNetwork else Vector2.ZERO
 	var best: Node2D = null
 	var best_score := -1.0
-	for e in get_tree().get_nodes_in_group("enemies"):
-		if not (e is Node2D):
+	var r2 := fire_range * fire_range
+	for e in tree.get_nodes_in_group("enemies"):
+		if not (e is Node2D) or not is_instance_valid(e):
 			continue
-		var d: float = global_position.distance_to(e.global_position)
-		if d > fire_range:
+		var d2: float = global_position.distance_squared_to(e.global_position)
+		if d2 > r2:
 			continue
-		var score := 1.0 / maxf(40.0, e.global_position.distance_to(crystal_pos))
-		if role == "snipe" and e.get("_is_elite"):
+		# Prefer enemies closest to the Lightwell (about to leak), then nearer to tower.
+		var to_crystal: float = e.global_position.distance_to(crystal_pos)
+		var score := 10000.0 / maxf(40.0, to_crystal) + 200.0 / maxf(20.0, sqrt(d2))
+		if role == "snipe" and e.has_method("is_elite") and bool(e.call("is_elite")):
 			score *= 3.0
 		if score > best_score:
 			best_score = score
@@ -387,23 +437,16 @@ func _find_target() -> Node2D:
 	return best
 
 
-func _physics_process(delta: float) -> void:
-	if _haste_t > 0.0:
-		_haste_t -= delta
-		if _haste_t <= 0.0:
-			_haste = 0.0
-
-
 func _muzzle_flash(to: Vector2) -> void:
 	var line := Line2D.new()
-	line.width = 3.5
+	line.width = 4.0
 	line.default_color = Color(_def_color.r, _def_color.g, _def_color.b, 0.95)
 	line.begin_cap_mode = Line2D.LINE_CAP_ROUND
 	line.end_cap_mode = Line2D.LINE_CAP_ROUND
 	var origin := Vector2(0, -36)
 	line.points = PackedVector2Array([origin, to - global_position])
-	line.z_index = 100
+	line.z_index = 20
 	add_child(line)
 	var tw := create_tween()
-	tw.tween_property(line, "modulate:a", 0.0, 0.12)
+	tw.tween_property(line, "modulate:a", 0.0, 0.14)
 	tw.tween_callback(line.queue_free)
