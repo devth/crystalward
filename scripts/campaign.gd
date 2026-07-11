@@ -34,7 +34,7 @@ func maps() -> Array:
 			"first_wave_delay": 18.0,
 			"calm_between_waves": 16.0,
 			"theme": Color(1.05, 1.04, 0.98),
-			"lane_set": "simple",
+			"lane_set": "meander",
 		},
 		{
 			"id": "thorns",
