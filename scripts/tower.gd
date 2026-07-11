@@ -634,10 +634,26 @@ func _execute_damage(target: Node2D) -> int:
 func _hit_one(target: Node2D, dmg: int, host: Node) -> void:
 	if target == null or not is_instance_valid(target) or not target.has_method("take_damage"):
 		return
-	if target.has_method("is_marked") and bool(target.call("is_marked")):
-		dmg = int(float(dmg) * 1.35)
-	target.call("take_damage", maxi(1, dmg))
-	FloatingText.spawn(host, target.global_position + Vector2(0, -16), str(maxi(1, dmg)), _def_color)
+	# Preview matchup for floating text color (actual mult applied once in take_damage)
+	var txt_col := _def_color
+	var shown := dmg
+	if target.has_method("damage_mult_from_tower"):
+		var m: float = float(target.call("damage_mult_from_tower", channel, special, role))
+		shown = maxi(1, int(float(dmg) * m))
+		if target.has_method("is_marked") and bool(target.call("is_marked")):
+			var mm = target.get("_mark_mult")
+			if mm != null:
+				shown = int(float(shown) * float(mm))
+		if m >= 1.35:
+			txt_col = Color(1.0, 0.95, 0.35)
+		elif m <= 0.65:
+			txt_col = Color(0.55, 0.65, 0.95)
+		target.call("take_damage", dmg, channel, special, role)
+	else:
+		if target.has_method("is_marked") and bool(target.call("is_marked")):
+			shown = int(float(dmg) * 1.35)
+		target.call("take_damage", shown)
+	FloatingText.spawn(host, target.global_position + Vector2(0, -16), str(maxi(1, shown)), txt_col)
 
 
 func _fire_splash(target: Node2D, host: Node) -> void:

@@ -1,5 +1,5 @@
 extends Node
-## Kingdom Rush–style wave cadence: prep timer, call-early bonus, lane spawns.
+## Kingdom Rush–style wave cadence: one enemy kind per surge, spaced packs.
 
 @export var enemy_scene: PackedScene
 @export var spawn_point_paths: Array[NodePath] = []
@@ -15,6 +15,8 @@ var _to_spawn: int = 0
 var _spawn_cd: float = 0.0
 var _elites_left: int = 0
 var _can_call_early: bool = false
+var _wave_kind: String = "thrall"
+var _spawn_spacing: float = 0.9
 
 
 func _ready() -> void:
@@ -37,7 +39,7 @@ func can_call_early() -> bool:
 func call_early_wave() -> bool:
 	if not can_call_early():
 		return false
-	var bonus := GameState.EARLY_WAVE_BONUS + int(_timer)  # more time left = more gold, KR-style
+	var bonus := GameState.EARLY_WAVE_BONUS + int(_timer)
 	bonus = mini(bonus, 25)
 	GameState.add_essence(bonus)
 	GameState.message.emit("Early surge! +%d Essence" % bonus)
@@ -66,6 +68,10 @@ func get_phase_name() -> String:
 			return "done"
 
 
+func get_wave_kind() -> String:
+	return _wave_kind
+
+
 func _process(delta: float) -> void:
 	if GameState.is_game_over:
 		return
@@ -83,14 +89,12 @@ func _process(delta: float) -> void:
 			_spawn_cd -= delta
 			if _spawn_cd <= 0.0 and _to_spawn > 0:
 				var elite := false
-				if _elites_left > 0 and (_to_spawn == 1 or randf() < 0.12):
+				if _elites_left > 0 and (_to_spawn == 1 or randf() < 0.1):
 					elite = true
 					_elites_left -= 1
 				_spawn_one(elite)
 				_to_spawn -= 1
-				var map_cd := _map_def()
-				var spacing := 0.55 if float(map_cd.get("enemy_count_scale", 1.0)) < 0.7 else 0.34
-				_spawn_cd = maxf(0.14, spacing - _wave * 0.015)
+				_spawn_cd = _spawn_spacing
 			if _to_spawn <= 0:
 				_phase = Phase.IN_WAVE
 				GameState.wave_phase_changed.emit("combat", 0.0)
@@ -127,29 +131,33 @@ func _begin_wave() -> void:
 	GameState.set_wave(_wave)
 	if TowerTypes and TowerTypes.has_method("on_wave_started"):
 		TowerTypes.on_wave_started(_wave)
+
+	# One kind per surge
+	_wave_kind = EnemyKinds.kind_for_wave(_wave) if EnemyKinds else "thrall"
+	var kind_def: Dictionary = EnemyKinds.def_for(_wave_kind) if EnemyKinds else {}
+	_spawn_spacing = float(kind_def.get("spawn_spacing", 0.9))
+
 	var map := _map_def()
-	var names := [
-		"Thrall Tide", "Iron Procession", "Wild Hunt", "Soft Dark",
-		"Winged Blight", "Lieutenant's Host", "Conjunction Eve", "Dawn's Last Stand"
-	]
-	var easy_names := ["First Footfalls", "Curious Scouts", "Meadow Drift", "Soft Close"]
-	var label: String
-	if int(map.get("difficulty", 3)) <= 1:
-		label = easy_names[mini(_wave - 1, easy_names.size() - 1)]
-	else:
-		label = names[mini(_wave - 1, names.size() - 1)]
-	GameState.message.emit("⚔ SURGE %d — %s" % [_wave, label])
+	var kind_name: String = str(kind_def.get("name", "Nightspawn"))
+	var hint: String = EnemyKinds.matchup_hint(_wave_kind) if EnemyKinds else ""
+	GameState.message.emit("⚔ SURGE %d — %s" % [_wave, kind_name])
+	if hint != "":
+		# Brief matchup tip so players know which towers to lean on
+		GameState.message.emit(hint)
 	if Sfx:
 		Sfx.wave_start()
 	if Juice:
-		Juice.flash(Color(0.95, 0.4, 0.25, 0.28), 0.22)
+		var col: Color = kind_def.get("color", Color(0.95, 0.4, 0.25)) as Color
+		Juice.flash(Color(col.r, col.g, col.b, 0.28), 0.22)
 		Juice.shake(3.0 if int(map.get("difficulty", 3)) <= 1 else 5.0)
 
 	var count_scale := float(map.get("enemy_count_scale", 1.0))
-	# Gentle ramp: fewer early packs, slower growth across waves
 	var base_count := 5 + _wave * 3
 	_to_spawn = maxi(3, int(round(float(base_count) * count_scale)))
-	# Tutorial / low maps: no elites; others introduce elites later
+	# Fewer units for brutes so they don't still blob
+	if float(kind_def.get("hp_mult", 1.0)) > 1.4:
+		_to_spawn = maxi(3, int(round(float(_to_spawn) * 0.75)))
+
 	if map.get("elites", true) == false or int(map.get("difficulty", 3)) <= 1:
 		_elites_left = 0
 	else:
@@ -158,12 +166,11 @@ func _begin_wave() -> void:
 			_elites_left = 1
 		if _wave >= 6:
 			_elites_left = 2
-	_spawn_cd = 0.0
-	# Gentler spawn spacing on easy maps
+
+	# Map difficulty stretches spacing slightly
 	if count_scale < 0.7:
-		_spawn_cd = 0.55
-	elif count_scale < 0.95:
-		_spawn_cd = 0.28
+		_spawn_spacing = maxf(_spawn_spacing, 1.0)
+	_spawn_cd = 0.15
 	_phase = Phase.SPAWNING
 	_can_call_early = false
 	GameState.wave_phase_changed.emit("combat", 0.0)
@@ -187,11 +194,16 @@ func _spawn_one(elite: bool = false) -> void:
 		return
 	var hp_s := float(map.get("enemy_hp_scale", 1.0))
 	var spd_s := float(map.get("enemy_speed_scale", 1.0))
-	# Soft HP/speed growth so mid-campaign stays readable
-	e.set("max_hp", maxi(12, int((26 + _wave * 7) * hp_s)))
-	e.set("move_speed", maxf(28.0, (48.0 + _wave * 3.8) * spd_s))
-	e.set("crystal_damage", 8)  # lives-style leak (GameState scales to 1 life)
-	# Parent under World for y-sort with players; path coords are world-space.
+	var base_hp := maxi(12, int((26 + _wave * 7) * hp_s))
+	var base_spd := maxf(28.0, (48.0 + _wave * 3.8) * spd_s)
+	# Configure kind BEFORE add_child so _ready builds correct visuals
+	if e.has_method("configure_kind"):
+		e.call("configure_kind", _wave_kind, base_hp, base_spd)
+	else:
+		e.set("max_hp", base_hp)
+		e.set("move_speed", base_spd)
+	e.set("crystal_damage", 8)
+
 	var host: Node = get_parent().get_node_or_null("World")
 	if host == null:
 		host = get_parent()
@@ -200,4 +212,4 @@ func _spawn_one(elite: bool = false) -> void:
 		e.call("assign_lane", lane)
 	if elite and e.has_method("make_elite"):
 		e.call("make_elite")
-		GameState.message.emit("⚠ Elite on the path!")
+		GameState.message.emit("⚠ Elite %s!" % (EnemyKinds.display_name(_wave_kind) if EnemyKinds else "spawn"))

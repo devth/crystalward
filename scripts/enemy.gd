@@ -10,6 +10,7 @@ class_name Nightspawn
 @export var path_slack: float = 14.0  ## lateral wander *on* the road (pixels)
 
 var hp: int
+var kind_id: String = "thrall"
 var _crystal: Node2D
 var _visual: Node2D
 var _body_poly: Polygon2D
@@ -24,6 +25,10 @@ var _skin_modulate: Color = Color(0.72, 0.42, 0.62)
 var _frame_idx: int = 0
 var _frame_t: float = 0.0
 var _sprite_scale: float = 0.85
+var _kind_skin_key: String = ""
+var _sep_radius: float = 48.0
+var _min_path_gap: float = 70.0
+var _kind_color: Color = Color(0.85, 0.3, 0.45)
 
 var _lane: PackedVector2Array = PackedVector2Array()
 var _path_dist: float = 0.0
@@ -37,6 +42,7 @@ var _mark_mult: float = 1.0
 var _mark_t: float = 0.0
 var _root_t: float = 0.0
 var _move_dir: Vector2 = Vector2.DOWN
+var _configured_kind: bool = false
 
 @onready var _bar: ProgressBar = $HpBar
 
@@ -54,12 +60,15 @@ func _ready() -> void:
 	if has_node("Eye"):
 		$Eye.visible = false
 
+	if not _configured_kind and EnemyKinds:
+		configure_kind(EnemyKinds.kind_for_wave(1))
 	_lateral = randf_range(-path_slack, path_slack)
 	if _lane.is_empty() and PathNetwork:
 		assign_lane(PathNetwork.random_lane())
 
 	_build_visuals()
-	FX.style_progress_bar(_bar, Color(0.85, 0.25, 0.4), Color(0.1, 0.04, 0.08, 0.85))
+	var bar_col := _kind_color
+	FX.style_progress_bar(_bar, bar_col, Color(0.1, 0.04, 0.08, 0.85))
 	_bar.max_value = max_hp
 	_bar.value = hp
 	_bar.position = Vector2(-18, -36)
@@ -68,6 +77,37 @@ func _ready() -> void:
 		_bar.size = Vector2(48, 8)
 		_bar.position = Vector2(-24, -42)
 	_crystal = get_tree().get_first_node_in_group("crystal") as Node2D
+
+
+## Apply wave kind stats. Call BEFORE add_child when possible; safe after too if visuals not built.
+func configure_kind(id: String, base_hp: int = -1, base_speed: float = -1.0) -> void:
+	kind_id = id
+	_configured_kind = true
+	var d: Dictionary = EnemyKinds.def_for(id) if EnemyKinds else {}
+	var hp_m := float(d.get("hp_mult", 1.0))
+	var spd_m := float(d.get("speed_mult", 1.0))
+	if base_hp > 0:
+		max_hp = maxi(8, int(float(base_hp) * hp_m))
+	else:
+		max_hp = maxi(8, int(float(max_hp) * hp_m))
+	if base_speed > 0.0:
+		move_speed = maxf(24.0, base_speed * spd_m)
+	else:
+		move_speed = maxf(24.0, move_speed * spd_m)
+	path_slack = float(d.get("path_slack", path_slack))
+	_sep_radius = float(d.get("sep_radius", 48.0))
+	_min_path_gap = float(d.get("min_path_gap", 70.0))
+	_kind_skin_key = str(d.get("skin", ""))
+	_kind_color = d.get("color", Color(0.85, 0.3, 0.45)) as Color
+	var cdm := float(d.get("crystal_damage_mult", 1.0))
+	crystal_damage = maxi(1, int(float(crystal_damage) * cdm))
+	var sm := float(d.get("scale_mult", 1.0))
+	if sm != 1.0:
+		scale = Vector2(sm, sm)
+	if is_inside_tree() and is_instance_valid(_bar):
+		hp = max_hp
+		_bar.max_value = max_hp
+		_bar.value = hp
 
 
 func assign_lane(lane: PackedVector2Array) -> void:
@@ -108,10 +148,18 @@ func _build_visuals() -> void:
 	add_child(_visual)
 	FX.add_soft_shadow(_visual, 18, 8, 12)
 
-	var skin: Dictionary = AssetPaths.random_enemy_skin()
-	_skin_modulate = skin.get("modulate", Color(0.72, 0.42, 0.62)) as Color
+	var skin: Dictionary
+	if _kind_skin_key != "" and AssetPaths and AssetPaths.has_method("skin_for_kind"):
+		skin = AssetPaths.skin_for_kind(_kind_skin_key)
+	else:
+		skin = AssetPaths.random_enemy_skin() if AssetPaths else {}
+	_skin_modulate = skin.get("modulate", _kind_color) as Color
+	# Tint toward kind color for wave identity
+	_skin_modulate = _skin_modulate.lerp(_kind_color, 0.35)
 	_sprite_scale = float(skin.get("scale", 0.85))
-	var aura_col: Color = skin.get("aura", Color(0.7, 0.3, 0.5, 0.25)) as Color
+	var aura_col: Color = skin.get("aura", Color(_kind_color.r, _kind_color.g, _kind_color.b, 0.3)) as Color
+	aura_col = aura_col.lerp(_kind_color, 0.4)
+	aura_col.a = 0.32
 	_anim_walk = []
 	_anim_idle = []
 	for t in skin.get("walk", skin.get("frames", [])):
@@ -204,6 +252,8 @@ func _physics_process(delta: float) -> void:
 
 	# Lateral separation only — stay on the road, don't shove off-path
 	_apply_lateral_separation(delta)
+	# Keep spacing along the path so packs don't form a single blob
+	spd = _path_gap_speed(spd, delta)
 
 	if _lane.is_empty() or PathNetwork == null:
 		_fallback_to_crystal(spd)
@@ -242,16 +292,42 @@ func _physics_process(delta: float) -> void:
 
 func _apply_lateral_separation(_delta: float) -> void:
 	var push := 0.0
+	var r := _sep_radius
 	for e in get_tree().get_nodes_in_group("enemies"):
 		if e == self or not (e is Node2D):
 			continue
 		var d: Vector2 = global_position - e.global_position
 		var dist := d.length()
-		if dist > 0.1 and dist < 32.0:
-			# Prefer left/right along screen x as a stable lateral cue
-			var side := signf(d.x) if absf(d.x) > 0.5 else (1.0 if d.y >= 0.0 else -1.0)
-			push += side * (1.0 - dist / 32.0) * 10.0
-	_lateral = clampf(_lateral + push * 0.08, -path_slack * 1.35, path_slack * 1.35)
+		if dist > 0.1 and dist < r:
+			# Fan left/right across the road so packs don't stack in one lane stripe
+			var side := signf(d.x) if absf(d.x) > 0.35 else (1.0 if hash(get_instance_id()) % 2 == 0 else -1.0)
+			if absf(_lateral) < 4.0:
+				side = 1.0 if (get_instance_id() % 2) == 0 else -1.0
+			push += side * (1.0 - dist / r) * 16.0
+	_lateral = clampf(_lateral + push * 0.14, -path_slack * 1.45, path_slack * 1.45)
+
+
+func _path_gap_speed(spd: float, delta: float) -> float:
+	## Don't close within min_path_gap of the unit ahead on the same road.
+	if spd <= 0.0 or delta <= 0.0:
+		return spd
+	var gap := _min_path_gap
+	var best_ahead := INF
+	for e in get_tree().get_nodes_in_group("enemies"):
+		if e == self or not is_instance_valid(e):
+			continue
+		var td: float = -1.0
+		if e.has_method("get_path_dist"):
+			td = float(e.call("get_path_dist"))
+		else:
+			continue
+		if td > _path_dist and td < best_ahead:
+			best_ahead = td
+	if best_ahead < INF:
+		var room: float = best_ahead - _path_dist - gap
+		if room < spd * delta:
+			return maxf(0.0, room / delta)
+	return spd
 
 
 func _fallback_to_crystal(spd: float) -> void:
@@ -318,16 +394,34 @@ func _finish_frame() -> void:
 
 
 func apply_slow(amount: float, duration: float) -> void:
+	if EnemyKinds:
+		var d: Dictionary = EnemyKinds.def_for(kind_id)
+		if "mist" in d.get("resist_channels", []):
+			amount *= 0.4
+			duration *= 0.6
+		if "aura_slow" in d.get("resist_specials", []):
+			amount *= 0.5
 	_slow = maxf(_slow, amount)
 	_slow_t = maxf(_slow_t, duration)
 
 
 func apply_mark(mult: float, duration: float) -> void:
+	if EnemyKinds:
+		var d: Dictionary = EnemyKinds.def_for(kind_id)
+		if "mark" in d.get("resist_specials", []):
+			mult = 1.0 + (mult - 1.0) * 0.35
 	_mark_mult = maxf(_mark_mult, mult)
 	_mark_t = maxf(_mark_t, duration)
 
 
 func apply_root(duration: float) -> void:
+	if EnemyKinds:
+		var d: Dictionary = EnemyKinds.def_for(kind_id)
+		if "root" in d.get("resist_specials", []) or "thorn" in d.get("resist_channels", []):
+			# Shades / resistant types shrug roots
+			if "root" in d.get("resist_specials", []):
+				return
+			duration *= 0.45
 	_root_t = maxf(_root_t, duration)
 
 
@@ -343,17 +437,42 @@ func is_elite() -> bool:
 	return _is_elite
 
 
-func take_damage(amount: int) -> void:
+func get_kind_id() -> String:
+	return kind_id
+
+
+func get_path_dist() -> float:
+	return _path_dist
+
+
+## Apply tower matchup. channel/special/role from tower def.
+func damage_mult_from_tower(channel: String, special: String, role: String) -> float:
+	if EnemyKinds:
+		return EnemyKinds.damage_mult(kind_id, channel, special, role)
+	return 1.0
+
+
+func take_damage(amount: int, from_channel: String = "", from_special: String = "", from_role: String = "") -> void:
+	var matchup := 1.0
+	if from_channel != "" or from_special != "" or from_role != "":
+		matchup = damage_mult_from_tower(from_channel, from_special, from_role)
+		amount = maxi(1, int(float(amount) * matchup))
 	if is_marked():
 		amount = int(amount * _mark_mult)
 	hp -= amount
 	_bar.value = hp
+	# Flash: gold on strong matchup, steel on resist
+	var flash := Color(1.8, 1.5, 1.5)
+	if matchup >= 1.35:
+		flash = Color(1.6, 1.9, 0.7)
+	elif matchup <= 0.65:
+		flash = Color(0.7, 0.75, 1.0)
 	if _body_sprite:
-		_body_sprite.modulate = Color(1.8, 1.5, 1.5)
+		_body_sprite.modulate = flash
 		var t := create_tween()
 		t.tween_property(_body_sprite, "modulate", _skin_modulate, 0.12)
 	elif _body_poly:
-		_body_poly.modulate = Color(1.8, 1.5, 1.5)
+		_body_poly.modulate = flash
 		var t2 := create_tween()
 		t2.tween_property(_body_poly, "modulate", Color.WHITE, 0.12)
 	if Sfx:

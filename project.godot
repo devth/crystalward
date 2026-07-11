@@ -26,6 +26,7 @@ VisualStyle="*res://scripts/visual_style.gd"
 Music="*res://scripts/music.gd"
 Campaign="*res://scripts/campaign.gd"
 TowerTypes="*res://scripts/tower_types.gd"
+EnemyKinds="*res://scripts/enemy_kinds.gd"
 Powers="*res://scripts/powers.gd"
 BurstPowerups="*res://scripts/burst_powerups.gd"
 

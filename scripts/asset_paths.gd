@@ -247,6 +247,56 @@ func warden_skin(player_index: int) -> Dictionary:
 	}
 
 
+## Fixed skin family for a wave kind (consistent look per surge).
+func skin_for_kind(skin_key: String) -> Dictionary:
+	var frames: Array[Texture2D] = []
+	var modulate := Color(0.78, 0.38, 0.55)
+	var scale_mul := 4.0
+	var aura := Color(0.7, 0.25, 0.45, 0.28)
+	match skin_key:
+		"pest":
+			frames = dawnlike_frames(DAWNLIKE_PEST0, DAWNLIKE_PEST1, 1 + randi() % 3, randi() % 2)
+			modulate = Color(0.55, 0.85, 0.45)
+			aura = Color(0.4, 0.8, 0.35, 0.3)
+			scale_mul = 3.6
+		"undead":
+			frames = dawnlike_frames(DAWNLIKE_UNDEAD0, DAWNLIKE_UNDEAD1, randi() % 3, randi() % 2)
+			modulate = Color(0.62, 0.58, 0.88)
+			aura = Color(0.5, 0.4, 0.9, 0.3)
+			scale_mul = 4.1
+		"beast":
+			frames = dawnlike_frames(DAWNLIKE_QUADRAPED0, DAWNLIKE_QUADRAPED1, randi() % 3, 0)
+			if frames.is_empty():
+				frames = dawnlike_frames(DAWNLIKE_REPTILE0, DAWNLIKE_REPTILE1, randi() % 3, 0)
+			modulate = Color(0.9, 0.7, 0.35)
+			aura = Color(0.85, 0.55, 0.2, 0.28)
+			scale_mul = 3.9
+		"demon":
+			frames = dawnlike_frames(DAWNLIKE_DEMON0, DAWNLIKE_DEMON1, randi() % 4, randi() % 2)
+			modulate = Color(0.9, 0.35, 0.5)
+			aura = Color(0.9, 0.25, 0.4, 0.32)
+			scale_mul = 4.2
+		"slime":
+			frames = dawnlike_frames(DAWNLIKE_SLIME0, DAWNLIKE_SLIME1, randi() % 3, 0)
+			modulate = Color(0.45, 0.85, 0.55)
+			aura = Color(0.35, 0.75, 0.45, 0.3)
+			scale_mul = 3.7
+		_:
+			return random_enemy_skin()
+	if frames.is_empty():
+		frames = dawnlike_frames(DAWNLIKE_DEMON0, DAWNLIKE_DEMON1, 0, 0)
+	return {
+		"idle": frames,
+		"walk": frames,
+		"frames": frames,
+		"modulate": modulate,
+		"aura": aura,
+		"kind": skin_key,
+		"scale": scale_mul,
+		"style": "ethereal_topdown",
+	}
+
+
 ## Nightspawn — demonic / undead thralls with role tags for VFX.
 func random_enemy_skin() -> Dictionary:
 	var frames: Array[Texture2D] = []
