@@ -224,7 +224,7 @@ Nested demo Godot project / duplicates stripped; textures only + license.
 
 ## Music (original / CC0)
 
-Original **dark fantasy synthwave** beds synthesized for Crystalward — supersaw pads, sequenced bass with beat pump, plucky arps, haunting leads, crystal FM bells, slapback delay. Phrygian/dorian/mixolydian modes; no third-party audio.
+Original **dark fantasy synthwave** beds synthesized for Crystalward — soft supersaw pads, sequenced bass, gentle arpeggios, clean leads, pure sine sparkles (no FM warble). Phrygian/dorian/mixolydian modes; no third-party audio.
 
 | File | Role | Author | License | Notes |
 |---|---|---|---|---|

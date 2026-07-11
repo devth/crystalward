@@ -123,67 +123,62 @@ func _play_proc_pad(root: float, intervals: Array, duration: float, vol: float, 
 		elif edge > 0.88:
 			env = (1.0 - edge) / 0.12
 		env = clampf(env, 0.0, 1.0)
-		# Sidechain pump on the beat
+		# Soft sidechain pump (gentle)
 		var beat_ph := fmod(t / beat, 1.0)
-		var pump := 0.62 + 0.38 * (1.0 - exp(-beat_ph * 8.0)) * exp(-beat_ph * 3.2)
-		var flutter := 1.0 + 0.0015 * sin(TAU * 0.35 * t)
-		var bright := 0.40 + 0.30 * (0.5 + 0.5 * sin(TAU * 0.025 * t))
+		var pump := 0.78 + 0.22 * (1.0 - exp(-beat_ph * 6.0)) * exp(-beat_ph * 2.2)
+		var bright := 0.34 + 0.16 * (0.5 + 0.5 * sin(TAU * 0.018 * t))
 		if tense:
-			bright = 0.48 + 0.28 * (0.5 + 0.5 * sin(TAU * 0.04 * t))
+			bright = 0.40 + 0.14 * (0.5 + 0.5 * sin(TAU * 0.025 * t))
 		var s := 0.0
-		# Detuned supersaw pad
+		# Clean pad — mild detune only, no pitch flutter
 		for k in n_int:
 			var mult: float = float(intervals[k])
-			var amp := 0.075 * pow(0.84, float(k))
-			var f0 := root * mult * flutter
-			var det := 0.4 + 0.1 * float(k)
-			var harm := 2 + int(5.0 * bright)
+			var amp := 0.07 * pow(0.88, float(k))
+			var f0 := root * mult
+			var det := 0.12 + 0.04 * float(k)  # cents-scale, not warbly
+			var harm := 2 + int(3.5 * bright)
 			var tone := 0.0
 			for h in harm:
 				var hk := h + 1
-				var ha := (1.0 / float(hk)) * pow(bright, float(hk) * 0.38)
+				var ha := (1.0 / float(hk)) * pow(bright, float(hk) * 0.45)
 				tone += sin(TAU * f0 * float(hk) * t) * ha
-				tone += sin(TAU * (f0 + det) * float(hk) * t) * ha * 0.85
-			s += tone * amp * 0.36
-		# Sequenced bass + sub
+				tone += sin(TAU * (f0 + det) * float(hk) * t) * ha * 0.8
+			s += tone * amp * 0.34
+		# Soft bass
 		var bi := int(t / bass_step) % bass_steps.size()
 		var bidx: int = mini(int(bass_steps[bi]), n_int - 1)
-		var bf := root * float(intervals[bidx]) * flutter
+		var bf := root * float(intervals[bidx])
 		var blocal := t - float(int(t / bass_step)) * bass_step
 		var benv := 1.0
-		if blocal < 0.012:
-			benv = blocal / 0.012
-		elif blocal > bass_step * 0.7:
-			benv = maxf(0.0, 1.0 - (blocal - bass_step * 0.7) / (bass_step * 0.3))
-		var bass := sin(TAU * bf * t) * 0.12 + sin(TAU * bf * 0.5 * t) * 0.09
-		bass += sin(TAU * bf * 2.0 * t) * 0.04
+		if blocal < 0.015:
+			benv = blocal / 0.015
+		elif blocal > bass_step * 0.8:
+			benv = maxf(0.0, 1.0 - (blocal - bass_step * 0.8) / (bass_step * 0.2))
+		var bass := sin(TAU * bf * t) * 0.13 + sin(TAU * bf * 0.5 * t) * 0.09
 		s += bass * benv * pump
-		# Synthwave arp plucks
+		# Soft arpeggio (triangle-ish pluck)
 		var step_i := int(t / arp_hz_step)
 		var step_t := t - float(step_i) * arp_hz_step
 		if step_t < arp_hz_step * 0.9:
 			var idx: int = int(arp_steps[step_i % arp_steps.size()])
 			idx = mini(idx, n_int - 1)
 			var amult: float = float(intervals[idx])
-			var af := root * amult * (2.0 if arp_bright else 1.0) * flutter
-			var ae := exp(-step_t * 8.0) * (1.0 - exp(-step_t * 50.0))
-			var pluck := sin(TAU * af * t) * 0.5 + sin(TAU * af * 2.0 * t) * 0.22
-			s += pluck * ae * 0.13 * (0.85 + 0.15 * pump)
-		# Haunting lead
-		var motif_phase := fmod(t * 0.16, 1.0)
-		if motif_phase < 0.28:
-			var me := sin(PI * motif_phase / 0.28) * exp(-motif_phase * 1.6)
-			var mf := root * 2.0 * flutter * (1.0 + 0.004 * sin(TAU * 5.2 * t))
-			s += (sin(TAU * mf * t) * 0.55 + sin(TAU * mf * 3.0 * t) * 0.08) * me * 0.11
-		# Crystal FM ping
-		var ping := fmod(t * 0.19, 1.0)
-		if ping < 0.08:
-			var pe := exp(-ping * 32.0) * (1.0 - exp(-ping * 70.0))
-			var pf := root * 6.0
-			var fm := 2.0 * exp(-ping * 3.0) * sin(TAU * pf * 3.0 * t)
-			s += sin(TAU * pf * t + fm) * pe * 0.05
-		s += randf_range(-1.0, 1.0) * 0.009 * (0.5 + 0.5 * sin(TAU * 0.09 * t))
-		s *= env * (0.55 + 0.45 * pump)
+			var af := root * amult * (2.0 if arp_bright else 1.0)
+			var ae := exp(-step_t * 4.5) * (1.0 - exp(-step_t * 40.0))
+			var pluck := sin(TAU * af * t) * 0.55 + sin(TAU * af * 3.0 * t) * 0.08
+			s += pluck * ae * 0.11
+		# Soft lead (no vibrato)
+		var motif_phase := fmod(t * 0.14, 1.0)
+		if motif_phase < 0.26:
+			var me := sin(PI * motif_phase / 0.26) * exp(-motif_phase * 1.2)
+			var mf := root * 2.0
+			s += (sin(TAU * mf * t) * 0.6 + sin(TAU * mf * 3.0 * t) * 0.06) * me * 0.09
+		# Pure sine sparkle (no FM)
+		var ping := fmod(t * 0.16, 1.0)
+		if ping < 0.1:
+			var pe := exp(-ping * 8.0) * (1.0 - exp(-ping * 30.0))
+			s += sin(TAU * root * 4.0 * t) * pe * 0.035
+		s *= env * (0.7 + 0.3 * pump)
 		var v := int(clampf(s, -1.0, 1.0) * 27000.0)
 		bytes[i * 2] = v & 0xFF
 		bytes[i * 2 + 1] = (v >> 8) & 0xFF
