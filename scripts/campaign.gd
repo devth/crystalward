@@ -1,7 +1,7 @@
 extends Node
 ## Multi-map campaign progress + stage definitions.
 ## Autoloaded as Campaign.
-## Difficulty ramps gently; few winding lanes, not path spaghetti.
+## Kingdom Rush–style map progression: lanes & pressure ramp map-to-map.
 
 signal map_selected(map_id: String)
 signal progress_changed
@@ -19,11 +19,13 @@ func _ready() -> void:
 
 
 func maps() -> Array:
+	## Difficulty ladder mirrors KR / PixelJunk Monsters:
+	## 1 path → merge dual → split dual → choke dual → long dual → triple.
 	return [
 		{
 			"id": "glade",
 			"name": "Lightwell Glade",
-			"blurb": "One winding path. Learn the line.",
+			"blurb": "One southern road. Learn the kill-zone.",
 			"difficulty": 1,
 			"waves": 5,
 			"start_essence": 160,
@@ -39,11 +41,11 @@ func maps() -> Array:
 		},
 		{
 			"id": "thorns",
-			"name": "Western Thorns",
-			"blurb": "Two long roads. Split your watch.",
+			"name": "Twin River Pass",
+			"blurb": "South + east roads merge near the well.",
 			"difficulty": 2,
 			"waves": 6,
-			"start_essence": 110,
+			"start_essence": 120,
 			"lives": 24,
 			"enemy_count_scale": 0.65,
 			"enemy_hp_scale": 0.75,
@@ -56,11 +58,11 @@ func maps() -> Array:
 		},
 		{
 			"id": "ruins",
-			"name": "Eastern Ruins",
-			"blurb": "Two serpents of road braid the glade.",
-			"difficulty": 2,
+			"name": "Silveroak Split",
+			"blurb": "North and south roads — hold both flanks.",
+			"difficulty": 3,
 			"waves": 7,
-			"start_essence": 100,
+			"start_essence": 105,
 			"lives": 22,
 			"enemy_count_scale": 0.8,
 			"enemy_hp_scale": 0.9,
@@ -73,11 +75,11 @@ func maps() -> Array:
 		},
 		{
 			"id": "bog",
-			"name": "Southern Bog",
-			"blurb": "Mist roads from opposite corners.",
+			"name": "Crosswind Bog",
+			"blurb": "Diagonal roads share a mid choke.",
 			"difficulty": 3,
 			"waves": 7,
-			"start_essence": 95,
+			"start_essence": 100,
 			"lives": 20,
 			"enemy_count_scale": 0.9,
 			"enemy_hp_scale": 1.0,
@@ -90,8 +92,8 @@ func maps() -> Array:
 		},
 		{
 			"id": "march",
-			"name": "Northern March",
-			"blurb": "West and south serpents press the well.",
+			"name": "Western March",
+			"blurb": "Two long serpents. Little shared coverage.",
 			"difficulty": 4,
 			"waves": 8,
 			"start_essence": 90,
@@ -107,8 +109,8 @@ func maps() -> Array:
 		},
 		{
 			"id": "conjunction",
-			"name": "Conjunction Peak",
-			"blurb": "Three long roads. Endure the night.",
+			"name": "Nightfall Gate",
+			"blurb": "Three portals. Endure the siege.",
 			"difficulty": 5,
 			"waves": 9,
 			"start_essence": 85,
@@ -134,13 +136,11 @@ func get_map(id: String) -> Dictionary:
 
 func tower_unlock_tier() -> int:
 	## How far into the tower catalog permanent campaign progress has opened.
-	## Completing maps raises the floor of available towers next match.
-	var tier := 1  # Thornspire + Shardbow baseline
+	var tier := 1
 	var list := maps()
 	for i in list.size():
 		var mid: String = str(list[i].get("id"))
 		if is_unlocked(mid):
-			# Each unlocked map past glade opens another tower tier
 			tier = maxi(tier, i + 1)
 	return clampi(tier, 1, 7)
 
@@ -179,11 +179,16 @@ func load_progress() -> void:
 	if u is Array:
 		for id in u:
 			unlocked[str(id)] = true
+	elif u is Dictionary:
+		for k in u:
+			unlocked[str(k)] = true
 	else:
 		unlocked = {"glade": true}
 	if not unlocked.has("glade"):
 		unlocked["glade"] = true
 	best_stars = cfg.get_value("campaign", "stars", {})
+	if best_stars == null or not (best_stars is Dictionary):
+		best_stars = {}
 
 
 func save_progress() -> void:

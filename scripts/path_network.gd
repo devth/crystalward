@@ -1,13 +1,14 @@
 extends Node
 ## Authored path lanes per campaign map. Autoloaded as PathNetwork.
-## Long circuit routes wind around the basin — not tight zigzags.
+## Kingdom Rush–style: edge spawns → winding dirt → crystal exit.
+## Difficulty: 1 path → merge dual → split dual → cross → multi-entrance.
 
 signal paths_rebuilt
 
 const CRYSTAL := Vector2(0, 40)
 const PATH_CLEAR_RADIUS := 100.0
 ## Keep dirt road outside this radius until the final approach segment.
-const CRYSTAL_KEEP_OUT := 200.0
+const CRYSTAL_KEEP_OUT := 190.0
 
 var lanes: Array = []
 var spawn_anchors: Array[Vector2] = []
@@ -308,230 +309,180 @@ func _clear_features_from_paths() -> void:
 
 
 func _add_single() -> void:
-	## Grand clockwise circuit of the basin, then spiral inward to the Lightwell.
-	## Long sweeping arcs — not left-right zigzags.
+	## KR tutorial map: ONE path from south edge, gentle S-curve, clear chokes, long dwell.
+	## Enemies spend lots of time in tower range — learn build order without split attention.
 	_add_curved_lane([
-		# Portal in the far south wilds
-		Vector2(120, 2150),
-		Vector2(380, 2050),
-		Vector2(620, 1900),
-		# SE outer arc
-		Vector2(860, 1680),
-		Vector2(1020, 1400),
-		Vector2(1120, 1100),
-		Vector2(1180, 780),
-		# East rim northward
-		Vector2(1200, 420),
-		Vector2(1120, 80),
-		Vector2(980, -220),
-		# NE corner
-		Vector2(780, -480),
-		Vector2(480, -680),
-		Vector2(160, -780),
-		# North rim westward
-		Vector2(-180, -800),
-		Vector2(-500, -720),
-		Vector2(-780, -520),
-		# NW corner → west rim
-		Vector2(-980, -240),
-		Vector2(-1100, 80),
-		Vector2(-1120, 420),
-		Vector2(-1040, 760),
-		# SW outer arc
-		Vector2(-900, 1080),
-		Vector2(-700, 1360),
-		Vector2(-420, 1580),
-		Vector2(-120, 1720),
-		# Inner loop — south shelf past lakes (still outside crystal)
-		Vector2(180, 1680),
-		Vector2(480, 1500),
-		Vector2(700, 1240),
-		Vector2(780, 920),
-		Vector2(720, 620),
-		# East inner → north of amber lake
-		Vector2(580, 360),
-		Vector2(420, 220),
-		# Stay outside crystal plaza — ring south/west, then approach
-		Vector2(200, 280),
-		Vector2(-80, 340),
-		Vector2(-360, 300),
-		Vector2(-420, 200),
-		Vector2(-360, 80),
-		Vector2(-200, -40),
-		Vector2(40, -80),
-		Vector2(180, 40),
-		Vector2(160, 200),
-		# Final approach from south (clear of well)
-		Vector2(40, 260),
-		Vector2(10, 180),
+		Vector2(20, 980),          # south portal
+		Vector2(-160, 880),
+		Vector2(-280, 740),        # swing west
+		Vector2(-220, 580),
+		Vector2(-40, 500),         # mid choke (tower pads both sides)
+		Vector2(160, 460),
+		Vector2(280, 360),         # east lobe
+		Vector2(240, 240),
+		Vector2(80, 280),          # curve back (second choke)
+		Vector2(-100, 300),
+		Vector2(-40, 220),
+		Vector2(20, 200),          # final approach — stay south of well
 		CRYSTAL,
 	], 16)
 
 
 func _add_dual() -> void:
-	## Outer clockwise half + eastern approach (two long routes, not zigzags).
+	## KR dual-merge: two spawns (S + E) that JOIN before the crystal.
+	## Teach split early defense, then a shared kill-zone near the well.
 	_add_curved_lane([
-		Vector2(-80, 2100),
-		Vector2(320, 1980),
-		Vector2(700, 1720),
-		Vector2(980, 1360),
-		Vector2(1120, 900),
-		Vector2(1100, 420),
-		Vector2(900, 40),
-		Vector2(560, -280),
-		Vector2(160, -420),
-		Vector2(-280, -360),
-		Vector2(-560, -80),
-		Vector2(-620, 280),
-		Vector2(-420, 520),
-		Vector2(-200, 400),
+		Vector2(-40, 1020),        # south portal
+		Vector2(-200, 900),
+		Vector2(-280, 720),
+		Vector2(-180, 560),
+		Vector2(-40, 480),
+		Vector2(80, 420),          # → merge corridor
 		Vector2(40, 300),
-		Vector2(20, 200),
+		Vector2(20, 210),
 		CRYSTAL,
 	], 15)
 	_add_curved_lane([
-		Vector2(1750, 200),
-		Vector2(1580, -80),
-		Vector2(1320, -320),
-		Vector2(980, -400),
-		Vector2(640, -200),
-		Vector2(420, 40),
-		Vector2(280, 200),
-		Vector2(120, 260),
-		Vector2(30, 190),
+		Vector2(1080, 60),         # east portal
+		Vector2(920, -40),
+		Vector2(760, 80),
+		Vector2(600, 200),
+		Vector2(420, 300),
+		Vector2(220, 360),         # → merge corridor
+		Vector2(100, 320),
+		Vector2(40, 240),
+		Vector2(15, 200),
 		CRYSTAL,
 	], 15)
 
 
 func _add_meander() -> void:
-	## South spiral + north crescent — wide curves.
+	## KR split defense: two independent paths (S + N), no early merge.
+	## Must hold both lanes — classic mid-campaign pressure.
 	_add_curved_lane([
-		Vector2(-200, 2050),
-		Vector2(280, 1920),
-		Vector2(720, 1680),
-		Vector2(980, 1280),
-		Vector2(900, 820),
-		Vector2(560, 520),
-		Vector2(120, 420),
-		Vector2(-320, 480),
-		Vector2(-520, 280),
-		Vector2(-400, 120),
-		Vector2(-200, 240),
-		Vector2(40, 280),
-		Vector2(20, 190),
-		CRYSTAL,
-	], 15)
-	_add_curved_lane([
-		Vector2(200, -1850),
-		Vector2(-280, -1700),
-		Vector2(-720, -1400),
-		Vector2(-960, -980),
-		Vector2(-880, -520),
-		Vector2(-520, -240),
-		Vector2(-200, -200),
-		Vector2(120, -160),
-		Vector2(200, 40),
-		Vector2(80, 220),
-		Vector2(20, 180),
-		CRYSTAL,
-	], 15)
-
-
-func _add_cross() -> void:
-	## Diagonal approaches that arc, not straight diagonals.
-	_add_curved_lane([
-		Vector2(1600, -1400),
-		Vector2(1280, -1100),
-		Vector2(1100, -700),
-		Vector2(980, -320),
-		Vector2(720, -40),
-		Vector2(480, 80),
-		Vector2(280, 220),
-		Vector2(80, 260),
-		Vector2(20, 180),
-		CRYSTAL,
-	], 14)
-	_add_curved_lane([
-		Vector2(-1600, 1400),
-		Vector2(-1280, 1100),
-		Vector2(-1040, 720),
-		Vector2(-860, 360),
-		Vector2(-560, 200),
-		Vector2(-280, 240),
-		Vector2(-40, 260),
-		Vector2(20, 180),
-		CRYSTAL,
-	], 14)
-
-
-func _add_winding() -> void:
-	## West rim circuit + south grand loop.
-	_add_curved_lane([
-		Vector2(-1900, 120),
-		Vector2(-1680, -280),
-		Vector2(-1360, -480),
-		Vector2(-1000, -360),
-		Vector2(-720, -40),
-		Vector2(-560, 280),
-		Vector2(-360, 300),
-		Vector2(-120, 280),
-		Vector2(30, 200),
-		CRYSTAL,
-	], 15)
-	_add_curved_lane([
-		Vector2(80, 2100),
-		Vector2(480, 1920),
-		Vector2(860, 1600),
-		Vector2(1020, 1160),
-		Vector2(920, 720),
-		Vector2(600, 420),
-		Vector2(280, 340),
-		Vector2(40, 280),
-		Vector2(20, 190),
-		CRYSTAL,
-	], 15)
-
-
-func _add_full() -> void:
-	## Three long rim approaches (S, E, N) — smooth arcs into the well.
-	_add_curved_lane([
-		Vector2(60, 2100),
-		Vector2(420, 1900),
-		Vector2(780, 1560),
-		Vector2(920, 1120),
-		Vector2(760, 700),
-		Vector2(400, 420),
-		Vector2(120, 300),
+		Vector2(80, 1000),
+		Vector2(260, 880),
+		Vector2(320, 700),
+		Vector2(200, 560),
+		Vector2(40, 480),
+		Vector2(-120, 400),
+		Vector2(-80, 300),
+		Vector2(40, 260),
 		Vector2(20, 200),
 		CRYSTAL,
 	], 15)
 	_add_curved_lane([
-		Vector2(1800, 40),
-		Vector2(1520, -280),
-		Vector2(1180, -360),
-		Vector2(820, -160),
-		Vector2(520, 40),
-		Vector2(300, 200),
-		Vector2(100, 260),
-		Vector2(20, 180),
-		CRYSTAL,
-	], 15)
-	_add_curved_lane([
-		Vector2(-60, -1850),
-		Vector2(-420, -1600),
-		Vector2(-760, -1200),
-		Vector2(-880, -720),
-		Vector2(-640, -320),
-		Vector2(-320, -120),
+		Vector2(-60, -920),        # north portal
+		Vector2(-220, -780),
+		Vector2(-280, -580),
+		Vector2(-160, -420),
+		Vector2(40, -360),
+		Vector2(180, -240),
+		Vector2(120, -80),
+		Vector2(-40, 40),
 		Vector2(-80, 160),
 		Vector2(20, 200),
 		CRYSTAL,
 	], 15)
 
 
+func _add_cross() -> void:
+	## KR “twin pass”: NE + SW roads curve past a shared mid choke (cross-fire zone).
+	## Paths stay separate but run close in the middle — overlapping tower coverage.
+	_add_curved_lane([
+		Vector2(920, -720),        # NE portal
+		Vector2(760, -520),
+		Vector2(560, -320),
+		Vector2(360, -120),
+		Vector2(280, 80),          # near mid choke
+		Vector2(200, 220),
+		Vector2(80, 280),
+		Vector2(20, 200),
+		CRYSTAL,
+	], 15)
+	_add_curved_lane([
+		Vector2(-920, 820),        # SW portal
+		Vector2(-760, 640),
+		Vector2(-560, 480),
+		Vector2(-320, 360),
+		Vector2(-120, 280),        # near mid choke (other side)
+		Vector2(40, 300),
+		Vector2(80, 240),
+		Vector2(20, 190),
+		CRYSTAL,
+	], 15)
+
+
+func _add_winding() -> void:
+	## Late KR: two long serpents from W + S, little shared coverage, more distance.
+	_add_curved_lane([
+		Vector2(-1100, 40),        # west portal
+		Vector2(-960, -160),
+		Vector2(-780, -80),
+		Vector2(-640, 80),
+		Vector2(-520, 240),
+		Vector2(-360, 200),
+		Vector2(-280, 80),
+		Vector2(-160, 160),
+		Vector2(-40, 280),
+		Vector2(40, 260),
+		Vector2(20, 190),
+		CRYSTAL,
+	], 15)
+	_add_curved_lane([
+		Vector2(60, 1100),         # south portal (longer)
+		Vector2(-180, 980),
+		Vector2(-280, 800),
+		Vector2(-160, 640),
+		Vector2(80, 580),
+		Vector2(260, 480),
+		Vector2(280, 320),
+		Vector2(140, 280),
+		Vector2(40, 300),
+		Vector2(20, 200),
+		CRYSTAL,
+	], 15)
+
+
+func _add_full() -> void:
+	## Boss map: three entrances (S / E / N) — full split attention like KR finales.
+	_add_curved_lane([
+		Vector2(40, 1050),
+		Vector2(-160, 920),
+		Vector2(-240, 740),
+		Vector2(-100, 560),
+		Vector2(80, 460),
+		Vector2(160, 320),
+		Vector2(40, 280),
+		Vector2(20, 200),
+		CRYSTAL,
+	], 15)
+	_add_curved_lane([
+		Vector2(1100, -40),
+		Vector2(920, 80),
+		Vector2(740, 40),
+		Vector2(560, 160),
+		Vector2(380, 280),
+		Vector2(200, 300),
+		Vector2(60, 260),
+		Vector2(20, 190),
+		CRYSTAL,
+	], 15)
+	_add_curved_lane([
+		Vector2(-40, -980),
+		Vector2(140, -840),
+		Vector2(220, -640),
+		Vector2(80, -460),
+		Vector2(-120, -300),
+		Vector2(-180, -80),
+		Vector2(-80, 120),
+		Vector2(30, 200),
+		CRYSTAL,
+	], 15)
+
+
 func _apply_crystal_clearance() -> void:
-	## Push path samples outside the crystal plaza so the road doesn't clip the well.
-	## Final ~12% of each lane may enter for the approach; everything else stays out.
+	## Keep dirt outside the well plaza; only the last approach may enter.
 	for li in lanes.size():
 		var lane: PackedVector2Array = lanes[li]
 		if lane.size() < 4:
@@ -540,7 +491,7 @@ func _apply_crystal_clearance() -> void:
 		if total < 1.0:
 			continue
 		var keep_out := CRYSTAL_KEEP_OUT
-		var approach_start := total * 0.88  # only last stretch may enter
+		var approach_start := total * 0.86
 		var walked := 0.0
 		var out := PackedVector2Array()
 		out.append(lane[0])
@@ -556,7 +507,6 @@ func _apply_crystal_clearance() -> void:
 					p = CRYSTAL + (p - CRYSTAL).normalized() * keep_out
 			out.append(p)
 			walked += seg
-		# Always end exactly on crystal
 		out[out.size() - 1] = CRYSTAL
 		lanes[li] = out
 		if spawn_anchors.size() > li:

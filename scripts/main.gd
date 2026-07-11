@@ -101,50 +101,58 @@ func _expand_map_content() -> void:
 	# runtime placement owns spacing (harvest vs build no longer stacked).
 	_retire_scene_economy_nodes()
 
-	# Tower sites first (along path arc), then essence in gaps between them.
+	# Tower sites along path — denser mid-path (KR kill-zones) and near exit.
 	if _site_scene and PathNetwork:
 		var single_lane := PathNetwork.lane_count() <= 1
-		var site_spacing := 340.0 if single_lane else 360.0
-		var pad_offset := 82.0  # off road enough to not block walking the dirt
+		var base_spacing := 200.0 if single_lane else 220.0
+		var pad_offset := 78.0
 		var lane_i := 0
 		for lane in PathNetwork.lanes:
 			var pts: PackedVector2Array = lane
 			if pts.size() < 3:
 				continue
 			var length := PathNetwork.lane_length(pts)
-			var d := 320.0  # skip spawn mouth on long circuit paths
+			var d := 140.0  # skip spawn mouth
 			var side_flip := 1.0 if lane_i % 2 == 0 else -1.0
-			while d < length - 280.0:
+			while d < length - 150.0:
+				var t_norm := d / maxf(1.0, length)
+				# Tighter spacing mid-path + near crystal (KR choke / exit coverage)
+				var spacing := base_spacing
+				if t_norm > 0.22 and t_norm < 0.75:
+					spacing *= 0.72
+				elif t_norm >= 0.75:
+					spacing *= 0.8
 				var sample: Dictionary = PathNetwork.sample_lane(pts, d)
 				var center: Vector2 = sample.get("pos", Vector2.ZERO)
 				var normal: Vector2 = sample.get("normal", Vector2.RIGHT)
-				# Alternate sides so pads don't face each other
 				var side := side_flip
 				side_flip *= -1.0
 				var pos: Vector2 = center + normal * (pad_offset * side)
-				if pos.length() < 160.0:
-					d += site_spacing * 0.5
+				if pos.distance_to(PathNetwork.CRYSTAL) < 200.0:
+					d += spacing * 0.5
 					continue
-				if _too_close_to_existing_sites(pos, site_spacing * 0.85):
-					d += site_spacing * 0.4
+				if _too_close_to_existing_sites(pos, spacing * 0.8):
+					d += spacing * 0.4
 					continue
-				if _too_close_to_group_or_class(pos, "essence_nodes", 160.0):
-					d += site_spacing * 0.35
+				if _too_close_to_group_or_class(pos, "essence_nodes", 140.0):
+					d += spacing * 0.35
 					continue
 				var site: Node2D = _site_scene.instantiate() as Node2D
 				_world.add_child(site)
 				site.global_position = pos
-				d += site_spacing
+				d += spacing
 			lane_i += 1
 
-		# Sparse plaza pads — far enough from well and each other
+		# A couple exit pads flanking the final approach (KR last-stand zone)
 		var plaza_n := 2 if single_lane else 3
 		for i in plaza_n:
-			var ang := TAU * float(i) / float(plaza_n) + 0.55
-			var pos := Vector2(cos(ang), sin(ang) * 0.85) * 260.0 + Vector2(0, 40)
-			if PathNetwork and PathNetwork.dist_to_path(pos) < 90.0:
+			var ang := TAU * float(i) / float(plaza_n) + 0.9
+			var pos := Vector2(cos(ang), sin(ang) * 0.9) * 230.0 + Vector2(0, 40)
+			if PathNetwork and PathNetwork.dist_to_path(pos) < 85.0:
 				continue
-			if _too_close_to_existing_sites(pos, 200.0):
+			if pos.distance_to(PathNetwork.CRYSTAL) < 180.0:
+				continue
+			if _too_close_to_existing_sites(pos, 180.0):
 				continue
 			var site2: Node2D = _site_scene.instantiate() as Node2D
 			_world.add_child(site2)
