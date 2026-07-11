@@ -74,7 +74,7 @@ func _build_visuals() -> void:
 	_pulse.position = Vector2(0, -22)
 	_visual.add_child(_pulse)
 
-	FX.spark_particles(_visual, Color(0.95, 0.8, 0.45, 0.6), 8).position = Vector2(0, -22)
+	FX.spark_particles(_visual, Color(0.95, 0.8, 0.45, 0.6), 8, "glow").position = Vector2(0, -22)
 
 
 func _process(delta: float) -> void:
@@ -120,11 +120,13 @@ func _muzzle_flash(to: Vector2) -> void:
 	line.z_index = 100
 	add_child(line)
 
-	# Impact spark at target end
 	var impact := FX.make_ellipse_poly(6, 6, 10, Color(1.0, 0.9, 0.5, 0.8))
 	impact.position = to - global_position
 	impact.z_index = 101
 	add_child(impact)
+
+	FX.burst_particles(get_parent(), to, Color(1.0, 0.9, 0.5, 0.9), 8, "star", 0.28)
+	FX.burst_particles(self, global_position + Vector2(0, -22), Color(0.95, 0.8, 0.45, 0.85), 5, "magic", 0.22)
 
 	var tw := create_tween()
 	tw.set_parallel(true)

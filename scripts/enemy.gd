@@ -11,8 +11,10 @@ var hp: int
 var _crystal: Node2D
 var _visual: Node2D
 var _body_poly: Polygon2D
+var _body_sprite: Sprite2D
 var _wings: Array[Polygon2D] = []
 var _anim_t: float = 0.0
+var _use_sprite: bool = false
 
 @onready var _bar: ProgressBar = $HpBar
 
@@ -41,9 +43,24 @@ func _build_visuals() -> void:
 	add_child(_visual)
 	FX.add_soft_shadow(_visual, 14, 6, 10)
 
-	var aura := FX.make_ellipse_poly(18, 14, 18, Color(0.55, 0.1, 0.25, 0.2))
-	aura.z_index = -1
-	_visual.add_child(aura)
+	# Prefer DawnLike demon tile (16×16, nearest-neighbor upscale).
+	var demon: Texture2D = AssetPaths.dawnlike_cell(AssetPaths.DAWNLIKE_DEMON0, 0, 0)
+	if demon == null:
+		demon = AssetPaths.dawnlike_cell(AssetPaths.DAWNLIKE_UNDEAD0, 1, 0)
+	if demon:
+		_use_sprite = true
+		var aura := FX.make_ellipse_poly(16, 10, 16, Color(0.55, 0.1, 0.25, 0.22))
+		aura.z_index = -1
+		_visual.add_child(aura)
+		_body_sprite = AssetPaths.make_pixel_sprite(demon, 3.2)
+		_body_sprite.modulate = Color(0.95, 0.75, 0.9)
+		_body_sprite.position = Vector2(0, -4)
+		_visual.add_child(_body_sprite)
+		return
+
+	var aura2 := FX.make_ellipse_poly(18, 14, 18, Color(0.55, 0.1, 0.25, 0.2))
+	aura2.z_index = -1
+	_visual.add_child(aura2)
 
 	_body_poly = Polygon2D.new()
 	_body_poly.polygon = PackedVector2Array([
@@ -60,7 +77,6 @@ func _build_visuals() -> void:
 	belly.color = Color(0.55, 0.18, 0.32)
 	_visual.add_child(belly)
 
-	# Mandible / horns
 	for side in [-1.0, 1.0]:
 		var horn := Polygon2D.new()
 		horn.polygon = PackedVector2Array([
@@ -76,7 +92,6 @@ func _build_visuals() -> void:
 	pupil.position = Vector2(0, -6)
 	_visual.add_child(pupil)
 
-	# Ragged wing-flaps
 	for side in [-1.0, 1.0]:
 		var wing := Polygon2D.new()
 		wing.polygon = PackedVector2Array([
@@ -109,21 +124,28 @@ func _physics_process(delta: float) -> void:
 	z_index = int(global_position.y)
 
 	if _visual:
-		_visual.rotation = lerp_angle(_visual.rotation, to.angle() + PI * 0.5, 0.15)
-		_visual.position.y = sin(_anim_t * 10.0) * 1.5
-		for i in _wings.size():
-			var w := _wings[i]
-			var flap := sin(_anim_t * 12.0 + i) * 0.25
-			w.rotation = flap * (1.0 if i == 0 else -1.0)
+		if _use_sprite:
+			_visual.scale.x = -1.0 if to.x < 0.0 else 1.0
+			_visual.position.y = sin(_anim_t * 10.0) * 1.5
+		else:
+			_visual.rotation = lerp_angle(_visual.rotation, to.angle() + PI * 0.5, 0.15)
+			_visual.position.y = sin(_anim_t * 10.0) * 1.5
+			for i in _wings.size():
+				var w := _wings[i]
+				var flap := sin(_anim_t * 12.0 + i) * 0.25
+				w.rotation = flap * (1.0 if i == 0 else -1.0)
 
 
 func take_damage(amount: int) -> void:
 	hp -= amount
 	_bar.value = hp
-	if _body_poly:
-		_body_poly.modulate = Color(1.8, 1.5, 1.5)
+	var flash_target: CanvasItem = _body_sprite if _body_sprite else _body_poly
+	if flash_target:
+		flash_target.modulate = Color(1.8, 1.5, 1.5)
 		var t := create_tween()
-		t.tween_property(_body_poly, "modulate", Color.WHITE, 0.12)
+		var rest := Color(0.95, 0.75, 0.9) if _body_sprite else Color.WHITE
+		t.tween_property(flash_target, "modulate", rest, 0.12)
+	FX.burst_particles(get_parent(), global_position, Color(1.0, 0.45, 0.55, 0.85), 6, "spark", 0.28)
 	if hp <= 0:
 		_die()
 
@@ -137,22 +159,8 @@ func _die() -> void:
 
 
 func _spawn_death_poof() -> void:
-	# One-shot particles left in parent
 	var parent := get_parent()
 	if parent == null:
 		return
-	var p := FX.spark_particles(parent, Color(0.7, 0.2, 0.35, 0.9), 14)
-	p.global_position = global_position
-	p.one_shot = true
-	p.explosiveness = 1.0
-	p.lifetime = 0.45
-	p.emitting = true
-	var pm := p.process_material as ParticleProcessMaterial
-	if pm:
-		pm.initial_velocity_min = 40.0
-		pm.initial_velocity_max = 90.0
-		pm.gravity = Vector3(0, 40, 0)
-	# Cleanup
-	var tree := parent.get_tree()
-	if tree:
-		tree.create_timer(0.6).timeout.connect(p.queue_free)
+	FX.burst_particles(parent, global_position, Color(0.7, 0.2, 0.35, 0.9), 14, "magic", 0.45)
+	FX.burst_particles(parent, global_position, Color(0.35, 0.12, 0.22, 0.7), 8, "puff", 0.55)

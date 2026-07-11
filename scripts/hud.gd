@@ -19,31 +19,13 @@ var _msg_tween: Tween
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	# Style top bar
+	# Style panels with Kenney UI nine-patch when available (falls back to flat boxes).
 	if has_node("Root/TopBar"):
-		var panel := $Root/TopBar as PanelContainer
-		var sb := StyleBoxFlat.new()
-		sb.bg_color = Color(0.08, 0.06, 0.14, 0.82)
-		sb.set_corner_radius_all(10)
-		sb.border_color = Color(0.45, 0.35, 0.65, 0.45)
-		sb.set_border_width_all(1)
-		panel.add_theme_stylebox_override("panel", sb)
+		FX.style_panel_kenney($Root/TopBar as PanelContainer, Color(0.42, 0.38, 0.58, 0.92))
 	if has_node("Root/PauseLayer/Panel"):
-		var pp := $Root/PauseLayer/Panel as PanelContainer
-		var psb := StyleBoxFlat.new()
-		psb.bg_color = Color(0.1, 0.07, 0.16, 0.95)
-		psb.set_corner_radius_all(14)
-		psb.border_color = Color(0.55, 0.4, 0.8, 0.55)
-		psb.set_border_width_all(2)
-		pp.add_theme_stylebox_override("panel", psb)
+		FX.style_panel_kenney($Root/PauseLayer/Panel as PanelContainer, Color(0.48, 0.42, 0.68, 0.96))
 	if has_node("Root/EndPanel"):
-		var ep := $Root/EndPanel as PanelContainer
-		var esb := StyleBoxFlat.new()
-		esb.bg_color = Color(0.1, 0.07, 0.14, 0.94)
-		esb.set_corner_radius_all(12)
-		esb.border_color = Color(0.7, 0.5, 0.9, 0.5)
-		esb.set_border_width_all(2)
-		ep.add_theme_stylebox_override("panel", esb)
+		FX.style_panel_kenney($Root/EndPanel as PanelContainer, Color(0.5, 0.4, 0.7, 0.95))
 
 	GameState.essence_changed.connect(_on_essence)
 	GameState.crystal_dust_changed.connect(_on_dust)

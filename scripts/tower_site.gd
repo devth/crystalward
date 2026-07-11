@@ -111,11 +111,8 @@ func _finish_build() -> void:
 		var t: Node = tower_scene.instantiate()
 		_tower_slot.add_child(t)
 	GameState.message.emit("Tower awakened")
-	# Burst
-	var burst := FX.spark_particles(self, Color(0.9, 0.75, 0.4, 0.9), 16)
-	burst.one_shot = true
-	burst.explosiveness = 1.0
-	burst.emitting = true
+	FX.burst_particles(self, global_position, Color(0.9, 0.75, 0.4, 0.9), 18, "magic", 0.55)
+	FX.burst_particles(self, global_position, Color(0.7, 0.9, 0.55, 0.75), 10, "star", 0.45)
 
 
 func _on_body_entered(body: Node) -> void:

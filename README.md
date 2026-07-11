@@ -46,6 +46,12 @@ Switch Pro / Joy-Cons: device 0 → P1, device 1 → P2 (A gather, B attack, X b
 - Living design: [`docs/SPEC.md`](docs/SPEC.md)
 - Towers, upgrades, synergies, matchups: [`docs/TOWERS.md`](docs/TOWERS.md)
 
+## Third-party assets
+
+Free (mostly **CC0**) art is vendored under [`assets/third_party/`](assets/third_party/) — Kenney particles/UI/smoke, Seasons of Forest sample, DawnLike sprites (CC-BY 4.0), and more.
+
+Full author / license / usage list: [`assets/third_party/ATTRIBUTION.md`](assets/third_party/ATTRIBUTION.md).
+
 ## Agent notes
 
 See [`AGENTS.md`](AGENTS.md) — default branch `master`, push after meaningful work.

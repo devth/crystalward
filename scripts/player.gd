@@ -202,6 +202,15 @@ func _flash_attack() -> void:
 	_attack_arc.visible = true
 	_attack_arc.rotation = _facing.angle()
 	_attack_arc.modulate.a = 0.85
+	var burst_pos := global_position + _facing * 22.0
+	FX.burst_particles(
+		get_parent(),
+		burst_pos,
+		Color(body_color.r, body_color.g, body_color.b, 0.9).lightened(0.2),
+		10,
+		"spark",
+		0.32
+	)
 	var t := create_tween()
 	t.tween_property(_attack_arc, "modulate:a", 0.0, 0.16)
 	t.tween_callback(func() -> void:

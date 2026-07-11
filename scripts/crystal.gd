@@ -25,8 +25,8 @@ func _ready() -> void:
 	_hp_bar.position = Vector2(-52, 62)
 	_hp_bar.size = Vector2(104, 12)
 
-	FX.spark_particles(self, Color(0.75, 0.55, 1.0, 0.85), 22)
-	var dust := FX.spark_particles(self, Color(0.45, 0.85, 0.7, 0.7), 12)
+	FX.spark_particles(self, Color(0.75, 0.55, 1.0, 0.85), 22, "glow")
+	var dust := FX.spark_particles(self, Color(0.45, 0.85, 0.7, 0.7), 12, "star")
 	dust.position = Vector2(0, -20)
 
 
