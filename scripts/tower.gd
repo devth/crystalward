@@ -123,27 +123,28 @@ func _apply_def(d: Dictionary) -> void:
 	rally_dist = float(d.get("rally_dist", 70.0))
 	_def_color = d.get("color", Color(0.5, 0.7, 0.5)) as Color
 
-	# Level scaling
-	damage = int(damage * (1.0 + (level - 1) * 0.45))
-	fire_rate = maxf(0.22, fire_rate * (1.0 - (level - 1) * 0.12))
-	fire_range = fire_range + (level - 1) * 22.0
+	# Level scaling — modest; towers should never one-shot basic foes alone
+	damage = int(damage * (1.0 + (level - 1) * 0.28))
+	fire_rate = maxf(0.28, fire_rate * (1.0 - (level - 1) * 0.08))
+	fire_range = fire_range + (level - 1) * 18.0
 	soldier_count = soldier_count + (level - 1)
-	soldier_hp = int(soldier_hp * (1.0 + (level - 1) * 0.4))
-	soldier_damage = int(soldier_damage * (1.0 + (level - 1) * 0.35))
-	respawn_time = maxf(2.5, respawn_time - (level - 1) * 0.6)
+	soldier_hp = int(soldier_hp * (1.0 + (level - 1) * 0.28))
+	soldier_damage = int(soldier_damage * (1.0 + (level - 1) * 0.22))
+	respawn_time = maxf(3.0, respawn_time - (level - 1) * 0.45)
 
 	# Aetherbow branch specialization (L2+)
 	if type_id == "dualshot" and dps_branch != "":
 		if dps_branch == TowerTypes.BRANCH_PHYSICAL:
 			channel = "thorn"
 			special = "multishot"
-			damage = int(float(damage) * 1.2)
+			damage = int(float(damage) * 1.1)
 			_def_color = Color(0.45, 0.82, 0.42)
 		elif dps_branch == TowerTypes.BRANCH_MAGICAL:
 			channel = "light"
 			special = "magic_bolt"
-			splash = 55.0 + (level - 1) * 15.0
-			damage = int(float(damage) * 1.05)
+			splash = 48.0 + (level - 1) * 12.0
+			# Magical trades single-target punch for small splash
+			damage = int(float(damage) * 0.95)
 			_def_color = Color(0.72, 0.48, 0.95)
 
 	# Groundspike: upgrade → AOE
