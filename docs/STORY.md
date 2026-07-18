@@ -46,11 +46,15 @@ He is patient, armored in court silk gone black, and he does not joke about “n
 
 | | |
 |---|---|
-| **Levels** | 5 |
-| **Phases each** | 10 |
-| **Phase 10** | **Boss** — one large, slow, very strong champion |
-| **Win level** | Survive all 10; boss dies; next land unlocks |
-| **Win campaign** | Defeat Umbrael at Nightfall Gate |
+| **Levels** | **5** places (Vale → Crossing → Mire → March → Gate) |
+| **Phases per level** | **10 sub-level maps** (playable stages — *not* combat waves) |
+| **Waves** | Surges *inside* a map; few on early levels (~3–5), more later (~7–9) |
+| **Boss stage** | Phase **10** of each level; its **final wave** is the boss alone |
+| **Progression** | Linear: clear a map → unlock next map; clear phase 10 → next level |
+| **Total maps** | 50 |
+
+**Phase** = a distinct campaign map (e.g. L1–3 Mossbrook Bend).  
+**Wave** = one enemy surge during that map.
 
 ---
 
@@ -141,16 +145,16 @@ Not a metaphor. The traitor warden, swollen with decades of umbrite craft: talle
 
 ---
 
-## 4. Phase structure (every level)
+## 4. Sub-level (phase) structure (every level)
 
-| Phases | Content |
+| Sub-levels | Content |
 |---|---|
-| 1–3 | Introduction packs; teach the map’s lanes |
-| 4–6 | Mixed kinds; first real pressure (elites from ch.3+) |
-| 7–9 | Heavy composition; prep for boss |
-| **10** | **Boss only** — one unit, huge, slow, very strong |
+| 1–3 | Short maps; few waves; teach the land’s look and lanes |
+| 4–6 | Longer; more waves; pressure rises |
+| 7–9 | Hardest non-boss maps of the level |
+| **10** | Boss stage — several prep waves, then **final wave = boss alone** |
 
-No trash mobs on phase 10. The champion walks alone (or with no adds in v1).
+Waves scale by **level number** first, then by how late you are in that level’s 10 maps.
 
 ---
 
@@ -167,11 +171,11 @@ No trash mobs on phase 10. The champion walks alone (or with no adds in v1).
 
 | Level | Place | Boss | boss_id |
 |---|---|---|---|
-| 1 | Homeland Vale | Rootfather Harrow | `boss_harrow` |
-| 2 | Twinveil Crossing | The Ford-Widow (Maera) | `boss_fordwidow` |
-| 3 | Crosswind Mire | Bog-Crown Mirel | `boss_mirel` |
-| 4 | Western March | Marshal Vesk | `boss_vesk` |
-| 5 | Nightfall Gate | Lord Umbrael | `boss_umbrael` |
+| 1 | Homeland Vale (`vale_01`…`vale_10`) | Rootfather Harrow | `boss_harrow` |
+| 2 | Twinveil Crossing (`veil_*`) | The Ford-Widow (Maera) | `boss_fordwidow` |
+| 3 | Crosswind Mire (`mire_*`) | Bog-Crown Mirel | `boss_mirel` |
+| 4 | Western March (`march_*`) | Marshal Vesk | `boss_vesk` |
+| 5 | Nightfall Gate (`gate_*`) | Lord Umbrael | `boss_umbrael` |
 
 ---
 
@@ -195,7 +199,7 @@ No trash mobs on phase 10. The champion walks alone (or with no adds in v1).
 
 | Date | Decision |
 |---|---|
-| 2026-07-17 | 5 levels × 10 phases; umbrite + fracture cosmology |
-| 2026-07-17 | Phase 10 = single large slow boss per level |
+| 2026-07-17 | 5 levels × 10 **maps** (phases); waves separate and scale by level |
+| 2026-07-17 | Phase 10 of each level = boss stage; final wave = boss alone |
 | 2026-07-17 | Five named bosses with prior roles as caretakers/officers |
 | 2026-07-17 | Dropped vague “night learned to bloom” as cosmology |

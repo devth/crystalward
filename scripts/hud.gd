@@ -386,11 +386,11 @@ func _refresh_wave_prep() -> void:
 	var is_boss := bool(d.get("boss", false))
 	if title:
 		if is_boss:
-			title.text = ("NEXT  ·  BOSS PHASE %d" if prep else "BOSS  ·  PHASE %d") % next_n
+			title.text = ("NEXT  ·  BOSS WAVE %d" if prep else "BOSS  ·  WAVE %d") % next_n
 		elif prep:
-			title.text = "NEXT PHASE  ·  %d" % next_n
+			title.text = "NEXT WAVE  ·  %d" % next_n
 		else:
-			title.text = "PHASE ACTIVE  ·  %d" % next_n
+			title.text = "WAVE ACTIVE  ·  %d" % next_n
 	var flying := bool(d.get("flying", false))
 	if kind_name:
 		var tag := short
@@ -477,8 +477,8 @@ func _on_crystal(cur: int, mx: int) -> void:
 
 
 func _on_wave(w: int, total: int) -> void:
-	# Campaign uses "phases" (10 per level); keep word short for HUD
-	wave_label.text = "Phase  %d / %d" % [w, total]
+	# Combat waves inside a sub-level (phase = map elsewhere)
+	wave_label.text = "Wave  %d / %d" % [w, total]
 
 
 func _on_message(text: String) -> void:

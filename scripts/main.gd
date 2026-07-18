@@ -55,7 +55,7 @@ func _apply_campaign_map() -> void:
 		return
 	var m: Dictionary = Campaign.get_map(Campaign.selected_map_id)
 	PathNetwork.rebuild(str(m.get("lane_set", "full")))
-	GameState.waves_to_win = int(m.get("waves", Campaign.PHASES_PER_LEVEL if Campaign else 10))
+	GameState.waves_to_win = int(m.get("waves", 5))
 	GameState.essence = int(m.get("start_essence", GameState.STARTING_ESSENCE))
 	if m.has("lives"):
 		var lives: int = int(m.get("lives", GameState.CRYSTAL_MAX_HP))
@@ -83,7 +83,10 @@ func _map_banner() -> void:
 		return
 	var m: Dictionary = Campaign.get_map(Campaign.selected_map_id)
 	var ch := int(m.get("chapter", 1))
-	GameState.message.emit("Chapter %d · %s — %s" % [ch, m.get("name"), m.get("blurb")])
+	var ph := int(m.get("phase", 1))
+	var lname: String = str(m.get("level_name", ""))
+	var sname: String = str(m.get("name", ""))
+	GameState.message.emit("L%d–%d %s · %s — %s" % [ch, ph, lname, sname, m.get("blurb")])
 
 
 func _on_game_over_music(won: bool) -> void:

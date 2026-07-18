@@ -154,6 +154,7 @@ func begin_match(map_difficulty: int = 1) -> void:
 	if Campaign:
 		m = Campaign.current_map()
 	match_chapter = int(m.get("chapter", map_difficulty))
+	var stage_phase := int(m.get("phase", 1))  # sub-level 1–10 within the level
 	if match_chapter <= 1:
 		match_level_floor = 1
 	elif match_chapter == 2:
@@ -161,13 +162,17 @@ func begin_match(map_difficulty: int = 1) -> void:
 	else:
 		match_level_floor = mini(3, match_chapter)
 	_reset_match_unlocks()
-	# Apply per-type caps for chapter
+	# Upgrade caps from which *sub-level* you're on (not combat wave)
 	if match_chapter <= 1:
-		for id in match_unlocked:
-			_type_max_level[id] = 1
+		_apply_chapter1_upgrade_schedule(stage_phase)
 	else:
 		for id in match_unlocked:
 			_type_max_level[id] = match_level_floor
+		if match_chapter == 2 and stage_phase >= 6:
+			_grant_level_cap_for_next_type(3, stage_phase)
+		elif match_chapter >= 3 and stage_phase >= 4:
+			for id in match_unlocked:
+				_type_max_level[id] = maxi(int(_type_max_level.get(id, 1)), 3)
 	unlocks_changed.emit()
 	upgrade_caps_changed.emit()
 
@@ -178,9 +183,8 @@ func _reset_match_unlocks() -> void:
 	for id in ORDER:
 		var d: Dictionary = DEFS[id]
 		var need_ch := int(d.get("unlock_chapter", 1))
-		var need_ph := int(d.get("unlock_phase", 1))
-		# At match start: towers from earlier chapters + this chapter phase 1
-		if need_ch < match_chapter or (need_ch == match_chapter and need_ph <= 1):
+		# Towers unlock by campaign *level* (chapter), not sub-level wave
+		if need_ch <= match_chapter:
 			match_unlocked.append(id)
 			_type_max_level[id] = 1
 	if match_unlocked.is_empty():
@@ -190,68 +194,36 @@ func _reset_match_unlocks() -> void:
 		_player_pick[i] = mini(_player_pick[i], match_unlocked.size() - 1)
 
 
-func on_wave_started(wave: int) -> void:
-	## Mid-match: unlock towers whose unlock_phase has arrived; raise upgrade caps.
-	var unlocked_any := false
-	for id in ORDER:
-		if id in match_unlocked:
-			continue
-		var d: Dictionary = DEFS[id]
-		var need_ch := int(d.get("unlock_chapter", 99))
-		var need_ph := int(d.get("unlock_phase", 99))
-		if need_ch < match_chapter or (need_ch == match_chapter and need_ph <= wave):
-			match_unlocked.append(id)
-			_type_max_level[id] = maxi(1, match_level_floor)
-			unlocked_any = true
-			if GameState:
-				GameState.message.emit("✦ Tower unlocked: %s — %s" % [d.get("name"), d.get("desc")])
-
-	# Chapter 1: phases 1–5 stay Lv1; phase 6+ grant Lv2 to one starter type at a time
-	if match_chapter <= 1:
-		_apply_chapter1_upgrade_schedule(wave)
-	elif match_chapter == 2 and wave >= 6:
-		# Mid ch.2: open Lv3 for one type at a time
-		_grant_level_cap_for_next_type(3, wave)
-	elif match_chapter >= 3 and wave >= 4:
-		for id in match_unlocked:
-			_type_max_level[id] = maxi(int(_type_max_level.get(id, 1)), 3)
-
-	if unlocked_any:
-		unlocks_changed.emit()
-	upgrade_caps_changed.emit()
+func on_wave_started(_wave: int) -> void:
+	## Combat waves no longer gate tower unlocks; caps were set in begin_match.
+	pass
 
 
-func _apply_chapter1_upgrade_schedule(wave: int) -> void:
-	## Phases 1–5: all max 1. Phase 6+: unlock Lv2 on arrow, then briar, then arcane.
-	if wave <= 5:
+func _apply_chapter1_upgrade_schedule(stage_phase: int) -> void:
+	## Sub-levels 1–5: all max Lv1. Sub-level 6+: Lv2 on arrow, then briar, then arcane.
+	if stage_phase <= 5:
 		for id in match_unlocked:
 			_type_max_level[id] = 1
 		return
 	var starters: Array[String] = ["arrow", "briar", "arcane"]
-	var slots := wave - 5  # phase 6 → 1 type, phase 7 → 2, phase 8+ → all 3
+	var slots := stage_phase - 5  # stage 6 → 1 type, 7 → 2, 8+ → all 3
 	for i in starters.size():
 		var id: String = starters[i]
 		if id not in match_unlocked:
 			continue
-		var prev := int(_type_max_level.get(id, 1))
 		if i < slots:
 			_type_max_level[id] = 2
-			if prev < 2 and GameState and i == slots - 1:
-				GameState.message.emit("⬆ %s can upgrade to Level 2" % def_for(id).get("name"))
 		else:
 			_type_max_level[id] = 1
 
 
-func _grant_level_cap_for_next_type(cap: int, wave: int) -> void:
+func _grant_level_cap_for_next_type(cap: int, stage_phase: int) -> void:
 	var starters: Array[String] = ["arrow", "briar", "arcane", "garrison"]
-	var idx := clampi(wave - 6, 0, starters.size() - 1)
+	var idx := clampi(stage_phase - 6, 0, starters.size() - 1)
 	for i in range(idx + 1):
 		var id: String = starters[i]
 		if id in match_unlocked:
-			var prev := int(_type_max_level.get(id, 1))
-			_type_max_level[id] = maxi(prev, cap)
-			if prev < cap and GameState and i == idx:
-				GameState.message.emit("⬆ %s can upgrade to Level %d" % [def_for(id).get("name"), cap])
+			_type_max_level[id] = maxi(int(_type_max_level.get(id, 1)), cap)
 
 
 func max_level_for(type_id: String) -> int:

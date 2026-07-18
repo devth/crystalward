@@ -111,12 +111,18 @@ func get_next_kind_id() -> String:
 
 
 func _is_boss_phase_number(n: int) -> bool:
-	return n >= GameState.waves_to_win and GameState.waves_to_win > 0
+	## Final combat wave of a boss *stage* (sub-level), not every map.
+	if n < GameState.waves_to_win or GameState.waves_to_win <= 0:
+		return false
+	var m := _map_def()
+	return bool(m.get("has_boss", false))
 
 
 func _boss_kind_id() -> String:
 	if Campaign and Campaign.has_method("boss_id_for_map"):
-		return Campaign.boss_id_for_map()
+		var bid: String = Campaign.boss_id_for_map()
+		if bid != "":
+			return bid
 	var m := _map_def()
 	return str(m.get("boss_id", "boss_harrow"))
 
@@ -176,7 +182,7 @@ func _process(delta: float) -> void:
 					if next_is_boss:
 						GameState.message.emit("Boss approaches — fortify! %ds (or Call Early)" % int(calm_between_waves))
 					else:
-						GameState.message.emit("Phase clear! Fortify — next in %ds (or Call Early)" % int(calm_between_waves))
+						GameState.message.emit("Wave clear! Fortify — next in %ds (or Call Early)" % int(calm_between_waves))
 					GameState.wave_phase_changed.emit("prep", _timer)
 		Phase.CALM:
 			_timer -= delta
@@ -217,12 +223,12 @@ func _begin_wave() -> void:
 
 	if is_boss:
 		var intro: String = str(kind_def.get("intro", "A champion walks the road."))
-		GameState.message.emit("☠ PHASE %d — BOSS: %s" % [_wave, kind_name])
+		GameState.message.emit("☠ WAVE %d — BOSS: %s" % [_wave, kind_name])
 		GameState.message.emit(intro)
 	elif flying:
-		GameState.message.emit("⚔ Phase %d — %s  ✈ FLYING" % [_wave, kind_name])
+		GameState.message.emit("⚔ Wave %d — %s  ✈ FLYING" % [_wave, kind_name])
 	else:
-		GameState.message.emit("⚔ Phase %d — %s" % [_wave, kind_name])
+		GameState.message.emit("⚔ Wave %d — %s" % [_wave, kind_name])
 	if hint != "" and not is_boss:
 		GameState.message.emit(hint)
 	if flying and not is_boss:

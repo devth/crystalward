@@ -26,7 +26,9 @@ func _ready() -> void:
 
 func _init_from_campaign() -> void:
 	if Campaign:
-		var m: Dictionary = Campaign.get_map(Campaign.selected_map_id)
+		var m: Dictionary = Campaign.get_map(Campaign.selected_map_id) if Campaign.has_method("get_map") else {}
+		if m.is_empty() and Campaign.has_method("current_map"):
+			m = Campaign.current_map()
 		rebuild(str(m.get("lane_set", "single")))
 	else:
 		rebuild("single")

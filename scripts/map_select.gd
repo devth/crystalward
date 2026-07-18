@@ -1,5 +1,5 @@
 extends Control
-## Campaign map select — unlock path, stars, difficulty.
+## Campaign select: 5 levels × 10 sub-level maps (phases).
 
 
 func _ready() -> void:
@@ -17,11 +17,11 @@ func _build() -> void:
 
 	var root := VBoxContainer.new()
 	root.set_anchors_preset(PRESET_FULL_RECT)
-	root.offset_left = 40
-	root.offset_top = 30
-	root.offset_right = -40
-	root.offset_bottom = -30
-	root.add_theme_constant_override("separation", 12)
+	root.offset_left = 36
+	root.offset_top = 24
+	root.offset_right = -36
+	root.offset_bottom = -24
+	root.add_theme_constant_override("separation", 10)
 	add_child(root)
 
 	var title := Label.new()
@@ -30,8 +30,8 @@ func _build() -> void:
 	title.add_theme_color_override("font_color", Color(0.9, 0.85, 1.0))
 	root.add_child(title)
 	var sub := Label.new()
-	sub.text = "5 levels · 10 phases each · from Homeland Vale to Nightfall Gate"
-	sub.add_theme_font_size_override("font_size", 14)
+	sub.text = "5 levels · 10 maps each · waves grow as levels rise · last map of each level is a boss stage"
+	sub.add_theme_font_size_override("font_size", 13)
 	sub.add_theme_color_override("font_color", Color(0.7, 0.75, 0.72, 0.9))
 	root.add_child(sub)
 
@@ -41,13 +41,35 @@ func _build() -> void:
 
 	var list := VBoxContainer.new()
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	list.add_theme_constant_override("separation", 10)
+	list.add_theme_constant_override("separation", 14)
 	scroll.add_child(list)
 
 	if Campaign == null:
 		return
+
+	# Group stages under level headers
+	var by_level: Dictionary = {}  # chapter -> Array of stage dicts
 	for m in Campaign.maps():
-		list.add_child(_map_row(m))
+		var ch: int = int(m.get("chapter", 1))
+		if not by_level.has(ch):
+			by_level[ch] = []
+		by_level[ch].append(m)
+
+	var chapters: Array = by_level.keys()
+	chapters.sort()
+	for ch in chapters:
+		var stages: Array = by_level[ch]
+		if stages.is_empty():
+			continue
+		var level_name: String = str(stages[0].get("level_name", "Level %d" % ch))
+		var header := Label.new()
+		header.text = "Level %d · %s" % [ch, level_name]
+		header.add_theme_font_size_override("font_size", 20)
+		header.add_theme_color_override("font_color", Color(0.85, 0.78, 0.95))
+		list.add_child(header)
+
+		for m in stages:
+			list.add_child(_stage_row(m))
 
 	var powers_btn := Button.new()
 	powers_btn.text = "✦ Powers & Auras (spend dust)"
@@ -65,7 +87,6 @@ func _build() -> void:
 
 
 func _open_powers() -> void:
-	# Simple modal list
 	var layer := CanvasLayer.new()
 	layer.layer = 20
 	add_child(layer)
@@ -129,16 +150,19 @@ func _open_powers() -> void:
 	v.add_child(close)
 
 
-func _map_row(m: Dictionary) -> Control:
+func _stage_row(m: Dictionary) -> Control:
 	var id: String = str(m.get("id"))
 	var unlocked: bool = Campaign.is_unlocked(id)
 	var stars: int = int(Campaign.best_stars.get(id, 0))
+	var ph: int = int(m.get("phase", 1))
+	var waves: int = int(m.get("waves", 4))
+	var is_boss: bool = bool(m.get("has_boss", false))
 
 	var panel := PanelContainer.new()
 	if VisualStyle:
 		VisualStyle.style_hud_panel(panel)
 	var h := HBoxContainer.new()
-	h.add_theme_constant_override("separation", 16)
+	h.add_theme_constant_override("separation", 12)
 	panel.add_child(h)
 
 	var info := VBoxContainer.new()
@@ -147,36 +171,37 @@ func _map_row(m: Dictionary) -> Control:
 
 	var name_l := Label.new()
 	var lock := "" if unlocked else "  🔒"
-	var ch := int(m.get("chapter", 1))
-	name_l.text = "Chapter %d · %s%s" % [ch, m.get("name"), lock]
-	name_l.add_theme_font_size_override("font_size", 20)
-	name_l.add_theme_color_override("font_color", Color(0.95, 0.92, 0.85) if unlocked else Color(0.5, 0.5, 0.55))
+	var boss_tag := "  ☠ BOSS" if is_boss else ""
+	name_l.text = "  %d. %s%s%s" % [ph, m.get("name"), boss_tag, lock]
+	name_l.add_theme_font_size_override("font_size", 16)
+	name_l.add_theme_color_override(
+		"font_color",
+		Color(0.95, 0.85, 0.55) if is_boss and unlocked else (Color(0.92, 0.9, 0.88) if unlocked else Color(0.45, 0.45, 0.5))
+	)
 	info.add_child(name_l)
 
 	var blurb := Label.new()
-	blurb.text = str(m.get("blurb", ""))
-	blurb.add_theme_font_size_override("font_size", 13)
-	blurb.add_theme_color_override("font_color", Color(0.7, 0.75, 0.7))
+	blurb.text = "     %s" % str(m.get("blurb", ""))
+	blurb.add_theme_font_size_override("font_size", 12)
+	blurb.add_theme_color_override("font_color", Color(0.65, 0.7, 0.68))
 	info.add_child(blurb)
 
 	var meta := Label.new()
 	var star_s := ""
 	for i in 3:
 		star_s += "★" if i < stars else "☆"
-	var boss_n := ""
-	if EnemyKinds and m.has("boss_id"):
-		boss_n = " · Boss: %s" % EnemyKinds.display_name(str(m.get("boss_id")))
-	meta.text = "Epic %d/5 · %d phases%s · Best %s" % [m.get("difficulty"), m.get("waves"), boss_n, star_s]
-	meta.add_theme_font_size_override("font_size", 12)
-	meta.add_theme_color_override("font_color", Color(0.85, 0.75, 0.45))
+	meta.text = "     %d waves · Best %s" % [waves, star_s]
+	meta.add_theme_font_size_override("font_size", 11)
+	meta.add_theme_color_override("font_color", Color(0.8, 0.72, 0.45))
 	info.add_child(meta)
 
 	var play := Button.new()
-	play.text = "Enter" if unlocked else "Locked"
+	play.text = "Play" if unlocked else "Locked"
 	play.disabled = not unlocked
-	play.custom_minimum_size = Vector2(100, 40)
+	play.custom_minimum_size = Vector2(90, 36)
 	play.pressed.connect(func() -> void:
 		Campaign.select_map(id)
+		Campaign.save_progress()
 		get_tree().change_scene_to_file("res://scenes/main.tscn")
 	)
 	h.add_child(play)
