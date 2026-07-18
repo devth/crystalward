@@ -25,10 +25,15 @@ func _build() -> void:
 	add_child(root)
 
 	var title := Label.new()
-	title.text = "Campaign — Paths of the Soft Dark"
+	title.text = "Campaign — Road of Wounds"
 	title.add_theme_font_size_override("font_size", 28)
 	title.add_theme_color_override("font_color", Color(0.9, 0.85, 1.0))
 	root.add_child(title)
+	var sub := Label.new()
+	sub.text = "5 levels · 10 phases each · from Homeland Vale to Nightfall Gate"
+	sub.add_theme_font_size_override("font_size", 14)
+	sub.add_theme_color_override("font_color", Color(0.7, 0.75, 0.72, 0.9))
+	root.add_child(sub)
 
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -142,7 +147,8 @@ func _map_row(m: Dictionary) -> Control:
 
 	var name_l := Label.new()
 	var lock := "" if unlocked else "  🔒"
-	name_l.text = "%s%s" % [m.get("name"), lock]
+	var ch := int(m.get("chapter", 1))
+	name_l.text = "Chapter %d · %s%s" % [ch, m.get("name"), lock]
 	name_l.add_theme_font_size_override("font_size", 20)
 	name_l.add_theme_color_override("font_color", Color(0.95, 0.92, 0.85) if unlocked else Color(0.5, 0.5, 0.55))
 	info.add_child(name_l)
@@ -157,7 +163,7 @@ func _map_row(m: Dictionary) -> Control:
 	var star_s := ""
 	for i in 3:
 		star_s += "★" if i < stars else "☆"
-	meta.text = "Difficulty %d/5 · %d waves · Best %s" % [m.get("difficulty"), m.get("waves"), star_s]
+	meta.text = "Epic %d/5 · %d phases · Best %s" % [m.get("difficulty"), m.get("waves"), star_s]
 	meta.add_theme_font_size_override("font_size", 12)
 	meta.add_theme_color_override("font_color", Color(0.85, 0.75, 0.45))
 	info.add_child(meta)

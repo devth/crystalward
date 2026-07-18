@@ -1,12 +1,13 @@
 extends Node
 ## Multi-map campaign progress + stage definitions.
 ## Autoloaded as Campaign.
-## Kingdom Rush–style map progression: lanes & pressure ramp map-to-map.
+## 5 levels × 10 phases each; unique look/feel, escalating epic scale.
 
 signal map_selected(map_id: String)
 signal progress_changed
 
 const SAVE_PATH := "user://crystalward_campaign.cfg"
+const PHASES_PER_LEVEL := 10
 
 ## Selected map for the next battle.
 var selected_map_id: String = "glade"
@@ -19,110 +20,108 @@ func _ready() -> void:
 
 
 func maps() -> Array:
-	## Difficulty ladder mirrors KR / PixelJunk Monsters:
-	## 1 path → merge dual → split dual → choke dual → long dual → triple.
+	## Five chapters on the Road of Wounds. Each has 10 phases (waves).
+	## look: visual theme key for ground / grade / props.
 	return [
 		{
 			"id": "glade",
-			"name": "Lightwell Glade",
-			"blurb": "One southern road. Learn the kill-zone.",
+			"chapter": 1,
+			"name": "Homeland Vale",
+			"blurb": "Gentle Gelfling meadow. Soft paths. The Crystal still sings pure.",
+			"story": "The Soft Dark is only a rumor in the pollen. One road. Ten soft lessons.",
 			"difficulty": 1,
-			"waves": 5,
-			"start_essence": 160,
-			"lives": 30,
-			"enemy_count_scale": 0.45,
-			"enemy_hp_scale": 0.55,
-			"enemy_speed_scale": 0.72,
+			"waves": PHASES_PER_LEVEL,
+			"start_essence": 180,
+			"lives": 28,
+			"enemy_count_scale": 0.42,
+			"enemy_hp_scale": 0.52,
+			"enemy_speed_scale": 0.70,
 			"elites": false,
-			"first_wave_delay": 16.0,
-			"calm_between_waves": 15.0,
-			"theme": Color(1.05, 1.04, 0.98),
+			"first_wave_delay": 18.0,
+			"calm_between_waves": 16.0,
+			"theme": Color(1.08, 1.06, 0.98),
 			"lane_set": "single",
+			"look": "homeland",
 		},
 		{
 			"id": "thorns",
-			"name": "Twin River Pass",
-			"blurb": "South + east roads merge near the well.",
+			"chapter": 2,
+			"name": "Twinveil Crossing",
+			"blurb": "Mist-rivers braid. Two roads meet at the well. Split your light.",
+			"story": "The dusk learns your names. Hold both mouths of the river.",
 			"difficulty": 2,
-			"waves": 6,
-			"start_essence": 120,
+			"waves": PHASES_PER_LEVEL,
+			"start_essence": 140,
 			"lives": 24,
-			"enemy_count_scale": 0.65,
-			"enemy_hp_scale": 0.75,
-			"enemy_speed_scale": 0.85,
+			"enemy_count_scale": 0.62,
+			"enemy_hp_scale": 0.72,
+			"enemy_speed_scale": 0.82,
 			"elites": false,
 			"first_wave_delay": 14.0,
 			"calm_between_waves": 14.0,
-			"theme": Color(0.98, 1.05, 0.95),
+			"theme": Color(0.96, 1.02, 1.06),
 			"lane_set": "dual",
-		},
-		{
-			"id": "ruins",
-			"name": "Silveroak Split",
-			"blurb": "North and south roads — hold both flanks.",
-			"difficulty": 3,
-			"waves": 7,
-			"start_essence": 105,
-			"lives": 22,
-			"enemy_count_scale": 0.8,
-			"enemy_hp_scale": 0.9,
-			"enemy_speed_scale": 0.92,
-			"elites": true,
-			"first_wave_delay": 12.0,
-			"calm_between_waves": 13.0,
-			"theme": Color(1.0, 0.96, 1.02),
-			"lane_set": "meander",
+			"look": "twinveil",
 		},
 		{
 			"id": "bog",
-			"name": "Crosswind Bog",
-			"blurb": "Diagonal roads share a mid choke.",
+			"chapter": 3,
+			"name": "Crosswind Mire",
+			"blurb": "Night-flowers open. Diagonal roads share one dry throat.",
+			"story": "Beauty as bait. The Soft Dark perfumes the marsh.",
 			"difficulty": 3,
-			"waves": 7,
-			"start_essence": 100,
+			"waves": PHASES_PER_LEVEL,
+			"start_essence": 115,
 			"lives": 20,
-			"enemy_count_scale": 0.9,
-			"enemy_hp_scale": 1.0,
-			"enemy_speed_scale": 0.95,
+			"enemy_count_scale": 0.85,
+			"enemy_hp_scale": 0.95,
+			"enemy_speed_scale": 0.92,
 			"elites": true,
-			"first_wave_delay": 11.0,
+			"first_wave_delay": 12.0,
 			"calm_between_waves": 12.0,
-			"theme": Color(0.95, 1.02, 0.98),
+			"theme": Color(0.92, 1.0, 0.96),
 			"lane_set": "cross",
+			"look": "mire",
 		},
 		{
 			"id": "march",
+			"chapter": 4,
 			"name": "Western March",
-			"blurb": "Two long serpents. Little shared coverage.",
+			"blurb": "Two long serpents across the dusk-heath. Little shared cover.",
+			"story": "Umbrael’s highway. The light grows tired. Choose which serpent to starve.",
 			"difficulty": 4,
-			"waves": 8,
-			"start_essence": 90,
+			"waves": PHASES_PER_LEVEL,
+			"start_essence": 100,
 			"lives": 18,
 			"enemy_count_scale": 1.0,
 			"enemy_hp_scale": 1.1,
 			"enemy_speed_scale": 1.0,
 			"elites": true,
 			"first_wave_delay": 10.0,
-			"calm_between_waves": 12.0,
-			"theme": Color(0.98, 0.98, 1.04),
+			"calm_between_waves": 11.0,
+			"theme": Color(0.98, 0.96, 1.05),
 			"lane_set": "winding",
+			"look": "march",
 		},
 		{
 			"id": "conjunction",
+			"chapter": 5,
 			"name": "Nightfall Gate",
-			"blurb": "Three portals. Endure the siege.",
+			"blurb": "Three portals. Conjunction. Hold until the Crystal knits.",
+			"story": "The Gloaming Court arrives. Endure, or Thren forgets the sun.",
 			"difficulty": 5,
-			"waves": 9,
-			"start_essence": 85,
+			"waves": PHASES_PER_LEVEL,
+			"start_essence": 90,
 			"lives": 16,
-			"enemy_count_scale": 1.1,
-			"enemy_hp_scale": 1.2,
-			"enemy_speed_scale": 1.05,
+			"enemy_count_scale": 1.15,
+			"enemy_hp_scale": 1.25,
+			"enemy_speed_scale": 1.06,
 			"elites": true,
 			"first_wave_delay": 10.0,
-			"calm_between_waves": 11.0,
-			"theme": Color(1.02, 0.95, 1.05),
+			"calm_between_waves": 10.0,
+			"theme": Color(1.02, 0.94, 1.08),
 			"lane_set": "full",
+			"look": "gate",
 		},
 	]
 
@@ -132,6 +131,14 @@ func get_map(id: String) -> Dictionary:
 		if m.get("id") == id:
 			return m
 	return maps()[0]
+
+
+func current_map() -> Dictionary:
+	return get_map(selected_map_id)
+
+
+func current_look() -> String:
+	return str(current_map().get("look", "homeland"))
 
 
 func tower_unlock_tier() -> int:
@@ -186,6 +193,17 @@ func load_progress() -> void:
 		unlocked = {"glade": true}
 	if not unlocked.has("glade"):
 		unlocked["glade"] = true
+	# Drop obsolete map ids from older 6-map saves
+	var valid: Dictionary = {}
+	for m in maps():
+		valid[str(m.get("id"))] = true
+	var cleaned: Dictionary = {}
+	for k in unlocked.keys():
+		if valid.has(str(k)) and unlocked[k]:
+			cleaned[str(k)] = true
+	if cleaned.is_empty():
+		cleaned = {"glade": true}
+	unlocked = cleaned
 	best_stars = cfg.get_value("campaign", "stars", {})
 	if best_stars == null or not (best_stars is Dictionary):
 		best_stars = {}

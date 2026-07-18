@@ -478,7 +478,8 @@ func _on_crystal(cur: int, mx: int) -> void:
 
 
 func _on_wave(w: int, total: int) -> void:
-	wave_label.text = "Wave  %d / %d" % [w, total]
+	# Campaign uses "phases" (10 per level); keep word short for HUD
+	wave_label.text = "Phase  %d / %d" % [w, total]
 
 
 func _on_message(text: String) -> void:

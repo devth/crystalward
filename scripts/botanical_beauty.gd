@@ -16,25 +16,36 @@ const LEGEND_FERN := Color(0.30, 0.46, 0.40)
 func paint(parent: Node2D) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 1985
+	var homeland := Campaign != null and Campaign.current_look() == "homeland"
+	# Homeland: denser soft meadow (Gelfling / Legend opening forest)
+	var ring_n := 22 if homeland else 12
+	var edge_step := 90.0 if homeland else 140.0
+	var cluster_n := 16 if homeland else 8
 
 	# Light meadow ring far enough from crystal not to obscure it
-	_meadow_ring(parent, Vector2(0, 40), 180.0, 260.0, 12, rng)
+	_meadow_ring(parent, Vector2(0, 40), 180.0, 260.0, ring_n, rng)
+	if homeland:
+		_meadow_ring(parent, Vector2(0, 40), 280.0, 420.0, 18, rng)
 
 	# Sparse path-edge grass only
 	if PathNetwork:
 		for lane in PathNetwork.lanes:
 			var pts: PackedVector2Array = lane
 			var walked := 0.0
-			var next_mark := 140.0
+			var next_mark := edge_step
 			for i in range(pts.size() - 1):
 				walked += pts[i].distance_to(pts[i + 1])
 				if walked < next_mark:
 					continue
-				next_mark += 140.0
+				next_mark += edge_step
 				_path_edge_flowers(parent, pts[i], pts[i + 1], rng)
 
-	# One fairy ring, far from well
-	var rings: Array[Vector2] = [Vector2(320, 480), Vector2(-360, 700)]
+	# Fairy rings, far from well
+	var rings: Array = [Vector2(320, 480), Vector2(-360, 700)]
+	if homeland:
+		rings.append(Vector2(420, 180))
+		rings.append(Vector2(-180, 380))
+		rings.append(Vector2(100, 720))
 	for c in rings:
 		if PathNetwork and PathNetwork.dist_to_path(c) < 130.0:
 			continue
@@ -42,8 +53,8 @@ func paint(parent: Node2D) -> void:
 			continue
 		_fairy_ring(parent, c, rng.randf_range(28.0, 40.0), rng)
 
-	# Few botanical clusters
-	for i in 8:
+	# Botanical clusters
+	for i in cluster_n:
 		var ang := rng.randf() * TAU
 		var r := rng.randf_range(400.0, 1600.0)
 		var pos := Vector2(cos(ang), sin(ang) * 0.88) * r

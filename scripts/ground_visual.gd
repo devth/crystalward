@@ -2,12 +2,14 @@ extends Node2D
 ## Ground + dirt roads + forest props.
 ## All ground art stays under actors (Ground node z=-200 absolute). Props use local z only.
 
-# Thra canopy tint — river-green with cool violet undertone
+# Thra canopy tint — overridden per campaign look
 const FOREST_MODULATE := Color(0.42, 0.58, 0.52)
 const FLOOR_EXTENT := 3200.0
 ## Soft dirt-road gradient texture (V = across road width). Cached once.
 static var _dirt_tex: Texture2D
 static var _dirt_edge_tex: Texture2D
+var _look: String = "homeland"
+var _forest_mod: Color = FOREST_MODULATE
 
 const Z_FLOOR := 0
 const Z_WATER := 2
@@ -45,6 +47,10 @@ func _on_paths_rebuilt() -> void:
 
 
 func _build() -> void:
+	_look = Campaign.current_look() if Campaign else "homeland"
+	_forest_mod = _look_forest_modulate()
+	_dirt_tex = null
+	_dirt_edge_tex = null
 	_build_floor()
 	_build_altitude_field()  # continuous height bands + slope shade
 	_build_elevation_base()  # material washes following elevation
@@ -55,6 +61,25 @@ func _build() -> void:
 	_build_landmarks()
 	_scatter_forest_props()
 	_build_botanicals()
+	if _look == "homeland":
+		_build_homeland_accents()
+
+
+func _look_forest_modulate() -> Color:
+	match _look:
+		"homeland":
+			# Soft Gelfling / Legend glade — warm moss, no violet cast
+			return Color(0.52, 0.72, 0.48)
+		"twinveil":
+			return Color(0.40, 0.58, 0.58)
+		"mire":
+			return Color(0.32, 0.48, 0.42)
+		"march":
+			return Color(0.38, 0.42, 0.48)
+		"gate":
+			return Color(0.36, 0.32, 0.48)
+		_:
+			return FOREST_MODULATE
 
 
 func _build_floor() -> void:
@@ -73,10 +98,54 @@ func _build_floor() -> void:
 	var lush := load("res://shaders/lush_ground.gdshader") as Shader
 	if lush:
 		fm.shader = lush
+		_apply_look_to_ground_shader(fm)
 		floor_poly.material = fm
 	else:
-		floor_poly.color = Color(0.14, 0.30, 0.26)
+		floor_poly.color = Color(0.22, 0.42, 0.28) if _look == "homeland" else Color(0.14, 0.30, 0.26)
 	add_child(floor_poly)
+
+
+func _apply_look_to_ground_shader(fm: ShaderMaterial) -> void:
+	## Per-level ground palette. Homeland = gentle Legend / Gelfling meadow.
+	match _look:
+		"homeland":
+			fm.set_shader_parameter("col_shadow", Color(0.12, 0.14, 0.10))
+			fm.set_shader_parameter("col_grass_deep", Color(0.18, 0.36, 0.20))
+			fm.set_shader_parameter("col_grass", Color(0.30, 0.52, 0.28))
+			fm.set_shader_parameter("col_grass_lit", Color(0.48, 0.68, 0.36))
+			fm.set_shader_parameter("col_dirt_dark", Color(0.28, 0.24, 0.16))
+			fm.set_shader_parameter("col_dirt", Color(0.46, 0.40, 0.28))
+			fm.set_shader_parameter("col_dirt_lit", Color(0.58, 0.52, 0.36))
+			fm.set_shader_parameter("col_sand", Color(0.62, 0.58, 0.42))
+			fm.set_shader_parameter("col_rock", Color(0.36, 0.38, 0.34))
+			fm.set_shader_parameter("col_rock_lit", Color(0.50, 0.52, 0.46))
+			fm.set_shader_parameter("col_wet", Color(0.22, 0.38, 0.32))
+			fm.set_shader_parameter("col_moss", Color(0.36, 0.55, 0.30))
+		"twinveil":
+			fm.set_shader_parameter("col_grass_deep", Color(0.14, 0.28, 0.28))
+			fm.set_shader_parameter("col_grass", Color(0.22, 0.40, 0.38))
+			fm.set_shader_parameter("col_grass_lit", Color(0.36, 0.55, 0.52))
+			fm.set_shader_parameter("col_wet", Color(0.18, 0.32, 0.42))
+			fm.set_shader_parameter("col_moss", Color(0.28, 0.48, 0.44))
+		"mire":
+			fm.set_shader_parameter("col_shadow", Color(0.08, 0.10, 0.10))
+			fm.set_shader_parameter("col_grass_deep", Color(0.10, 0.22, 0.18))
+			fm.set_shader_parameter("col_grass", Color(0.16, 0.32, 0.26))
+			fm.set_shader_parameter("col_wet", Color(0.12, 0.22, 0.28))
+			fm.set_shader_parameter("col_moss", Color(0.22, 0.38, 0.28))
+		"march":
+			fm.set_shader_parameter("col_grass_deep", Color(0.16, 0.20, 0.22))
+			fm.set_shader_parameter("col_grass", Color(0.24, 0.30, 0.32))
+			fm.set_shader_parameter("col_grass_lit", Color(0.36, 0.40, 0.38))
+			fm.set_shader_parameter("col_rock", Color(0.30, 0.28, 0.36))
+		"gate":
+			fm.set_shader_parameter("col_shadow", Color(0.08, 0.06, 0.12))
+			fm.set_shader_parameter("col_grass_deep", Color(0.12, 0.14, 0.20))
+			fm.set_shader_parameter("col_grass", Color(0.18, 0.22, 0.28))
+			fm.set_shader_parameter("col_rock", Color(0.24, 0.20, 0.34))
+			fm.set_shader_parameter("col_rock_lit", Color(0.38, 0.32, 0.48))
+		_:
+			pass
 
 
 func _build_altitude_field() -> void:
@@ -114,7 +183,28 @@ func _build_altitude_field() -> void:
 			var col: Color
 			var a: float
 			var r := 52.0 + absf(elev) * 48.0 + slope * 40.0
-			if elev > 0.55:
+			if _look == "homeland":
+				# Soft rolling Gelfling hills — warm meadow bands, no purple basins
+				if elev > 0.55:
+					col = Color(0.42, 0.44, 0.36, 1.0)
+					a = 0.12 + elev * 0.1
+					r *= 1.05
+				elif elev > 0.28:
+					col = Color(0.38, 0.58, 0.32, 1.0)
+					a = 0.14 + elev * 0.1
+				elif elev > 0.05:
+					col = Color(0.32, 0.52, 0.30, 1.0)
+					a = 0.12 + elev * 0.08
+				elif elev > -0.2:
+					col = Color(0.28, 0.46, 0.28, 1.0)
+					a = 0.1
+				elif elev > -0.5:
+					col = Color(0.24, 0.40, 0.32, 1.0)
+					a = 0.1
+				else:
+					col = Color(0.22, 0.36, 0.34, 1.0)
+					a = 0.12
+			elif elev > 0.55:
 				col = Color(0.36, 0.34, 0.44, 1.0)  # high violet stone
 				a = 0.16 + elev * 0.14
 				r *= 1.1
@@ -247,15 +337,26 @@ func _build_elevation_base() -> void:
 
 
 func _build_plaza() -> void:
-	## Castle courtyard around the Crystal Tower — dark stone + Thra moss edge.
+	if _look == "homeland":
+		## Soft homeland clearing — sun-warm grass, pale stone ring (Legend opening)
+		var outer := _ellipse(Vector2(0, 40), 360, 220, Color(0.32, 0.48, 0.28, 0.32), Z_PLAZA)
+		add_child(outer)
+		var clear := _ellipse(Vector2(0, 40), 260, 160, Color(0.40, 0.55, 0.32, 0.28), Z_PLAZA)
+		add_child(clear)
+		var meadow := _ellipse(Vector2(0, 40), 160, 88, Color(0.48, 0.62, 0.36, 0.28), Z_PLAZA)
+		add_child(meadow)
+		var pad := _ellipse(Vector2(0, 40), 95, 50, Color(0.52, 0.46, 0.34, 0.4), Z_PLAZA)
+		add_child(pad)
+		var warm := _ellipse(Vector2(0, 40), 72, 40, Color(0.95, 0.85, 0.5, 0.14), Z_PLAZA)
+		add_child(warm)
+		return
+	## Later chapters: darker castle courtyard
 	var outer := _ellipse(Vector2(0, 40), 360, 220, Color(0.14, 0.18, 0.20, 0.4), Z_PLAZA)
 	add_child(outer)
-	# Obsidian / Astronomist stone approach
 	var clear := _ellipse(Vector2(0, 40), 260, 160, Color(0.16, 0.13, 0.22, 0.45), Z_PLAZA)
 	add_child(clear)
 	var stone := _ellipse(Vector2(0, 40), 160, 88, Color(0.20, 0.16, 0.28, 0.5), Z_PLAZA)
 	add_child(stone)
-	# Soft amethyst + fire wash under the tower
 	var warm := _ellipse(Vector2(0, 40), 90, 48, Color(0.55, 0.35, 0.72, 0.12), Z_PLAZA)
 	add_child(warm)
 	var fire_ring := _ellipse(Vector2(0, 48), 55, 28, Color(0.85, 0.4, 0.18, 0.08), Z_PLAZA)
@@ -727,6 +828,49 @@ func _build_botanicals() -> void:
 		bot.call("paint", bot)  # paint into own layer, not entire ground
 
 
+func _build_homeland_accents() -> void:
+	## Extra soft beauty for Gelfling / Legend opening meadow.
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1985
+	# Soft sun shafts (very low alpha)
+	for i in 3:
+		var shaft := Polygon2D.new()
+		var x := rng.randf_range(-400, 400)
+		shaft.polygon = PackedVector2Array([
+			Vector2(x - 40, -900), Vector2(x + 50, -900),
+			Vector2(x + 20, 900), Vector2(x - 70, 900)
+		])
+		shaft.color = Color(0.98, 0.94, 0.7, 0.04 + float(i) * 0.01)
+		shaft.z_index = Z_DECOR + 40
+		add_child(shaft)
+	# Extra fairy rings far from crystal
+	var rings: Array[Vector2] = [
+		Vector2(280, 420), Vector2(-320, 560), Vector2(180, -280), Vector2(-240, 200)
+	]
+	for c in rings:
+		if PathNetwork and PathNetwork.dist_to_path(c) < 120.0:
+			continue
+		if c.length() < 220.0:
+			continue
+		_add_fairy_ring(c, rng.randf_range(42, 58), rng)
+	# Warm firefly motes
+	if FX:
+		var gold := FX.spark_particles(self, Color(0.98, 0.9, 0.55, 0.5), 22, "star")
+		gold.position = Vector2(0, 40)
+		gold.z_index = Z_DECOR + 5
+		gold.amount = 22
+		gold.lifetime = 5.0
+		var pm := gold.process_material as ParticleProcessMaterial
+		if pm:
+			pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+			pm.emission_sphere_radius = 320.0
+			pm.gravity = Vector3(0, -1.5, 0)
+		var soft := FX.spark_particles(self, Color(0.75, 0.95, 0.7, 0.35), 14, "glow")
+		soft.position = Vector2(0, 20)
+		soft.z_index = Z_DECOR + 5
+		soft.amount = 12
+
+
 func _build_atmosphere_light() -> void:
 	if FX == null:
 		return
@@ -860,7 +1004,7 @@ func _place_sprite(tex: Texture2D, pos: Vector2, scale_mul: float, alpha: float 
 	s.centered = true
 	s.position = pos
 	s.scale = Vector2(scale_mul, scale_mul)
-	s.modulate = Color(FOREST_MODULATE.r, FOREST_MODULATE.g, FOREST_MODULATE.b, alpha)
+	s.modulate = Color(_forest_mod.r, _forest_mod.g, _forest_mod.b, alpha)
 	# Local z only under Ground (-200) — never compete with actors (5000+)
 	s.z_index = Z_DECOR + clampi(int(pos.y / 80.0), -5, 25)
 	s.offset = Vector2(0, -float(tex.get_height()) * 0.4)
@@ -877,10 +1021,13 @@ func _add_path_ribbon(pts: PackedVector2Array, half_width: float) -> void:
 	_dirt_edge_tex = null
 	_ensure_dirt_textures()
 
-	# Soft river-green verge — blends into Thra floor
+	# Soft verge — homeland uses bright meadow edge
 	var moss := Line2D.new()
 	moss.width = half_width * 2.15
-	moss.default_color = Color(0.14, 0.26, 0.22, 0.44)
+	if _look == "homeland":
+		moss.default_color = Color(0.28, 0.48, 0.26, 0.48)
+	else:
+		moss.default_color = Color(0.14, 0.26, 0.22, 0.44)
 	moss.begin_cap_mode = Line2D.LINE_CAP_ROUND
 	moss.end_cap_mode = Line2D.LINE_CAP_ROUND
 	moss.joint_mode = Line2D.LINE_JOINT_ROUND
@@ -912,10 +1059,11 @@ func _ensure_dirt_textures() -> void:
 
 
 func _make_dirt_gradient_tex(for_edge: bool) -> Texture2D:
-	## Thra path: cool mauve-taupe with river-green rim (castle-road, not mud).
+	## Path colors by look. Homeland: pale warm sand-path (Gelfling trail).
 	var w := 24
 	var h := 96
 	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	var homeland := _look == "homeland"
 	for y in h:
 		var v := float(y) / float(h - 1)
 		var edge := absf(v - 0.5) * 2.0  # 0 center → 1 edge
@@ -923,17 +1071,20 @@ func _make_dirt_gradient_tex(for_edge: bool) -> Texture2D:
 
 		var col: Color
 		if for_edge:
-			# Soft mossy shoulder with violet undertone
-			var mid := Color(0.26, 0.32, 0.30, 0.55)
-			var out := Color(0.16, 0.24, 0.22, 0.0)
+			var mid := Color(0.36, 0.50, 0.30, 0.5) if homeland else Color(0.26, 0.32, 0.30, 0.55)
+			var out := Color(0.28, 0.42, 0.26, 0.0) if homeland else Color(0.16, 0.24, 0.22, 0.0)
 			col = mid.lerp(out, t)
-		else:
-			# Cool packed earth with slight mauve (stone dust of Thra)
-			var crown := Color(0.50, 0.46, 0.48, 1.0)   # dusty center
-			var body := Color(0.38, 0.36, 0.40, 1.0)    # mauve taupe
-			var rim := Color(0.28, 0.32, 0.30, 1.0)     # river-green earth edge
+		elif homeland:
+			var crown := Color(0.62, 0.56, 0.42, 1.0)  # pale sun-dust
+			var body := Color(0.50, 0.46, 0.34, 1.0)
+			var rim := Color(0.40, 0.44, 0.30, 1.0)
 			col = crown.lerp(body, t * 0.65).lerp(rim, t * 0.85)
-			# Soft alpha at extreme edge so it merges with grass verge
+			col.a = clampf(1.0 - pow(edge, 2.6) * 0.28, 0.82, 1.0)
+		else:
+			var crown := Color(0.50, 0.46, 0.48, 1.0)
+			var body := Color(0.38, 0.36, 0.40, 1.0)
+			var rim := Color(0.28, 0.32, 0.30, 1.0)
+			col = crown.lerp(body, t * 0.65).lerp(rim, t * 0.85)
 			col.a = clampf(1.0 - pow(edge, 2.6) * 0.28, 0.82, 1.0)
 
 		for x in w:
