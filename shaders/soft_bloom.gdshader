@@ -65,8 +65,8 @@ void fragment() {
 	}
 	blur /= wsum;
 
-	// Prefer soft paint over hard pixels
-	vec3 col = mix(blur, sharp, 0.38 + clarity * 0.35);
+	// High clarity → keep sharp world; low clarity → soft paint
+	vec3 col = mix(blur, sharp, clamp(0.45 + clarity * 0.55, 0.0, 1.0));
 
 	// Chromatic pigment split (subtle — cover-print feel)
 	float ch = 0.0012 * pigment_bleed;

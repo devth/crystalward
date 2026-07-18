@@ -1,15 +1,14 @@
 extends Node2D
-## Ground + dirt roads + forest props.
-## All ground art stays under actors (Ground node z=-200 absolute). Props use local z only.
+## Ground + dirt roads + integrated scenery.
+## Lifelike terrain: solid hills, rock outcrops, woodland masses with trees.
+## Scenery is painted into the land (shared shadows / merged canopy) — not stickers.
+## All ground art stays under actors (Ground node z=-200 absolute).
 
-# Thra canopy tint — overridden per campaign look
-const FOREST_MODULATE := Color(0.42, 0.58, 0.52)
 const FLOOR_EXTENT := 3200.0
 ## Soft dirt-road gradient texture (V = across road width). Cached once.
 static var _dirt_tex: Texture2D
 static var _dirt_edge_tex: Texture2D
 var _look: String = "homeland"
-var _forest_mod: Color = FOREST_MODULATE
 
 const Z_FLOOR := 0
 const Z_WATER := 2
@@ -20,7 +19,8 @@ const Z_PATH := 12
 const Z_PATH_DETAIL := 14
 const Z_PORTAL := 20
 const Z_DECOR := 30
-const Z_MOUNTAIN := 40
+const Z_TREE := 35
+const Z_ROCK := 32
 ## Nothing solid on the road (path half-width ~58 + margin).
 const PATH_CLEAR := 110.0
 
@@ -48,35 +48,16 @@ func _on_paths_rebuilt() -> void:
 
 func _build() -> void:
 	_look = Campaign.current_look() if Campaign else "homeland"
-	_forest_mod = _look_forest_modulate()
 	_dirt_tex = null
 	_dirt_edge_tex = null
 	_build_floor()
-	_build_altitude_field()  # continuous painted height bands
-	_build_elevation_base()  # material washes following elevation
+	_build_altitude_field()
+	_build_elevation_base()
 	_build_plaza()
 	_build_paths()
-	_build_mist_fields()
-	_build_terrain_features()  # soft hills, water, canopy washes only
+	_build_terrain_features()  # hills, water, integrated woodland + rocks
+	_build_edge_scenery()      # fill map flanks with grove / rock
 	_build_atmosphere_light()
-	# No scattered tree/rock stickers, mountains, or crystal prop clutter.
-
-
-func _look_forest_modulate() -> Color:
-	match _look:
-		"homeland":
-			# Soft Gelfling / Legend glade — warm moss, no violet cast
-			return Color(0.52, 0.72, 0.48)
-		"twinveil":
-			return Color(0.40, 0.58, 0.58)
-		"mire":
-			return Color(0.32, 0.48, 0.42)
-		"march":
-			return Color(0.38, 0.42, 0.48)
-		"gate":
-			return Color(0.36, 0.32, 0.48)
-		_:
-			return FOREST_MODULATE
 
 
 func _build_floor() -> void:
@@ -103,44 +84,47 @@ func _build_floor() -> void:
 
 
 func _apply_look_to_ground_shader(fm: ShaderMaterial) -> void:
-	## Per-level ground palette. Homeland = gentle Legend / Gelfling meadow.
+	## Per-level ground palette — saturated enough to read at play zoom.
 	match _look:
 		"homeland":
-			fm.set_shader_parameter("col_shadow", Color(0.12, 0.14, 0.10))
-			fm.set_shader_parameter("col_grass_deep", Color(0.18, 0.36, 0.20))
-			fm.set_shader_parameter("col_grass", Color(0.30, 0.52, 0.28))
-			fm.set_shader_parameter("col_grass_lit", Color(0.48, 0.68, 0.36))
-			fm.set_shader_parameter("col_dirt_dark", Color(0.28, 0.24, 0.16))
-			fm.set_shader_parameter("col_dirt", Color(0.46, 0.40, 0.28))
-			fm.set_shader_parameter("col_dirt_lit", Color(0.58, 0.52, 0.36))
-			fm.set_shader_parameter("col_sand", Color(0.62, 0.58, 0.42))
-			fm.set_shader_parameter("col_rock", Color(0.36, 0.38, 0.34))
-			fm.set_shader_parameter("col_rock_lit", Color(0.50, 0.52, 0.46))
-			fm.set_shader_parameter("col_wet", Color(0.22, 0.38, 0.32))
-			fm.set_shader_parameter("col_moss", Color(0.36, 0.55, 0.30))
+			fm.set_shader_parameter("col_shadow", Color(0.10, 0.12, 0.08))
+			fm.set_shader_parameter("col_grass_deep", Color(0.14, 0.34, 0.16))
+			fm.set_shader_parameter("col_grass", Color(0.28, 0.52, 0.24))
+			fm.set_shader_parameter("col_grass_lit", Color(0.50, 0.72, 0.34))
+			fm.set_shader_parameter("col_dirt_dark", Color(0.30, 0.24, 0.14))
+			fm.set_shader_parameter("col_dirt", Color(0.48, 0.40, 0.26))
+			fm.set_shader_parameter("col_dirt_lit", Color(0.62, 0.54, 0.36))
+			fm.set_shader_parameter("col_sand", Color(0.66, 0.58, 0.40))
+			fm.set_shader_parameter("col_rock", Color(0.40, 0.40, 0.36))
+			fm.set_shader_parameter("col_rock_lit", Color(0.56, 0.56, 0.50))
+			fm.set_shader_parameter("col_wet", Color(0.18, 0.36, 0.28))
+			fm.set_shader_parameter("col_moss", Color(0.34, 0.56, 0.28))
 		"twinveil":
-			fm.set_shader_parameter("col_grass_deep", Color(0.14, 0.28, 0.28))
-			fm.set_shader_parameter("col_grass", Color(0.22, 0.40, 0.38))
-			fm.set_shader_parameter("col_grass_lit", Color(0.36, 0.55, 0.52))
-			fm.set_shader_parameter("col_wet", Color(0.18, 0.32, 0.42))
-			fm.set_shader_parameter("col_moss", Color(0.28, 0.48, 0.44))
+			fm.set_shader_parameter("col_grass_deep", Color(0.12, 0.30, 0.28))
+			fm.set_shader_parameter("col_grass", Color(0.22, 0.44, 0.40))
+			fm.set_shader_parameter("col_grass_lit", Color(0.38, 0.60, 0.54))
+			fm.set_shader_parameter("col_wet", Color(0.16, 0.34, 0.44))
+			fm.set_shader_parameter("col_moss", Color(0.28, 0.50, 0.44))
 		"mire":
-			fm.set_shader_parameter("col_shadow", Color(0.08, 0.10, 0.10))
-			fm.set_shader_parameter("col_grass_deep", Color(0.10, 0.22, 0.18))
-			fm.set_shader_parameter("col_grass", Color(0.16, 0.32, 0.26))
-			fm.set_shader_parameter("col_wet", Color(0.12, 0.22, 0.28))
-			fm.set_shader_parameter("col_moss", Color(0.22, 0.38, 0.28))
+			fm.set_shader_parameter("col_shadow", Color(0.08, 0.10, 0.09))
+			fm.set_shader_parameter("col_grass_deep", Color(0.10, 0.24, 0.18))
+			fm.set_shader_parameter("col_grass", Color(0.18, 0.36, 0.26))
+			fm.set_shader_parameter("col_grass_lit", Color(0.30, 0.48, 0.34))
+			fm.set_shader_parameter("col_wet", Color(0.12, 0.24, 0.30))
+			fm.set_shader_parameter("col_moss", Color(0.24, 0.42, 0.28))
 		"march":
-			fm.set_shader_parameter("col_grass_deep", Color(0.16, 0.20, 0.22))
-			fm.set_shader_parameter("col_grass", Color(0.24, 0.30, 0.32))
-			fm.set_shader_parameter("col_grass_lit", Color(0.36, 0.40, 0.38))
-			fm.set_shader_parameter("col_rock", Color(0.30, 0.28, 0.36))
+			fm.set_shader_parameter("col_grass_deep", Color(0.16, 0.22, 0.20))
+			fm.set_shader_parameter("col_grass", Color(0.26, 0.34, 0.30))
+			fm.set_shader_parameter("col_grass_lit", Color(0.40, 0.46, 0.38))
+			fm.set_shader_parameter("col_rock", Color(0.36, 0.34, 0.38))
+			fm.set_shader_parameter("col_rock_lit", Color(0.50, 0.48, 0.50))
 		"gate":
-			fm.set_shader_parameter("col_shadow", Color(0.08, 0.06, 0.12))
-			fm.set_shader_parameter("col_grass_deep", Color(0.12, 0.14, 0.20))
-			fm.set_shader_parameter("col_grass", Color(0.18, 0.22, 0.28))
-			fm.set_shader_parameter("col_rock", Color(0.24, 0.20, 0.34))
-			fm.set_shader_parameter("col_rock_lit", Color(0.38, 0.32, 0.48))
+			fm.set_shader_parameter("col_shadow", Color(0.08, 0.06, 0.10))
+			fm.set_shader_parameter("col_grass_deep", Color(0.12, 0.16, 0.18))
+			fm.set_shader_parameter("col_grass", Color(0.20, 0.26, 0.28))
+			fm.set_shader_parameter("col_grass_lit", Color(0.32, 0.36, 0.36))
+			fm.set_shader_parameter("col_rock", Color(0.30, 0.26, 0.34))
+			fm.set_shader_parameter("col_rock_lit", Color(0.44, 0.40, 0.48))
 		_:
 			pass
 
@@ -176,52 +160,51 @@ func _build_altitude_field() -> void:
 			var grad := PathNetwork.elevation_gradient(pos)
 			var slope := grad.length()
 
-			# Height band color (low → wet/dark, mid → grass, high → rock/lit)
+			# Height band color — solid enough to read as terrain, not fog
 			var col: Color
 			var a: float
-			var r := 52.0 + absf(elev) * 48.0 + slope * 40.0
+			var r := 56.0 + absf(elev) * 52.0 + slope * 44.0
 			if _look == "homeland":
-				# Soft rolling Gelfling hills — warm meadow bands, no purple basins
 				if elev > 0.55:
-					col = Color(0.42, 0.44, 0.36, 1.0)
-					a = 0.12 + elev * 0.1
+					col = Color(0.46, 0.48, 0.38, 1.0)
+					a = 0.28 + elev * 0.18
 					r *= 1.05
 				elif elev > 0.28:
-					col = Color(0.38, 0.58, 0.32, 1.0)
-					a = 0.14 + elev * 0.1
+					col = Color(0.36, 0.58, 0.28, 1.0)
+					a = 0.30 + elev * 0.16
 				elif elev > 0.05:
-					col = Color(0.32, 0.52, 0.30, 1.0)
-					a = 0.12 + elev * 0.08
+					col = Color(0.30, 0.52, 0.26, 1.0)
+					a = 0.26 + elev * 0.12
 				elif elev > -0.2:
-					col = Color(0.28, 0.46, 0.28, 1.0)
-					a = 0.1
+					col = Color(0.26, 0.46, 0.24, 1.0)
+					a = 0.22
 				elif elev > -0.5:
-					col = Color(0.24, 0.40, 0.32, 1.0)
-					a = 0.1
+					col = Color(0.22, 0.40, 0.30, 1.0)
+					a = 0.24
 				else:
-					col = Color(0.22, 0.36, 0.34, 1.0)
-					a = 0.12
+					col = Color(0.20, 0.36, 0.32, 1.0)
+					a = 0.26
 			elif elev > 0.55:
-				col = Color(0.36, 0.34, 0.44, 1.0)  # high violet stone
-				a = 0.16 + elev * 0.14
+				col = Color(0.40, 0.38, 0.42, 1.0)
+				a = 0.32 + elev * 0.18
 				r *= 1.1
 			elif elev > 0.28:
-				col = Color(0.26, 0.42, 0.36, 1.0)  # upper river-green meadow
-				a = 0.14 + elev * 0.12
+				col = Color(0.26, 0.44, 0.34, 1.0)
+				a = 0.30 + elev * 0.14
 			elif elev > 0.05:
-				col = Color(0.20, 0.36, 0.30, 1.0)  # mid Thra moss
-				a = 0.1 + elev * 0.1
+				col = Color(0.22, 0.40, 0.30, 1.0)
+				a = 0.26 + elev * 0.12
 			elif elev > -0.2:
-				col = Color(0.16, 0.28, 0.26, 1.0)  # low glade
-				a = 0.08 + absf(elev) * 0.06
+				col = Color(0.18, 0.32, 0.28, 1.0)
+				a = 0.22 + absf(elev) * 0.08
 			elif elev > -0.5:
-				col = Color(0.14, 0.24, 0.30, 1.0)  # damp Bismark hollow
-				a = 0.12 + absf(elev) * 0.1
+				col = Color(0.16, 0.28, 0.34, 1.0)
+				a = 0.26 + absf(elev) * 0.1
 			else:
-				col = Color(0.14, 0.16, 0.28, 1.0)  # deep Astronomist basin
-				a = 0.14 + absf(elev) * 0.1
+				col = Color(0.14, 0.18, 0.28, 1.0)
+				a = 0.28 + absf(elev) * 0.1
 
-			col.a = clampf(a, 0.06, 0.32)
+			col.a = clampf(a, 0.18, 0.52)
 			# Stack 1–3 soft layers so height “builds” visually
 			var layers := 1
 			if elev > 0.35 or elev < -0.35:
@@ -245,18 +228,17 @@ func _build_altitude_field() -> void:
 			if slope > 0.004:
 				var downhill := -grad.normalized()
 				var shade_pos := pos + downhill * (28.0 + slope * 200.0)
-				var shade_a := clampf(0.06 + slope * 8.0, 0.06, 0.2)
+				var shade_a := clampf(0.12 + slope * 10.0, 0.12, 0.32)
 				var shade := _organic_poly(
 					shade_pos, r * 0.7, 0.55, 9, rng,
-					Color(0.05, 0.07, 0.08, shade_a), Z_HILL
+					Color(0.06, 0.08, 0.06, shade_a), Z_HILL
 				)
 				add_child(shade)
-				# Lit face uphill
 				var uphill := grad.normalized()
 				var lit_pos := pos + uphill * 18.0
 				var lit := _organic_poly(
 					lit_pos, r * 0.45, 0.5, 8, rng,
-					Color(0.42, 0.55, 0.48, clampf(0.04 + slope * 4.0, 0.04, 0.12)), Z_HILL + 1
+					Color(0.48, 0.62, 0.36, clampf(0.1 + slope * 5.0, 0.1, 0.22)), Z_HILL + 1
 				)
 				add_child(lit)
 
@@ -276,9 +258,9 @@ func _build_altitude_field() -> void:
 			var pts := _organic_shore_pts(c, rad * t, 0.7, 16, rng, 100 + ri, stretch, fang)
 			var ring_col: Color
 			if elev_f > 0.0:
-				ring_col = Color(0.28, 0.44, 0.38, 0.07 + elev_f * 0.04)
+				ring_col = Color(0.26, 0.42, 0.28, 0.14 + elev_f * 0.08)
 			else:
-				ring_col = Color(0.22, 0.28, 0.42, 0.08 + absf(elev_f) * 0.05)
+				ring_col = Color(0.18, 0.28, 0.36, 0.14 + absf(elev_f) * 0.08)
 			_add_filled_poly(pts, ring_col, Z_HILL)
 
 
@@ -305,57 +287,43 @@ func _build_elevation_base() -> void:
 				continue
 			var r := 36.0 + absf(elev) * 70.0
 			if elev > 0.4:
-				var rock := _organic_poly(pos, r * 0.85, 0.68, 10, rng, Color(0.32, 0.30, 0.40, 0.14 + elev * 0.1), Z_HILL + 1)
+				var rock := _organic_poly(pos, r * 0.85, 0.68, 10, rng, Color(0.40, 0.40, 0.36, 0.35 + elev * 0.2), Z_HILL + 1)
 				add_child(rock)
 			elif elev < -0.25:
-				var wet := _organic_poly(pos, r * 1.05, 0.72, 12, rng, Color(0.16, 0.26, 0.30, 0.12 + absf(elev) * 0.1), Z_HILL)
+				var wet := _organic_poly(pos, r * 1.05, 0.72, 12, rng, Color(0.16, 0.30, 0.28, 0.28 + absf(elev) * 0.16), Z_HILL)
 				add_child(wet)
 	for f in PathNetwork.features:
 		if str(f.get("kind", "")) not in ["lake", "pond"]:
 			continue
 		var c: Vector2 = f.get("pos", Vector2.ZERO)
 		var rad: float = float(f.get("radius", 100.0))
-		var sand := _organic_poly(c, rad * 1.28, 0.72, 16, rng, Color(0.42, 0.38, 0.34, 0.2), Z_HILL)
+		var sand := _organic_poly(c, rad * 1.28, 0.72, 16, rng, Color(0.52, 0.46, 0.34, 0.42), Z_HILL)
 		add_child(sand)
 
 
 func _build_plaza() -> void:
 	if _look == "homeland":
-		## Soft homeland clearing — sun-warm grass, pale stone ring (Legend opening)
-		var outer := _ellipse(Vector2(0, 40), 360, 220, Color(0.32, 0.48, 0.28, 0.32), Z_PLAZA)
+		## Homeland clearing — warm grass, readable stone pad
+		var outer := _ellipse(Vector2(0, 40), 360, 220, Color(0.30, 0.50, 0.26, 0.48), Z_PLAZA)
 		add_child(outer)
-		var clear := _ellipse(Vector2(0, 40), 260, 160, Color(0.40, 0.55, 0.32, 0.28), Z_PLAZA)
+		var clear := _ellipse(Vector2(0, 40), 260, 160, Color(0.40, 0.58, 0.30, 0.42), Z_PLAZA)
 		add_child(clear)
-		var meadow := _ellipse(Vector2(0, 40), 160, 88, Color(0.48, 0.62, 0.36, 0.28), Z_PLAZA)
+		var meadow := _ellipse(Vector2(0, 40), 160, 88, Color(0.48, 0.64, 0.34, 0.4), Z_PLAZA)
 		add_child(meadow)
-		var pad := _ellipse(Vector2(0, 40), 95, 50, Color(0.52, 0.46, 0.34, 0.4), Z_PLAZA)
+		var pad := _ellipse(Vector2(0, 40), 95, 50, Color(0.54, 0.48, 0.36, 0.62), Z_PLAZA)
 		add_child(pad)
-		var warm := _ellipse(Vector2(0, 40), 72, 40, Color(0.95, 0.85, 0.5, 0.14), Z_PLAZA)
-		add_child(warm)
+		var pad_lit := _ellipse(Vector2(0, 36), 70, 36, Color(0.64, 0.58, 0.42, 0.35), Z_PLAZA + 1)
+		add_child(pad_lit)
 		return
-	## Later chapters: darker castle courtyard
-	var outer := _ellipse(Vector2(0, 40), 360, 220, Color(0.14, 0.18, 0.20, 0.4), Z_PLAZA)
+	## Later chapters: darker courtyard
+	var outer := _ellipse(Vector2(0, 40), 360, 220, Color(0.14, 0.18, 0.18, 0.55), Z_PLAZA)
 	add_child(outer)
-	var clear := _ellipse(Vector2(0, 40), 260, 160, Color(0.16, 0.13, 0.22, 0.45), Z_PLAZA)
+	var clear := _ellipse(Vector2(0, 40), 260, 160, Color(0.18, 0.16, 0.20, 0.55), Z_PLAZA)
 	add_child(clear)
-	var stone := _ellipse(Vector2(0, 40), 160, 88, Color(0.20, 0.16, 0.28, 0.5), Z_PLAZA)
+	var stone := _ellipse(Vector2(0, 40), 160, 88, Color(0.28, 0.26, 0.30, 0.62), Z_PLAZA)
 	add_child(stone)
-	var warm := _ellipse(Vector2(0, 40), 90, 48, Color(0.55, 0.35, 0.72, 0.12), Z_PLAZA)
-	add_child(warm)
-	var fire_ring := _ellipse(Vector2(0, 48), 55, 28, Color(0.85, 0.4, 0.18, 0.08), Z_PLAZA)
-	add_child(fire_ring)
-
-
-func _build_mist_fields() -> void:
-	## Very few soft mist banks — atmosphere, not haze soup.
-	var banks := [
-		[Vector2(-500, -180), Vector2(280, 120)],
-		[Vector2(520, 200), Vector2(240, 100)],
-		[Vector2(0, 1400), Vector2(300, 130)],
-	]
-	for b in banks:
-		var mist := _ellipse(b[0], b[1].x * 0.5, b[1].y * 0.5, Color(0.35, 0.32, 0.45, 0.1), Z_PLAZA + 2)
-		add_child(mist)
+	var pad := _ellipse(Vector2(0, 40), 90, 48, Color(0.36, 0.34, 0.38, 0.45), Z_PLAZA)
+	add_child(pad)
 
 
 func _build_paths() -> void:
@@ -376,8 +344,7 @@ func _build_paths() -> void:
 
 
 func _build_terrain_features() -> void:
-	## Integrated land only: soft hills, water, painted canopy mass.
-	## No mountain stickers, tree sprites, or crystal prop clusters.
+	## Solid hills, clear water, integrated woodland and rock outcrops.
 	if PathNetwork == null:
 		return
 	var rng := RandomNumberGenerator.new()
@@ -385,24 +352,47 @@ func _build_terrain_features() -> void:
 	for f in PathNetwork.features:
 		var pos: Vector2 = f.get("pos", Vector2.ZERO)
 		var kind: String = str(f.get("kind", "hill"))
-		if PathNetwork.dist_to_path(pos) < PATH_CLEAR * 0.7:
+		if PathNetwork.dist_to_path(pos) < PATH_CLEAR * 0.65:
 			continue
 		match kind:
-			"mountain":
-				# Legacy data → soft highland wash
-				_add_hill_wash(f, rng)
-			"hill":
-				_add_hill_wash(f, rng)
+			"mountain", "hill":
+				_add_hill_mass(f, rng)
 			"lake", "pond":
 				_add_natural_water(f, rng)
 			"canopy", "forest":
-				_add_canopy_wash(f, rng)
+				_add_woodland(f, rng)
 			_:
 				pass
 
 
-func _add_hill_wash(f: Dictionary, rng: RandomNumberGenerator) -> void:
-	## Continuous highland — layered moss washes only (no peak polygons, no tree stickers).
+func _build_edge_scenery() -> void:
+	## Fill outer flanks with groves and rock so the map feels like a real landscape.
+	if PathNetwork == null:
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 5511
+	# Grove anchors around playfield (off the road)
+	var anchors: Array[Vector2] = [
+		Vector2(-720, -280), Vector2(760, -220), Vector2(-680, 520), Vector2(700, 480),
+		Vector2(-420, -620), Vector2(460, -580), Vector2(-380, 1180), Vector2(420, 1120),
+		Vector2(-900, 80), Vector2(920, 40), Vector2(80, -780), Vector2(-120, 1600),
+		Vector2(300, 300), Vector2(-340, 380), Vector2(200, 820), Vector2(-180, -300),
+	]
+	for a in anchors:
+		if a.length() < 200.0:
+			continue
+		if PathNetwork.dist_to_path(a) < PATH_CLEAR * 1.1:
+			continue
+		if rng.randf() < 0.55:
+			_add_woodland({"pos": a, "radius": rng.randf_range(90.0, 150.0), "seed": rng.randi()}, rng)
+		else:
+			_add_rock_cluster(a, rng.randf_range(0.85, 1.4), rng)
+			if rng.randf() < 0.5:
+				_add_painted_tree(a + Vector2(rng.randf_range(-40, 40), rng.randf_range(-20, 20)), rng.randf_range(0.9, 1.3), rng)
+
+
+func _add_hill_mass(f: Dictionary, rng: RandomNumberGenerator) -> void:
+	## Readable rolling highland: soil base, grass crown, rock outcrops, trees on flanks.
 	var center: Vector2 = f.get("pos", Vector2.ZERO)
 	var r: float = maxf(70.0, float(f.get("radius", 120.0)))
 	var stretch: Vector2 = f.get("stretch", Vector2(1.35, 0.9)) as Vector2
@@ -410,46 +400,92 @@ func _add_hill_wash(f: Dictionary, rng: RandomNumberGenerator) -> void:
 	var seed: int = int(f.get("seed", hash(str(f.get("id", "")))))
 	var elev_f := float(f.get("elev", 0.5))
 
-	# Deep under-shade blends into ground
-	var under := _organic_shore_pts(center + Vector2(0, 10), r * 1.35, 0.72, 20, rng, seed, stretch * 1.1, ang)
-	_add_filled_poly(under, Color(0.1, 0.12, 0.14, 0.22 + elev_f * 0.08), Z_HILL)
-	var base := _organic_shore_pts(center + Vector2(0, 4), r * 1.12, 0.7, 18, rng, seed + 1, stretch, ang)
-	_add_filled_poly(base, Color(0.16, 0.28, 0.22, 0.38 + elev_f * 0.1), Z_HILL)
-	var mid := _organic_shore_pts(center, r * 0.88, 0.68, 16, rng, seed + 2, stretch, ang)
-	_add_filled_poly(mid, Color(0.22, 0.38, 0.28, 0.36), Z_HILL + 1)
-	var high := _organic_shore_pts(center + Vector2(0, -r * 0.08), r * 0.58, 0.64, 14, rng, seed + 3, stretch * 0.92, ang)
-	_add_filled_poly(high, Color(0.32, 0.48, 0.34, 0.32), Z_HILL + 2)
-	# Warm light on crown (cover-art sun)
-	var lit := _organic_shore_pts(center + Vector2(-r * 0.08, -r * 0.12), r * 0.38, 0.6, 12, rng, seed + 4, stretch * 0.85, ang)
-	_add_filled_poly(lit, Color(0.55, 0.58, 0.42, 0.14 + elev_f * 0.08), Z_HILL + 3)
-	# Cool violet lee shade
-	var shade := _organic_shore_pts(center + Vector2(r * 0.1, r * 0.18), r * 0.7, 0.5, 12, rng, seed + 5, stretch, ang)
-	_add_filled_poly(shade, Color(0.14, 0.12, 0.2, 0.16), Z_HILL + 1)
+	# Ground contact shadow
+	var under := _organic_shore_pts(center + Vector2(0, 12), r * 1.4, 0.72, 20, rng, seed, stretch * 1.12, ang)
+	_add_filled_poly(under, Color(0.08, 0.10, 0.08, 0.45 + elev_f * 0.1), Z_HILL)
+	# Earth base
+	var base := _organic_shore_pts(center + Vector2(0, 6), r * 1.18, 0.7, 18, rng, seed + 1, stretch, ang)
+	_add_filled_poly(base, Color(0.28, 0.24, 0.16, 0.72), Z_HILL)
+	# Mid grass slope
+	var mid := _organic_shore_pts(center, r * 0.95, 0.68, 16, rng, seed + 2, stretch, ang)
+	_add_filled_poly(mid, Color(0.24, 0.46, 0.24, 0.78), Z_HILL + 1)
+	# Crown
+	var high := _organic_shore_pts(center + Vector2(0, -r * 0.08), r * 0.62, 0.64, 14, rng, seed + 3, stretch * 0.92, ang)
+	_add_filled_poly(high, Color(0.34, 0.56, 0.28, 0.72), Z_HILL + 2)
+	# Sunlit ridge
+	var lit := _organic_shore_pts(center + Vector2(-r * 0.1, -r * 0.14), r * 0.4, 0.58, 12, rng, seed + 4, stretch * 0.85, ang)
+	_add_filled_poly(lit, Color(0.52, 0.68, 0.34, 0.48), Z_HILL + 3)
+	# Lee shade
+	var shade := _organic_shore_pts(center + Vector2(r * 0.12, r * 0.2), r * 0.72, 0.5, 12, rng, seed + 5, stretch, ang)
+	_add_filled_poly(shade, Color(0.10, 0.14, 0.10, 0.35), Z_HILL + 1)
+
+	# Rock outcrops on the high face
+	var rock_n := clampi(int(r / 55.0), 2, 6)
+	for i in rock_n:
+		var a := rng.randf() * TAU
+		var rr := r * rng.randf_range(0.25, 0.7)
+		var p := center + Vector2(cos(a) * stretch.x, sin(a) * stretch.y * 0.75) * rr
+		if PathNetwork and PathNetwork.dist_to_path(p) < PATH_CLEAR:
+			continue
+		_add_rock_outcrop(p, rng.randf_range(0.7, 1.35), rng)
+
+	# Trees on the flanks — rooted in hill mass
+	var tree_n := clampi(int(r / 38.0), 3, 9)
+	for i in tree_n:
+		var a := rng.randf() * TAU
+		var rr := r * rng.randf_range(0.35, 0.95)
+		var p := center + Vector2(cos(a) * stretch.x, sin(a) * stretch.y * 0.72) * rr
+		if PathNetwork and PathNetwork.dist_to_path(p) < PATH_CLEAR * 0.95:
+			continue
+		_add_painted_tree(p, rng.randf_range(0.85, 1.45), rng)
 
 
-func _add_canopy_wash(f: Dictionary, rng: RandomNumberGenerator) -> void:
-	## Soft painted woodland mass — merges with floor, never sticker trees.
+func _add_woodland(f: Dictionary, rng: RandomNumberGenerator) -> void:
+	## Integrated forest mass: shared understory, merged canopy, trees growing from it.
 	var center: Vector2 = f.get("pos", Vector2.ZERO)
 	var r: float = maxf(80.0, float(f.get("radius", 140.0)))
 	var seed: int = int(f.get("seed", hash(str(f.get("id", "")))))
-	var stretch := Vector2(1.25, 0.95)
-	var base := _organic_shore_pts(center, r * 1.2, 0.75, 18, rng, seed, stretch, 0.1)
-	_add_filled_poly(base, Color(0.12, 0.22, 0.18, 0.28), Z_HILL)
-	var mid := _organic_shore_pts(center + Vector2(0, -6), r * 0.95, 0.7, 16, rng, seed + 2, stretch, -0.05)
-	_add_filled_poly(mid, Color(0.18, 0.34, 0.26, 0.32), Z_HILL + 1)
-	# Several soft crown lobes for depth
-	for i in 4:
-		var o := Vector2(rng.randf_range(-r * 0.35, r * 0.35), rng.randf_range(-r * 0.25, r * 0.15))
-		var lobe := _organic_shore_pts(center + o, r * rng.randf_range(0.28, 0.45), 0.72, 12, rng, seed + 10 + i, Vector2(1.1, 0.9), rng.randf() * 0.4)
-		var a := 0.18 + float(i) * 0.03
-		_add_filled_poly(lobe, Color(0.22 + float(i) * 0.03, 0.4, 0.28 + float(i) * 0.02, a), Z_HILL + 2)
-	# Ethereal violet under-canopy light
-	var mist := _ellipse(center + Vector2(0, 8), r * 0.7, r * 0.4, Color(0.4, 0.32, 0.55, 0.06), Z_HILL + 3)
-	add_child(mist)
+	var stretch := Vector2(1.3, 0.95)
+
+	# Continuous understory / leaf litter floor (ties trees to ground)
+	var litter := _organic_shore_pts(center + Vector2(0, 10), r * 1.25, 0.78, 20, rng, seed, stretch, 0.08)
+	_add_filled_poly(litter, Color(0.16, 0.14, 0.10, 0.55), Z_HILL)
+	var under := _organic_shore_pts(center, r * 1.1, 0.75, 18, rng, seed + 1, stretch, 0.05)
+	_add_filled_poly(under, Color(0.10, 0.22, 0.12, 0.72), Z_HILL)
+	# Merged canopy shadow (one mass, not isolated blobs)
+	var canopy_base := _organic_shore_pts(center + Vector2(0, -18), r * 1.05, 0.7, 18, rng, seed + 2, stretch, -0.04)
+	_add_filled_poly(canopy_base, Color(0.08, 0.20, 0.10, 0.85), Z_TREE - 2)
+	# Canopy mid mass
+	var canopy_mid := _organic_shore_pts(center + Vector2(0, -28), r * 0.88, 0.68, 16, rng, seed + 3, stretch * 0.95, 0.1)
+	_add_filled_poly(canopy_mid, Color(0.16, 0.36, 0.16, 0.88), Z_TREE - 1)
+	# Highlight lobes (sun on canopy tops — still one wood)
+	for i in 5:
+		var o := Vector2(rng.randf_range(-r * 0.4, r * 0.4), rng.randf_range(-r * 0.35, r * 0.1) - 24.0)
+		var lobe := _organic_shore_pts(center + o, r * rng.randf_range(0.22, 0.4), 0.7, 12, rng, seed + 20 + i, Vector2(1.15, 0.85), rng.randf() * 0.5)
+		var lit := 0.18 + float(i % 3) * 0.04
+		_add_filled_poly(lobe, Color(0.28 + lit, 0.50 + lit * 0.4, 0.20 + lit * 0.2, 0.7), Z_TREE)
+
+	# Individual trees growing from the mass (trunks + canopy sit on shared floor)
+	var count := clampi(int(r / 26.0), 6, 14)
+	for i in count:
+		var a := rng.randf() * TAU
+		var rr := r * sqrt(rng.randf()) * 0.85
+		var p := center + Vector2(cos(a), sin(a) * 0.78) * rr
+		if PathNetwork and PathNetwork.dist_to_path(p) < PATH_CLEAR:
+			continue
+		_add_painted_tree(p, rng.randf_range(0.75, 1.4), rng)
+
+	# Forest-edge rocks
+	for i in 3:
+		var a := rng.randf() * TAU
+		var p := center + Vector2(cos(a), sin(a) * 0.8) * r * rng.randf_range(0.55, 1.05)
+		if PathNetwork and PathNetwork.dist_to_path(p) < PATH_CLEAR:
+			continue
+		_add_rock_outcrop(p, rng.randf_range(0.55, 1.0), rng)
 
 
 func _add_natural_water(f: Dictionary, rng: RandomNumberGenerator) -> void:
-	## Organic multi-lobe lake/pond — irregular shore, marsh, sand, deeps (not a circle).
+	## Clear multi-lobe lake/pond with solid banks, shore rock, and reed clusters.
 	var center: Vector2 = f.get("pos", Vector2.ZERO)
 	var r: float = maxf(50.0, float(f.get("radius", 120.0)))
 	var is_pond: bool = str(f.get("kind", "lake")) == "pond"
@@ -464,21 +500,20 @@ func _add_natural_water(f: Dictionary, rng: RandomNumberGenerator) -> void:
 			max_ry = maxf(max_ry, float(lobe.get("ry", 0.55)))
 		stretch = Vector2(max_rx * 1.35, max_ry * 1.5)
 
-	# Marsh / wetland fringe
-	var marsh := _organic_shore_pts(center, r * 1.35, 0.75, 22, rng, seed, stretch, 0.0)
-	_add_filled_poly(marsh, Color(0.14, 0.3, 0.16, 0.45), Z_WATER)
-	# Mud / sand bank
-	var bank := _organic_shore_pts(center, r * 1.18, 0.72, 20, rng, seed + 1, stretch, 0.12)
-	_add_filled_poly(bank, Color(0.36, 0.32, 0.22, 0.42), Z_WATER + 1)
+	# Marsh fringe
+	var marsh := _organic_shore_pts(center, r * 1.38, 0.75, 22, rng, seed, stretch, 0.0)
+	_add_filled_poly(marsh, Color(0.16, 0.36, 0.18, 0.7), Z_WATER)
+	# Sand / mud bank
+	var bank := _organic_shore_pts(center, r * 1.2, 0.72, 20, rng, seed + 1, stretch, 0.12)
+	_add_filled_poly(bank, Color(0.48, 0.42, 0.28, 0.72), Z_WATER + 1)
 	var wet := _organic_shore_pts(center, r * 1.08, 0.7, 18, rng, seed + 2, stretch, -0.08)
-	_add_filled_poly(wet, Color(0.12, 0.2, 0.18, 0.5), Z_WATER + 2)
+	_add_filled_poly(wet, Color(0.14, 0.24, 0.20, 0.7), Z_WATER + 2)
 
-	# Main water surface (organic)
-	var water_col := Color(0.32, 0.52, 0.62, 0.78) if is_pond else Color(0.28, 0.45, 0.58, 0.8)
+	# Main water
+	var water_col := Color(0.28, 0.52, 0.62, 0.92) if is_pond else Color(0.22, 0.44, 0.58, 0.94)
 	var water := _organic_shore_pts(center, r * 0.98, 0.68, 20, rng, seed + 3, stretch, 0.05)
 	_add_filled_poly(water, water_col, Z_WATER + 3)
 
-	# Depth from multi-lobe centers
 	if lobes.is_empty():
 		lobes = [{"o": Vector2.ZERO, "rx": 0.7, "ry": 0.5}]
 	for i in lobes.size():
@@ -486,28 +521,34 @@ func _add_natural_water(f: Dictionary, rng: RandomNumberGenerator) -> void:
 		var o: Vector2 = lobe.get("o", Vector2.ZERO)
 		var lrx: float = float(lobe.get("rx", 0.7)) * r
 		var lry: float = float(lobe.get("ry", 0.5)) * r
-		var deep := _organic_shore_pts(center + o, maxf(lrx, lry) * 0.7, lry / maxf(0.2, lrx), 12, rng, seed + 10 + i, Vector2(1.0, 1.0), rng.randf() * 0.5)
-		_add_filled_poly(deep, Color(0.16, 0.28, 0.48, 0.55), Z_WATER + 4)
+		var deep := _organic_shore_pts(center + o, maxf(lrx, lry) * 0.7, lry / maxf(0.2, lrx), 12, rng, seed + 10 + i, Vector2.ONE, rng.randf() * 0.5)
+		_add_filled_poly(deep, Color(0.12, 0.28, 0.46, 0.75), Z_WATER + 4)
 
-	# Shallow bay highlight
 	var bay_o := Vector2(r * 0.2, -r * 0.08)
 	var shallow := _organic_shore_pts(center + bay_o, r * 0.38, 0.65, 10, rng, seed + 20, Vector2(1.3, 0.7), 0.3)
-	_add_filled_poly(shallow, Color(0.40, 0.62, 0.68, 0.28), Z_WATER + 4)
+	_add_filled_poly(shallow, Color(0.42, 0.68, 0.72, 0.4), Z_WATER + 4)
 
-	# Specular flecks inside water (few)
-	for i in (3 if is_pond else 6):
+	for i in (4 if is_pond else 8):
 		var gp := _sample_inside_organic(center, r * 0.7, stretch, rng)
-		var g := _ellipse(gp, rng.randf_range(5, 14), rng.randf_range(2, 6), Color(0.6, 0.9, 1.0, 0.16), Z_WATER + 5)
+		var g := _ellipse(gp, rng.randf_range(5, 14), rng.randf_range(2, 6), Color(0.7, 0.92, 1.0, 0.28), Z_WATER + 5)
 		add_child(g)
 
-	# Soft mist over larger lakes only
-	if not is_pond:
-		var mist := _organic_shore_pts(center + Vector2(0, -8), r * 0.7, 0.6, 12, rng, seed + 30, stretch * 0.9, 0.0)
-		_add_filled_poly(mist, Color(0.4, 0.38, 0.55, 0.1), Z_WATER + 6)
-
-	# Soft painted reed bank wash only — no sticker reed clusters / lily props
-	var bank_wash := _organic_shore_pts(center, r * 1.08, 0.72, 14, rng, seed + 4, stretch, 0.0)
-	_add_filled_poly(bank_wash, Color(0.2, 0.38, 0.26, 0.14), Z_WATER + 5)
+	# Shore rocks + reeds integrated with bank
+	var shore_n := 5 if is_pond else 9
+	for i in shore_n:
+		var a := TAU * float(i) / float(shore_n) + rng.randf() * 0.3
+		var p := center + Vector2(cos(a) * stretch.x, sin(a) * stretch.y * 0.75) * r * rng.randf_range(1.0, 1.2)
+		if PathNetwork and PathNetwork.dist_to_path(p) < PATH_CLEAR * 0.85:
+			continue
+		if i % 2 == 0:
+			_add_rock_outcrop(p, rng.randf_range(0.45, 0.85), rng)
+		else:
+			_add_reed_cluster(p, rng)
+	# Occasional lily pads on ponds
+	if is_pond:
+		for i in 3:
+			var lp := _sample_inside_organic(center, r * 0.55, stretch, rng)
+			_add_lily_pad(lp, rng.randf_range(0.8, 1.2), rng)
 
 
 func _organic_shore_pts(
@@ -714,21 +755,21 @@ func _add_forest_cluster(
 
 
 func _build_atmosphere_light() -> void:
-	## Sparse dust motes only — cover-art air, not confetti stickers.
+	## Very light dust — keep world clear, not fogged.
 	if FX == null:
 		return
-	var dust := FX.spark_particles(self, Color(0.92, 0.85, 0.7, 0.22), 10, "glow")
+	var dust := FX.spark_particles(self, Color(0.95, 0.92, 0.8, 0.14), 6, "glow")
 	dust.position = Vector2(0, 40)
 	dust.z_index = Z_DECOR
-	dust.amount = 10
-	dust.lifetime = 6.0
+	dust.amount = 6
+	dust.lifetime = 5.0
 	var pm := dust.process_material as ParticleProcessMaterial
 	if pm:
 		pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
-		pm.emission_sphere_radius = 380.0
-		pm.initial_velocity_min = 0.5
-		pm.initial_velocity_max = 3.0
-		pm.gravity = Vector3(0, -0.8, 0)
+		pm.emission_sphere_radius = 320.0
+		pm.initial_velocity_min = 0.4
+		pm.initial_velocity_max = 2.5
+		pm.gravity = Vector3(0, -0.6, 0)
 
 
 func _ellipse(pos: Vector2, rx: float, ry: float, col: Color, z: int) -> Polygon2D:
@@ -776,30 +817,27 @@ func _place_sprite(tex: Texture2D, pos: Vector2, scale_mul: float, alpha: float 
 	s.centered = true
 	s.position = pos
 	s.scale = Vector2(scale_mul, scale_mul)
-	s.modulate = Color(_forest_mod.r, _forest_mod.g, _forest_mod.b, alpha)
-	# Local z only under Ground (-200) — never compete with actors (5000+)
+	s.modulate = Color(1, 1, 1, alpha)
 	s.z_index = Z_DECOR + clampi(int(pos.y / 80.0), -5, 25)
 	s.offset = Vector2(0, -float(tex.get_height()) * 0.4)
 	add_child(s)
 	return s
 
 
-## Forest trail — cool grey-taupe dirt, soft grass edges (not chocolate sausage).
+## Clear dirt trail with solid grass verge.
 func _add_path_ribbon(pts: PackedVector2Array, half_width: float) -> void:
 	if pts.size() < 2:
 		return
-	# Bust cache if we reloaded colors in-session (editor hot-reload)
 	_dirt_tex = null
 	_dirt_edge_tex = null
 	_ensure_dirt_textures()
 
-	# Soft verge — homeland uses bright meadow edge
 	var moss := Line2D.new()
-	moss.width = half_width * 2.15
+	moss.width = half_width * 2.2
 	if _look == "homeland":
-		moss.default_color = Color(0.28, 0.48, 0.26, 0.48)
+		moss.default_color = Color(0.26, 0.50, 0.24, 0.72)
 	else:
-		moss.default_color = Color(0.14, 0.26, 0.22, 0.44)
+		moss.default_color = Color(0.16, 0.30, 0.24, 0.68)
 	moss.begin_cap_mode = Line2D.LINE_CAP_ROUND
 	moss.end_cap_mode = Line2D.LINE_CAP_ROUND
 	moss.joint_mode = Line2D.LINE_JOINT_ROUND
@@ -808,7 +846,6 @@ func _add_path_ribbon(pts: PackedVector2Array, half_width: float) -> void:
 	moss.z_index = Z_PATH_EDGE - 1
 	add_child(moss)
 
-	# Cool packed earth (narrower trail feel)
 	var dirt := Line2D.new()
 	dirt.width = half_width * 1.55
 	dirt.default_color = Color(1, 1, 1, 1)
@@ -893,11 +930,153 @@ func _add_spawn_portal(pos: Vector2) -> void:
 		p.z_index = 3
 
 
+func _add_painted_tree(pos: Vector2, scale: float, rng: RandomNumberGenerator) -> void:
+	## Lifelike tree integrated with ground — shared shadow, solid trunk, multi-lobe canopy.
+	var root := Node2D.new()
+	root.position = pos
+	root.scale = Vector2(scale, scale)
+	root.z_index = Z_TREE + clampi(int(pos.y / 70.0), -8, 30)
+	add_child(root)
+
+	# Ground contact — shadow + root moss ties tree to terrain
+	var shadow := _ellipse(Vector2(2, 10), 22, 9, Color(0.04, 0.05, 0.04, 0.45), -2)
+	root.add_child(shadow)
+	var root_moss := _ellipse(Vector2(0, 8), 16, 7, Color(0.18, 0.32, 0.14, 0.7), -1)
+	root.add_child(root_moss)
+
+	var h := rng.randf_range(48.0, 78.0)
+	var trunk_w := rng.randf_range(5.5, 9.0)
+	var lean := rng.randf_range(-0.12, 0.12)
+
+	# Trunk (bark brown, solid)
+	var trunk := Polygon2D.new()
+	trunk.polygon = PackedVector2Array([
+		Vector2(-trunk_w, 10), Vector2(trunk_w, 10),
+		Vector2(trunk_w * 0.55 + lean * 20.0, -h * 0.55),
+		Vector2(lean * 28.0, -h * 0.72),
+		Vector2(-trunk_w * 0.5 + lean * 16.0, -h * 0.5)
+	])
+	trunk.color = Color(0.32, 0.24, 0.16, 1.0)
+	root.add_child(trunk)
+	# Trunk highlight edge
+	var bark := Polygon2D.new()
+	bark.polygon = PackedVector2Array([
+		Vector2(-trunk_w * 0.2, 6), Vector2(trunk_w * 0.35, 6),
+		Vector2(trunk_w * 0.2 + lean * 14.0, -h * 0.55),
+		Vector2(-trunk_w * 0.05 + lean * 12.0, -h * 0.45)
+	])
+	bark.color = Color(0.48, 0.36, 0.24, 0.75)
+	root.add_child(bark)
+
+	# Multi-lobe canopy (dark under → mid → sunlit top)
+	var canopy_y := -h * 0.55
+	var deep_green := Color(0.12, 0.28, 0.12, 0.96)
+	var mid_green := Color(0.22, 0.46, 0.18, 0.95)
+	var lit_green := Color(0.40, 0.62, 0.28, 0.9)
+	if _look == "mire":
+		deep_green = Color(0.10, 0.24, 0.16, 0.96)
+		mid_green = Color(0.18, 0.38, 0.24, 0.95)
+		lit_green = Color(0.30, 0.50, 0.32, 0.9)
+	elif _look == "gate" or _look == "march":
+		deep_green = Color(0.14, 0.20, 0.18, 0.96)
+		mid_green = Color(0.24, 0.32, 0.28, 0.95)
+		lit_green = Color(0.36, 0.42, 0.34, 0.9)
+
+	var lobes := [
+		[Vector2(lean * 20.0, canopy_y + 6), 28.0, deep_green],
+		[Vector2(lean * 18.0 - 14.0, canopy_y - 4), 22.0, mid_green],
+		[Vector2(lean * 18.0 + 16.0, canopy_y - 2), 20.0, mid_green],
+		[Vector2(lean * 16.0, canopy_y - 18), 24.0, lit_green],
+		[Vector2(lean * 14.0 - 8.0, canopy_y - 28), 16.0, lit_green.lightened(0.08)],
+	]
+	for i in lobes.size():
+		var L: Array = lobes[i]
+		var cpos: Vector2 = L[0]
+		var cr: float = L[1]
+		var ccol: Color = L[2]
+		var pts := PackedVector2Array()
+		var n := 10
+		for j in n:
+			var a := TAU * float(j) / float(n) - PI * 0.5
+			var warp := 0.82 + 0.22 * sin(a * 3.0 + float(i) + float(rng.randi() % 5))
+			pts.append(cpos + Vector2(cos(a) * cr * warp, sin(a) * cr * 0.78 * warp))
+		var lobe := Polygon2D.new()
+		lobe.polygon = pts
+		lobe.color = ccol
+		root.add_child(lobe)
+
+
+func _add_rock_outcrop(pos: Vector2, scale: float, rng: RandomNumberGenerator) -> void:
+	## Solid rock sitting in soil — multi-facet, moss skirt, ground contact.
+	var root := Node2D.new()
+	root.position = pos
+	root.scale = Vector2(scale, scale)
+	root.rotation = rng.randf_range(-0.12, 0.12)
+	root.z_index = Z_ROCK + clampi(int(pos.y / 80.0), -6, 24)
+	add_child(root)
+
+	# Soil skirt blends rock into terrain
+	var soil := _ellipse(Vector2(0, 8), 20, 9, Color(0.30, 0.26, 0.16, 0.7), -2)
+	root.add_child(soil)
+	var shadow := _ellipse(Vector2(2, 10), 18, 7, Color(0.05, 0.05, 0.04, 0.4), -3)
+	root.add_child(shadow)
+
+	var w := rng.randf_range(12.0, 20.0)
+	var h := rng.randf_range(14.0, 26.0)
+	# Main stone body
+	var body := Polygon2D.new()
+	body.polygon = PackedVector2Array([
+		Vector2(-w, 8), Vector2(-w * 1.05, -h * 0.25), Vector2(-w * 0.45, -h),
+		Vector2(w * 0.2, -h * 0.92), Vector2(w * 0.95, -h * 0.3), Vector2(w * 0.85, 8)
+	])
+	body.color = Color(0.42, 0.42, 0.40, 1.0)
+	root.add_child(body)
+	# Lit face
+	var lit := Polygon2D.new()
+	lit.polygon = PackedVector2Array([
+		Vector2(-w * 0.3, -h * 0.1), Vector2(-w * 0.15, -h * 0.75),
+		Vector2(w * 0.15, -h * 0.7), Vector2(w * 0.4, -h * 0.15)
+	])
+	lit.color = Color(0.58, 0.58, 0.54, 0.9)
+	root.add_child(lit)
+	# Crevice shade
+	var crack := Polygon2D.new()
+	crack.polygon = PackedVector2Array([
+		Vector2(-w * 0.15, 2), Vector2(-w * 0.05, -h * 0.55), Vector2(w * 0.05, -h * 0.4), Vector2(0, 4)
+	])
+	crack.color = Color(0.22, 0.22, 0.22, 0.85)
+	root.add_child(crack)
+	# Moss patch
+	var moss := Polygon2D.new()
+	moss.polygon = PackedVector2Array([
+		Vector2(-w * 0.55, 4), Vector2(-w * 0.3, -h * 0.2), Vector2(w * 0.1, -h * 0.08), Vector2(w * 0.35, 6)
+	])
+	moss.color = Color(0.28, 0.48, 0.24, 0.85)
+	root.add_child(moss)
+	# Occasional second boulder
+	if rng.randf() < 0.45:
+		var small := Polygon2D.new()
+		small.polygon = PackedVector2Array([
+			Vector2(w * 0.3, 8), Vector2(w * 0.25, -h * 0.25), Vector2(w * 0.7, -h * 0.35),
+			Vector2(w * 1.05, -h * 0.1), Vector2(w * 1.0, 8)
+		])
+		small.color = Color(0.38, 0.38, 0.36, 1.0)
+		root.add_child(small)
+
+
+func _add_rock_cluster(pos: Vector2, scale: float, rng: RandomNumberGenerator) -> void:
+	_add_rock_outcrop(pos, scale, rng)
+	if rng.randf() < 0.7:
+		_add_rock_outcrop(pos + Vector2(rng.randf_range(14, 28), rng.randf_range(-4, 10)), scale * 0.65, rng)
+	if rng.randf() < 0.4:
+		_add_rock_outcrop(pos + Vector2(rng.randf_range(-26, -12), rng.randf_range(0, 12)), scale * 0.55, rng)
+
+
 func _add_standing_stone(pos: Vector2, scale: float) -> void:
 	var root := Node2D.new()
 	root.position = pos
 	root.scale = Vector2(scale, scale)
-	root.z_index = Z_DECOR + clampi(int(pos.y / 80.0), -5, 20)
+	root.z_index = Z_ROCK + clampi(int(pos.y / 80.0), -5, 20)
 	add_child(root)
 	if FX:
 		FX.add_soft_shadow(root, 14, 6, 12)
@@ -906,19 +1085,14 @@ func _add_standing_stone(pos: Vector2, scale: float) -> void:
 		Vector2(-10, 10), Vector2(-14, -8), Vector2(-4, -28),
 		Vector2(6, -32), Vector2(14, -12), Vector2(10, 10)
 	])
-	body.color = Color(0.22, 0.2, 0.28)
+	body.color = Color(0.40, 0.40, 0.38)
 	root.add_child(body)
 	var moss := Polygon2D.new()
 	moss.polygon = PackedVector2Array([
 		Vector2(-8, 2), Vector2(-6, -10), Vector2(2, -6), Vector2(6, 4)
 	])
-	moss.color = Color(0.3, 0.5, 0.38, 0.8)
+	moss.color = Color(0.30, 0.50, 0.28, 0.88)
 	root.add_child(moss)
-	# Crystal fleck on stone
-	var fleck := Polygon2D.new()
-	fleck.polygon = PackedVector2Array([Vector2(-2, -22), Vector2(4, -18), Vector2(0, -12)])
-	fleck.color = Color(0.55, 0.85, 0.9, 0.55)
-	root.add_child(fleck)
 
 
 func _add_thicket(pos: Vector2, rot: float) -> void:

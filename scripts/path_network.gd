@@ -14,7 +14,7 @@ var lanes: Array = []
 var spawn_anchors: Array[Vector2] = []
 var active_lane_set: String = "single"
 ## { id, pos, kind, radius, elev }
-## kind: canopy | hill | lake | pond  (no sticker mountains / prop forests)
+## kind: canopy | hill | lake | pond
 var features: Array[Dictionary] = []
 ## Swimmable water ellipses: { pos, rx, ry, kind } — rebuilt with features.
 var water_bodies: Array[Dictionary] = []
