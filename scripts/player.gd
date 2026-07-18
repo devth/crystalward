@@ -437,20 +437,20 @@ func _try_call_wave() -> void:
 
 func _cycle_pad(dir: int) -> void:
 	## Per-player tower pick — cycle unlocked types, preview on nearby pad.
-	if TowerTypes:
-		var id: String = TowerTypes.cycle_for_player(player_index, dir)
-		var d: Dictionary = TowerTypes.def_for(id)
-		# Update any pad we're standing on so range ring / label match our pick
-		for n in _near_build:
-			if n and n.has_method("set_preview_from_player"):
-				n.call("set_preview_from_player", player_index)
-			elif n and n.has_method("cycle_type"):
-				# Already cycled globally for this player; just refresh label
-				if n.has_method("set_preview_from_player"):
-					n.call("set_preview_from_player", player_index)
-		if _near_build.is_empty():
-			FloatingText.spawn(get_parent(), global_position + Vector2(0, -36), str(d.get("name")), d.get("color"))
+	## On a L1 Aetherbow pad, cycles PHYS/MAG upgrade branch instead.
+	if TowerTypes == null:
 		return
+	# Prefer site-local cycle (handles branch on built dualshot)
+	for n in _near_build:
+		if n and n.has_method("cycle_type"):
+			n.call("cycle_type", dir, player_index)
+			return
+	var id: String = TowerTypes.cycle_for_player(player_index, dir)
+	var d: Dictionary = TowerTypes.def_for(id)
+	var msg := str(d.get("name"))
+	if id == "dualshot":
+		msg += " →%s" % TowerTypes.branch_label(TowerTypes.selected_branch_for(player_index))
+	FloatingText.spawn(get_parent(), global_position + Vector2(0, -36), msg, d.get("color"))
 
 
 func _try_spawn_fairy() -> void:

@@ -45,6 +45,8 @@ var _mark_t: float = 0.0
 var _root_t: float = 0.0
 var _move_dir: Vector2 = Vector2.DOWN
 var _configured_kind: bool = false
+var _garrison_cd: float = 0.0
+var _garrison_target: Node2D = null
 
 @onready var _bar: ProgressBar = $HpBar
 
@@ -298,6 +300,11 @@ func _physics_process(delta: float) -> void:
 	if _root_t > 0.0:
 		spd = 0.0
 
+	# Ground foes stop to fight garrison soldiers on the road
+	if not is_flying and _try_fight_garrison(delta):
+		_finish_frame()
+		return
+
 	# Lateral separation only — stay on the road, don't shove off-path
 	_apply_lateral_separation(delta)
 	# Keep spacing along the path so packs don't form a single blob
@@ -336,6 +343,44 @@ func _physics_process(delta: float) -> void:
 		return
 
 	_finish_frame()
+
+
+func _try_fight_garrison(delta: float) -> bool:
+	## Return true if this frame is spent meleeing a garrison unit (blocked).
+	var unit := _nearest_garrison(58.0)
+	if unit == null:
+		_garrison_target = null
+		return false
+	_garrison_target = unit
+	velocity = Vector2.ZERO
+	_move_dir = (unit.global_position - global_position).normalized()
+	_garrison_cd = maxf(0.0, _garrison_cd - delta)
+	if _garrison_cd <= 0.0:
+		_garrison_cd = 0.65
+		var dmg := maxi(3, int(float(crystal_damage) * 0.85))
+		if unit.has_method("take_damage"):
+			unit.call("take_damage", dmg)
+		if FloatingText:
+			FloatingText.spawn(get_parent(), unit.global_position + Vector2(0, -18), str(dmg), Color(0.95, 0.45, 0.4))
+	return true
+
+
+func _nearest_garrison(max_dist: float) -> Node2D:
+	var tree := get_tree()
+	if tree == null:
+		return null
+	var best: Node2D = null
+	var best_d := max_dist * max_dist
+	for u in tree.get_nodes_in_group("garrison_units"):
+		if not (u is Node2D) or not is_instance_valid(u):
+			continue
+		if u.has_method("is_blocking") and not bool(u.call("is_blocking")):
+			continue
+		var d2: float = global_position.distance_squared_to(u.global_position)
+		if d2 < best_d:
+			best_d = d2
+			best = u
+	return best
 
 
 func _apply_lateral_separation(_delta: float) -> void:

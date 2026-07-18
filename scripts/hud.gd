@@ -59,6 +59,8 @@ func _ready() -> void:
 		TowerTypes.unlocks_changed.connect(_refresh_tower_loadout)
 	if TowerTypes and TowerTypes.has_signal("selection_changed"):
 		TowerTypes.selection_changed.connect(func(_p, _id): _refresh_tower_loadout())
+	if TowerTypes and TowerTypes.has_signal("branch_changed"):
+		TowerTypes.branch_changed.connect(func(_p, _b): _refresh_tower_loadout())
 
 
 func _ensure_minimap() -> void:
@@ -183,6 +185,14 @@ func _refresh_tower_loadout() -> void:
 		cost_l.add_theme_color_override("font_color", Color(1, 0.9, 0.65, 0.9))
 		v.add_child(name_l)
 		v.add_child(layer_l)
+		if id == "dualshot":
+			var br_l := Label.new()
+			var br: String = TowerTypes.selected_branch_for(0)
+			br_l.text = "→%s" % TowerTypes.branch_label(br)
+			br_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			br_l.add_theme_font_size_override("font_size", 9)
+			br_l.add_theme_color_override("font_color", TowerTypes.branch_color(br))
+			v.add_child(br_l)
 		v.add_child(cost_l)
 		panel.add_child(v)
 		# Click to select (P1)
@@ -444,7 +454,8 @@ func _refresh_wave_prep() -> void:
 
 
 func _on_essence(v: int) -> void:
-	essence_label.text = "💰 %d" % v
+	# Magical essence (not a coin purse)
+	essence_label.text = "✨ %d" % v
 
 
 func _on_dust(v: int) -> void:

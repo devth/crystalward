@@ -9,8 +9,8 @@ enum State { EMPTY, QUEUED, BUILT }
 var state: State = State.EMPTY
 var _queue_left: float = 0.0
 var _tower: Node2D = null
-var _queued_type: String = "thornspire"
-var _preview_type: String = "thornspire"
+var _queued_type: String = "dualshot"
+var _preview_type: String = "dualshot"
 var _last_builder: int = 0
 var _platform: Node2D
 var _range_preview: Polygon2D
@@ -57,33 +57,46 @@ func can_sell() -> bool:
 
 func _build_visuals() -> void:
 	if VisualStyle:
-		VisualStyle.make_blob_shadow(self, 28, 12, 10)
+		VisualStyle.make_blob_shadow(self, 42, 20, 12)
 	_platform = Node2D.new()
 	add_child(_platform)
-	# Ethereal crystal plinth (Dark Crystal / Lightwell vibe)
-	var outer := FX.make_ellipse_poly(32, 17, 28, Color(0.14, 0.12, 0.2, 0.75))
+	# Large ethereal crystal plinth — readable build pad from far away
+	var outer := FX.make_ellipse_poly(48, 26, 32, Color(0.16, 0.14, 0.26, 0.88))
 	_platform.add_child(outer)
-	var mid := FX.make_ellipse_poly(22, 12, 24, Color(0.28, 0.22, 0.38, 0.7))
+	var ring := FX.make_ellipse_poly(40, 21, 30, Color(0.45, 0.75, 0.85, 0.28))
+	_platform.add_child(ring)
+	var mid := FX.make_ellipse_poly(32, 17, 28, Color(0.32, 0.26, 0.45, 0.82))
 	_platform.add_child(mid)
-	var glow := FX.make_ellipse_poly(14, 8, 18, Color(0.55, 0.85, 0.95, 0.22))
+	var glow := FX.make_ellipse_poly(20, 11, 20, Color(0.55, 0.9, 0.98, 0.32))
 	_platform.add_child(glow)
-	var inner := FX.make_ellipse_poly(9, 5, 14, Color(0.95, 0.75, 0.4, 0.35))
+	var inner := FX.make_ellipse_poly(12, 7, 16, Color(0.95, 0.8, 0.45, 0.45))
 	_platform.add_child(inner)
+	# Dashed-feel spokes so empty pads read as “build here”
+	for i in 6:
+		var ang := TAU * float(i) / 6.0
+		var spoke := Polygon2D.new()
+		spoke.polygon = PackedVector2Array([
+			Vector2(-2, 0), Vector2(2, 0), Vector2(1.5, -10), Vector2(-1.5, -10)
+		])
+		spoke.color = Color(0.65, 0.9, 0.95, 0.4)
+		spoke.position = Vector2(cos(ang), sin(ang) * 0.65) * 28.0
+		spoke.rotation = ang + PI * 0.5
+		_platform.add_child(spoke)
 	_crystal_ornament = Node2D.new()
 	_platform.add_child(_crystal_ornament)
 	for i in 3:
 		var shard := Polygon2D.new()
 		var ang := -0.6 + i * 0.6
-		var h := 14.0 + i * 3.0
+		var h := 18.0 + i * 4.0
 		shard.polygon = PackedVector2Array([
-			Vector2(0, -h), Vector2(4, -h * 0.4), Vector2(2, 2), Vector2(-2, 2), Vector2(-4, -h * 0.4)
+			Vector2(0, -h), Vector2(5, -h * 0.4), Vector2(2.5, 3), Vector2(-2.5, 3), Vector2(-5, -h * 0.4)
 		])
-		shard.color = Color(0.55, 0.9, 0.95, 0.75) if i != 1 else Color(0.95, 0.75, 0.45, 0.8)
-		shard.position = Vector2(sin(ang) * 10.0, -6)
+		shard.color = Color(0.55, 0.9, 0.95, 0.85) if i != 1 else Color(0.95, 0.75, 0.45, 0.88)
+		shard.position = Vector2(sin(ang) * 12.0, -8)
 		shard.rotation = ang * 0.35
 		_crystal_ornament.add_child(shard)
-	_type_swatch = FX.make_ellipse_poly(7, 4, 12, Color(0.5, 0.85, 0.5, 0.9))
-	_type_swatch.position = Vector2(0, 4)
+	_type_swatch = FX.make_ellipse_poly(10, 6, 14, Color(0.5, 0.85, 0.5, 0.95))
+	_type_swatch.position = Vector2(0, 6)
 	_type_swatch.visible = false
 	_platform.add_child(_type_swatch)
 	_range_preview = FX.make_ellipse_poly(100, 72, 48, Color(0.3, 0.85, 0.4, 0.14))
@@ -119,7 +132,11 @@ func _refresh_label() -> void:
 			State.EMPTY:
 				var d: Dictionary = TowerTypes.def_for(_preview_type)
 				var n := TowerTypes.unlocked_count()
-				_label.text = "%s %d✦  Z/X · %d types" % [d.get("name"), d.get("cost"), n]
+				var extra := ""
+				if str(_preview_type) == "dualshot":
+					var br: String = TowerTypes.selected_branch_for(_last_builder)
+					extra = " →%s" % TowerTypes.branch_label(br)
+				_label.text = "%s%s %d✦  Z/X · %d" % [d.get("name"), extra, d.get("cost"), n]
 			State.QUEUED:
 				_label.text = "Building %s..." % TowerTypes.def_for(_queued_type).get("name")
 			State.BUILT:
@@ -127,6 +144,9 @@ func _refresh_label() -> void:
 					var lv: int = int(_tower.level)
 					if lv >= GameState.TOWER_MAX_LEVEL:
 						_label.text = "Max · E sell"
+					elif str(_tower.get("type_id")) == "dualshot" and lv <= 1:
+						var br: String = TowerTypes.selected_branch_for(_last_builder)
+						_label.text = "Q →%s · E sell" % TowerTypes.branch_label(br)
 					else:
 						_label.text = "Q up · E sell"
 				else:
@@ -145,10 +165,12 @@ func _update_presence_visuals() -> void:
 			_label.visible = near
 	if _type_swatch:
 		_type_swatch.visible = near and state == State.EMPTY
-	# Soft dim for empty far pads so they mark space without dominating
+	# Empty pads stay bright enough to spot from the camera
 	if _platform:
 		if state == State.EMPTY and not near:
-			_platform.modulate = Color(1, 1, 1, 0.55)
+			_platform.modulate = Color(1, 1, 1, 0.82)
+		elif state == State.BUILT and not near:
+			_platform.modulate = Color(1, 1, 1, 0.45)
 		else:
 			_platform.modulate = Color.WHITE
 	if _tower and _tower.has_method("set_info_visible"):
@@ -166,14 +188,27 @@ func _process(delta: float) -> void:
 
 
 func cycle_type(dir: int, player_index: int = 0) -> void:
-	if state != State.EMPTY or TowerTypes == null:
+	if TowerTypes == null:
 		return
 	_last_builder = player_index
+	# On a L1 Aetherbow, Z/X picks Physical vs Magical upgrade branch
+	if state == State.BUILT and _tower and str(_tower.get("type_id")) == "dualshot":
+		var lv := int(_tower.get("level")) if _tower.get("level") != null else 1
+		var br_locked := str(_tower.get("dps_branch")) if _tower.get("dps_branch") != null else ""
+		if lv <= 1 and br_locked == "":
+			var br: String = TowerTypes.cycle_branch_for_player(player_index, dir)
+			FloatingText.spawn(get_parent(), global_position + Vector2(0, -30), "Upgrade → %s" % TowerTypes.branch_label(br), TowerTypes.branch_color(br))
+			_refresh_label()
+			return
 	var id: String = TowerTypes.cycle_for_player(player_index, dir)
-	_preview_type = id
-	_refresh_label()
+	if state == State.EMPTY:
+		_preview_type = id
+		_refresh_label()
 	var d: Dictionary = TowerTypes.def_for(id)
-	FloatingText.spawn(get_parent(), global_position + Vector2(0, -30), str(d.get("name")), d.get("color"))
+	var msg := str(d.get("name"))
+	if id == "dualshot":
+		msg += " →%s" % TowerTypes.branch_label(TowerTypes.selected_branch_for(player_index))
+	FloatingText.spawn(get_parent(), global_position + Vector2(0, -30), msg, d.get("color"))
 
 
 func set_preview_from_player(player_index: int) -> void:
@@ -192,7 +227,7 @@ func try_queue_build(player_index: int = 0) -> bool:
 	if state != State.EMPTY:
 		return false
 	_last_builder = player_index
-	_queued_type = TowerTypes.selected_id_for(player_index) if TowerTypes else "thornspire"
+	_queued_type = TowerTypes.selected_id_for(player_index) if TowerTypes else "dualshot"
 	if TowerTypes and not TowerTypes.is_unlocked(_queued_type):
 		_queued_type = TowerTypes.selected_id_for(player_index)
 	var cost: int = TowerTypes.cost_for(_queued_type) if TowerTypes else GameState.TOWER_COST_ESSENCE
@@ -244,10 +279,12 @@ func _finish_build() -> void:
 	if tower_scene:
 		_tower = tower_scene.instantiate() as Node2D
 		if _tower:
-			# type_id BEFORE add_child so _ready applies the correct def (not default thornspire).
+			# type_id BEFORE add_child so _ready applies the correct def.
 			_tower.set("type_id", _queued_type)
 			if _tower.has_method("set_invested"):
 				_tower.call("set_invested", cost)
+			if _tower.has_method("set_builder_index"):
+				_tower.call("set_builder_index", _last_builder)
 			_tower_slot.add_child(_tower)
 			# configure after enter tree: rebuilds if needed and records investment.
 			if _tower.has_method("configure"):

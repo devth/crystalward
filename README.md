@@ -53,7 +53,7 @@ Switch Pro / Joy-Cons: device 0 → P1, device 1 → P2 (A gather, B attack, X b
 
 ### Loop (Kingdom Rush × co-op heroes)
 
-- Shared **Essence** (💰). Kills pay bounty; gather wells along paths for more.
+- Shared **Essence** (✨). Kills pay bounty; gather wells along paths for more.
 - **Stone build pads** → **Q** build / upgrade (Lv1–3). Near pad **E** sells (60% refund) if not gathering.
 - **T / LB** = **Call Wave early** for bonus gold (prep phase only).
 - **F / Y** = summon **fairy** (20 Essence, max 6) — auto-**loot** + auto-**gather**.

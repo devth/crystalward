@@ -4,7 +4,7 @@
 [ext_resource type="PackedScene" path="res://scenes/tower.tscn" id="2"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_1"]
-radius = 40.0
+radius = 56.0
 
 [node name="TowerSite" type="Area2D"]
 collision_layer = 8

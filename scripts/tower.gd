@@ -1,23 +1,34 @@
 extends Node2D
 class_name DefenseTower
-## Unique towers with air / ground / both targeting + dedicated AOE roles.
+## Starter towers: Garrison (path blockers), Aetherbow (dual DPS → phys/magic),
+## Groundspike (slow ground → AOE).
 
-var type_id: String = "thornspire"
+const GarrisonUnitScript = preload("res://scripts/garrison_unit.gd")
+
+var type_id: String = "dualshot"
 var level: int = 1
 var invested_essence: int = 0
 var fire_range: float = 340.0
-var fire_rate: float = 0.42
-var damage: int = 18
+var fire_rate: float = 0.48
+var damage: int = 11
 var role: String = "dps"
-var channel: String = "thorn"
+var channel: String = "light"
 ## "ground" | "air" | "both"
-var target_layer: String = "ground"
+var target_layer: String = "both"
 var aura_slow: float = 0.0
 var splash: float = 0.0
 var special: String = ""
 var root_duration: float = 0.0
 var chain_count: int = 1
 var chain_falloff: float = 0.7
+## Aetherbow L2+ branch: "" | "physical" | "magical"
+var dps_branch: String = ""
+var soldier_count: int = 2
+var soldier_hp: int = 48
+var soldier_damage: int = 9
+var soldier_range: float = 52.0
+var respawn_time: float = 5.0
+var rally_dist: float = 70.0
 
 var _cd: float = 0.0
 var _visual: Node2D
@@ -30,6 +41,10 @@ var _bob: float = 0.0
 var show_range: bool = false
 var _def_color: Color = Color(0.4, 0.7, 0.4)
 var _configured: bool = false
+var _soldiers: Array[Node2D] = []
+var _respawn_timers: Array[float] = []
+var _rally: Vector2 = Vector2.ZERO
+var _builder_index: int = 0
 
 
 func _ready() -> void:
@@ -44,6 +59,8 @@ func _ready() -> void:
 		_build_visuals()
 	_bob = randf() * TAU
 	set_range_visible(false)
+	if role == "garrison":
+		call_deferred("_init_garrison")
 
 
 func _refresh_z() -> void:
@@ -62,11 +79,18 @@ func configure(id: String, invested: int = 0) -> void:
 		_clear_visuals()
 		_build_visuals()
 		_configured = true
+		if role == "garrison":
+			call_deferred("_init_garrison")
 	else:
 		_configured = false
 
 
+func set_builder_index(i: int) -> void:
+	_builder_index = i
+
+
 func _clear_visuals() -> void:
+	_clear_soldiers()
 	for c in get_children():
 		remove_child(c)
 		c.free()
@@ -91,17 +115,42 @@ func _apply_def(d: Dictionary) -> void:
 	root_duration = float(d.get("root_duration", 0.0))
 	chain_count = int(d.get("chain_count", 1))
 	chain_falloff = float(d.get("chain_falloff", 0.7))
+	soldier_count = int(d.get("soldier_count", 2))
+	soldier_hp = int(d.get("soldier_hp", 48))
+	soldier_damage = int(d.get("soldier_damage", 9))
+	soldier_range = float(d.get("soldier_range", 52.0))
+	respawn_time = float(d.get("respawn", 5.0))
+	rally_dist = float(d.get("rally_dist", 70.0))
 	_def_color = d.get("color", Color(0.5, 0.7, 0.5)) as Color
-	# level scaling
+
+	# Level scaling
 	damage = int(damage * (1.0 + (level - 1) * 0.45))
 	fire_rate = maxf(0.22, fire_rate * (1.0 - (level - 1) * 0.12))
 	fire_range = fire_range + (level - 1) * 22.0
-	if root_duration > 0.0:
-		root_duration += (level - 1) * 0.2
-	if chain_count > 1:
-		chain_count += level - 1
-	if splash > 0.0:
-		splash += (level - 1) * 12.0
+	soldier_count = soldier_count + (level - 1)
+	soldier_hp = int(soldier_hp * (1.0 + (level - 1) * 0.4))
+	soldier_damage = int(soldier_damage * (1.0 + (level - 1) * 0.35))
+	respawn_time = maxf(2.5, respawn_time - (level - 1) * 0.6)
+
+	# Aetherbow branch specialization (L2+)
+	if type_id == "dualshot" and dps_branch != "":
+		if dps_branch == TowerTypes.BRANCH_PHYSICAL:
+			channel = "thorn"
+			special = "multishot"
+			damage = int(float(damage) * 1.2)
+			_def_color = Color(0.45, 0.82, 0.42)
+		elif dps_branch == TowerTypes.BRANCH_MAGICAL:
+			channel = "light"
+			special = "magic_bolt"
+			splash = 55.0 + (level - 1) * 15.0
+			damage = int(float(damage) * 1.05)
+			_def_color = Color(0.72, 0.48, 0.95)
+
+	# Groundspike: upgrade → AOE
+	if type_id == "groundspike" and level >= 2:
+		special = "splash"
+		splash = 85.0 + (level - 2) * 30.0
+		role = "aoe"
 
 
 func set_invested(amount: int) -> void:
@@ -131,6 +180,12 @@ func try_upgrade() -> bool:
 		return false
 	if not GameState.try_spend_essence(GameState.TOWER_UPGRADE_COST):
 		return false
+	# Aetherbow L1 → L2 locks branch from player preference
+	if type_id == "dualshot" and level == 1 and dps_branch == "":
+		if TowerTypes:
+			dps_branch = TowerTypes.selected_branch_for(_builder_index)
+		else:
+			dps_branch = "physical"
 	level += 1
 	invested_essence += GameState.TOWER_UPGRADE_COST
 	_apply_def(TowerTypes.def_for(type_id))
@@ -140,13 +195,28 @@ func try_upgrade() -> bool:
 	_build_visuals()
 	set_range_visible(keep_range)
 	set_info_visible(keep_info)
-	GameState.message.emit("%s → Lv%d" % [TowerTypes.def_for(type_id).get("name"), level])
+	if role == "garrison":
+		call_deferred("_init_garrison")
+	var name_s := str(TowerTypes.def_for(type_id).get("name"))
+	if type_id == "dualshot" and dps_branch != "":
+		name_s += " (%s)" % TowerTypes.branch_label(dps_branch)
+	GameState.message.emit("%s → Lv%d" % [name_s, level])
 	if Sfx:
 		Sfx.build()
 	if FX:
 		FX.burst_particles(self, global_position + Vector2(0, -30), _def_color, 16 + level * 6, "star", 0.5)
 	FloatingText.spawn(get_parent(), global_position + Vector2(0, -40), "Lv%d" % level, _def_color)
 	return true
+
+
+func preview_branch_label() -> String:
+	if type_id != "dualshot":
+		return ""
+	if dps_branch != "":
+		return TowerTypes.branch_label(dps_branch) if TowerTypes else dps_branch
+	if TowerTypes:
+		return TowerTypes.branch_label(TowerTypes.selected_branch_for(_builder_index))
+	return "PHYS"
 
 
 func _level_scale() -> float:
@@ -184,20 +254,13 @@ func _build_visuals() -> void:
 	_rebuild_range_ring()
 
 	match type_id:
-		"shardbow":
-			_build_shardbow()
-		"emberfall":
-			_build_emberfall()
-		"mistvent":
-			_build_mistvent()
-		"skyshard":
-			_build_skyshard()
-		"rootgate":
-			_build_rootgate()
+		"garrison":
+			_build_garrison()
+		"groundspike":
+			_build_groundspike()
 		_:
-			_build_thornspire()
+			_build_dualshot()
 
-	# Target layer badge (GND / AIR / ALL)
 	var tag := Label.new()
 	tag.text = str(TowerTypes.def_for(type_id).get("target_label", "ALL"))
 	tag.position = Vector2(-14, -82)
@@ -210,7 +273,10 @@ func _build_visuals() -> void:
 	_visual.add_child(tag)
 
 	_name_label = Label.new()
-	_name_label.text = str(TowerTypes.def_for(type_id).get("short", "?"))
+	var short_n := str(TowerTypes.def_for(type_id).get("short", "?"))
+	if type_id == "dualshot" and dps_branch != "" and TowerTypes:
+		short_n = TowerTypes.branch_label(dps_branch)
+	_name_label.text = short_n
 	_name_label.position = Vector2(-20, -70)
 	_name_label.add_theme_font_size_override("font_size", 11)
 	_name_label.add_theme_color_override("font_color", _def_color.lightened(0.3))
@@ -250,16 +316,6 @@ func _add_level_ornaments() -> void:
 	plinth.position = Vector2(0, 10)
 	plinth.z_index = -1
 	_visual.add_child(plinth)
-	var fleck_n := 2 if level == 2 else 4
-	for i in fleck_n:
-		var ang := TAU * float(i) / float(fleck_n) - PI * 0.5
-		var fleck := Polygon2D.new()
-		fleck.polygon = PackedVector2Array([
-			Vector2(0, -10), Vector2(5, -2), Vector2(0, 4), Vector2(-5, -2)
-		])
-		fleck.color = _def_color.lightened(0.25)
-		fleck.position = Vector2(cos(ang), sin(ang) * 0.7) * (28.0 + level * 6.0) + Vector2(0, -28)
-		_visual.add_child(fleck)
 	if level >= 3:
 		var crown := Polygon2D.new()
 		crown.polygon = PackedVector2Array([
@@ -282,72 +338,56 @@ func _add_plinth(rx: float = 20.0, ry: float = 11.0) -> void:
 	_visual.add_child(glow)
 
 
-## GND DPS — briar spire with thorns.
-func _build_thornspire() -> void:
-	_add_plinth(20.0 + level * 2, 11.0)
-	var h := 54.0 + (level - 1) * 12.0
+## Garrison — wooden barracks / banner pole.
+func _build_garrison() -> void:
+	_add_plinth(24.0 + level * 2, 13.0)
 	_body = Polygon2D.new()
 	_body.polygon = PackedVector2Array([
-		Vector2(0, -h), Vector2(14, -h * 0.65), Vector2(10, 8), Vector2(-10, 8), Vector2(-14, -h * 0.65)
+		Vector2(-18, 6), Vector2(18, 6), Vector2(16, -8), Vector2(12, -28),
+		Vector2(-12, -28), Vector2(-16, -8)
 	])
-	_body.color = _def_color
+	_body.color = Color(0.48, 0.36, 0.26)
 	_visual.add_child(_body)
-	for i in (5 + level):
-		var ang := TAU * float(i) / float(5 + level)
-		var thorn := Polygon2D.new()
-		thorn.polygon = PackedVector2Array([Vector2(0, 0), Vector2(3, -10), Vector2(0, -16), Vector2(-3, -10)])
-		thorn.color = _def_color.lightened(0.15)
-		thorn.position = Vector2(cos(ang), sin(ang) * 0.7) * 14.0 + Vector2(0, -h * 0.4)
-		thorn.rotation = ang + PI * 0.5
-		_visual.add_child(thorn)
+	# Roof
+	var roof := Polygon2D.new()
+	roof.polygon = PackedVector2Array([
+		Vector2(-16, -28), Vector2(0, -48 - level * 4), Vector2(16, -28)
+	])
+	roof.color = Color(0.65, 0.42, 0.28)
+	_visual.add_child(roof)
+	# Banner
 	_accent = Polygon2D.new()
-	_accent.polygon = PackedVector2Array([Vector2(0, -h - 4), Vector2(5, -h * 0.85), Vector2(0, -h * 0.75), Vector2(-5, -h * 0.85)])
-	_accent.color = Color(0.95, 0.85, 0.4)
-	_visual.add_child(_accent)
-
-
-## GND AOE — ember brazier with splash rings.
-func _build_emberfall() -> void:
-	_add_plinth(22.0 + level * 2, 12.0)
-	# Bowl
-	_body = Polygon2D.new()
-	_body.polygon = PackedVector2Array([
-		Vector2(-18, 6), Vector2(18, 6), Vector2(14, -10), Vector2(8, -22), Vector2(-8, -22), Vector2(-14, -10)
+	_accent.polygon = PackedVector2Array([
+		Vector2(10, -40), Vector2(28, -36), Vector2(26, -22), Vector2(10, -26)
 	])
-	_body.color = Color(0.35, 0.18, 0.12)
-	_visual.add_child(_body)
-	# Concentric blast rings (AOE read)
-	for i in (2 + mini(level, 2)):
-		var ring := FX.make_ellipse_poly(22 + i * 12, 12 + i * 6, 22, Color(1.0, 0.45, 0.15, 0.14 - i * 0.03))
-		ring.position = Vector2(0, 2)
-		ring.z_index = -1
-		_visual.add_child(ring)
-	# Flame stack
-	for i in (2 + level):
-		var flame := Polygon2D.new()
-		var fh := 20.0 + i * 8.0
-		flame.polygon = PackedVector2Array([
-			Vector2(-5 + i, -8), Vector2(0, -fh - 10), Vector2(5 - i, -8), Vector2(0, -14)
-		])
-		flame.color = Color(1.0, 0.5 + i * 0.08, 0.15, 0.9 - i * 0.1)
-		flame.position = Vector2((i - 1) * 4.0, -16)
-		_visual.add_child(flame)
-	_accent = FX.make_ellipse_poly(10 + level, 8 + level, 14, Color(1.0, 0.85, 0.4, 0.9))
-	_accent.position = Vector2(0, -22)
+	_accent.color = Color(0.85, 0.55, 0.3)
 	_visual.add_child(_accent)
+	var pole := Polygon2D.new()
+	pole.polygon = PackedVector2Array([
+		Vector2(8, 4), Vector2(12, 4), Vector2(11, -44), Vector2(9, -44)
+	])
+	pole.color = Color(0.35, 0.28, 0.2)
+	_visual.add_child(pole)
+	# Door
+	var door := Polygon2D.new()
+	door.polygon = PackedVector2Array([
+		Vector2(-5, 6), Vector2(5, 6), Vector2(5, -10), Vector2(-5, -10)
+	])
+	door.color = Color(0.28, 0.2, 0.14)
+	_visual.add_child(door)
 
 
-## ALL SNIPE — tall bow with long bolt.
-func _build_shardbow() -> void:
+## Dualshot / Aetherbow — crystal bow that hits all layers.
+func _build_dualshot() -> void:
 	_add_plinth(16.0, 9.0)
-	var h := 60.0 + (level - 1) * 12.0
+	var h := 58.0 + (level - 1) * 12.0
 	_body = Polygon2D.new()
 	_body.polygon = PackedVector2Array([
 		Vector2(-5, 8), Vector2(5, 8), Vector2(3, -h * 0.85), Vector2(-3, -h * 0.85)
 	])
-	_body.color = Color(0.45, 0.4, 0.38)
+	_body.color = Color(0.4, 0.45, 0.55)
 	_visual.add_child(_body)
-	var bow_w := 26.0 + level * 5.0
+	var bow_w := 24.0 + level * 5.0
 	_accent = Polygon2D.new()
 	_accent.polygon = PackedVector2Array([
 		Vector2(-bow_w, -h * 0.55), Vector2(-bow_w * 0.4, -h * 0.95), Vector2(0, -h - 6),
@@ -358,99 +398,133 @@ func _build_shardbow() -> void:
 	_visual.add_child(_accent)
 	var bolt := Polygon2D.new()
 	bolt.polygon = PackedVector2Array([
-		Vector2(0, -h - 18 - level * 3), Vector2(3, -h * 0.55), Vector2(0, -h * 0.5), Vector2(-3, -h * 0.55)
+		Vector2(0, -h - 16 - level * 2), Vector2(3, -h * 0.55), Vector2(0, -h * 0.5), Vector2(-3, -h * 0.55)
 	])
-	bolt.color = Color(0.95, 0.9, 0.55)
+	bolt.color = Color(0.9, 0.85, 1.0) if dps_branch == "magical" else Color(0.75, 0.95, 0.7) if dps_branch == "physical" else Color(0.85, 0.92, 1.0)
 	_visual.add_child(bolt)
-
-
-## ALL SLOW — mist cauldron.
-func _build_mistvent() -> void:
-	_add_plinth(24.0 + level * 2, 13.0)
-	_body = Polygon2D.new()
-	_body.polygon = PackedVector2Array([
-		Vector2(-20 - level * 2, 6), Vector2(20 + level * 2, 6),
-		Vector2(16, -8), Vector2(10, -18), Vector2(-10, -18), Vector2(-16, -8)
-	])
-	_body.color = Color(0.28, 0.18, 0.35)
-	_visual.add_child(_body)
-	_accent = FX.make_ellipse_poly(16 + level * 3, 28 + level * 6, 22, Color(_def_color.r, _def_color.g, _def_color.b, 0.4))
-	_accent.position = Vector2(0, -36 - level * 3)
-	_visual.add_child(_accent)
-	for i in (3 + level):
-		var puff := FX.make_ellipse_poly(12 + i * 2, 10 + i, 14, Color(0.65, 0.45, 0.95, 0.16))
-		puff.position = Vector2((i - 1.5) * 8.0, -48 - i * 8)
-		_visual.add_child(puff)
-	var mist_pool := FX.make_ellipse_poly(minf(70.0, fire_range * 0.22), minf(42.0, fire_range * 0.14), 28, Color(0.55, 0.35, 0.9, 0.12))
-	mist_pool.z_index = -1
-	_visual.add_child(mist_pool)
-
-
-## AIR — floating skyshard constellation.
-func _build_skyshard() -> void:
-	_add_plinth(16.0, 9.0)
-	var h := 56.0 + level * 10.0
-	_body = Polygon2D.new()
-	_body.polygon = PackedVector2Array([
-		Vector2(0, -h), Vector2(11, -h * 0.55), Vector2(5, 6), Vector2(-5, 6), Vector2(-11, -h * 0.55)
-	])
-	_body.color = Color(0.5, 0.9, 0.98)
-	_visual.add_child(_body)
-	_accent = FX.make_ellipse_poly(9 + level * 2, 9 + level * 2, 14, Color(0.95, 0.98, 1.0, 0.8))
-	_accent.position = Vector2(0, -h * 0.72)
-	_visual.add_child(_accent)
-	# Orbiting air shards
-	var n := 3 + level
-	for i in n:
-		var ang := TAU * float(i) / float(n) - PI * 0.5
-		var p := Vector2(cos(ang), sin(ang) * 0.7) * (24.0 + level * 4.0) + Vector2(0, -h * 0.45)
-		var shard := Polygon2D.new()
-		shard.polygon = PackedVector2Array([Vector2(0, -9), Vector2(5, 0), Vector2(0, 5), Vector2(-5, 0)])
-		shard.color = Color(0.65, 0.95, 1.0, 0.9)
-		shard.position = p
-		_visual.add_child(shard)
-	# Small wing marks for air identity
+	# Wing marks for dual (air+ground)
 	for sx in [-1.0, 1.0]:
 		var wing := Polygon2D.new()
 		wing.polygon = PackedVector2Array([
-			Vector2(0, -h * 0.4), Vector2(sx * 22, -h * 0.55), Vector2(sx * 8, -h * 0.3)
+			Vector2(0, -h * 0.35), Vector2(sx * 18, -h * 0.5), Vector2(sx * 6, -h * 0.28)
 		])
-		wing.color = Color(0.55, 0.85, 0.95, 0.45)
+		wing.color = Color(_def_color.r, _def_color.g, _def_color.b, 0.4)
 		_visual.add_child(wing)
 
 
-## GND CONTROL — root arch with grasping vines.
-func _build_rootgate() -> void:
-	_add_plinth(24.0 + level * 2, 12.0)
-	var h := 48.0 + level * 10.0
-	for sx in [-1.0, 1.0]:
-		var pillar := Polygon2D.new()
-		pillar.polygon = PackedVector2Array([
-			Vector2(sx * 8, 8), Vector2(sx * 18, 6), Vector2(sx * 16, -h * 0.55),
-			Vector2(sx * 6, -h * 0.85), Vector2(sx * 4, -h * 0.4)
-		])
-		pillar.color = Color(0.32, 0.42, 0.24)
-		_visual.add_child(pillar)
+## Groundspike — heavy thorn mortar; L2+ shows splash rings.
+func _build_groundspike() -> void:
+	_add_plinth(22.0 + level * 2, 12.0)
+	var h := 50.0 + (level - 1) * 10.0
 	_body = Polygon2D.new()
 	_body.polygon = PackedVector2Array([
-		Vector2(-14, -h * 0.75), Vector2(0, -h - 8), Vector2(14, -h * 0.75),
-		Vector2(8, -h * 0.55), Vector2(0, -h * 0.65), Vector2(-8, -h * 0.55)
+		Vector2(0, -h), Vector2(16, -h * 0.55), Vector2(12, 8), Vector2(-12, 8), Vector2(-16, -h * 0.55)
 	])
-	_body.color = Color(0.38, 0.52, 0.28)
+	_body.color = _def_color
 	_visual.add_child(_body)
+	# Heavy tip
 	_accent = Polygon2D.new()
 	_accent.polygon = PackedVector2Array([
-		Vector2(-6, 4), Vector2(-28 - level * 4, 2), Vector2(-20, -8), Vector2(-4, -2)
+		Vector2(0, -h - 8), Vector2(8, -h * 0.85), Vector2(0, -h * 0.72), Vector2(-8, -h * 0.85)
 	])
-	_accent.color = _def_color
+	_accent.color = Color(0.95, 0.85, 0.4)
 	_visual.add_child(_accent)
-	var root2 := _accent.duplicate() as Polygon2D
-	root2.scale.x = -1
-	_visual.add_child(root2)
-	var bind := FX.make_ellipse_poly(32 + level * 4, 18 + level * 2, 24, Color(0.35, 0.6, 0.3, 0.14))
-	bind.position = Vector2(0, 2)
-	bind.z_index = -1
-	_visual.add_child(bind)
+	if level >= 2 or splash > 0.0:
+		for i in (1 + mini(level, 2)):
+			var ring := FX.make_ellipse_poly(24 + i * 14, 14 + i * 7, 22, Color(0.4, 0.75, 0.35, 0.14 - i * 0.03))
+			ring.position = Vector2(0, 2)
+			ring.z_index = -1
+			_visual.add_child(ring)
+	# Side thorns
+	for sx in [-1.0, 1.0]:
+		var thorn := Polygon2D.new()
+		thorn.polygon = PackedVector2Array([
+			Vector2(0, 0), Vector2(sx * 14, -6), Vector2(sx * 4, -2)
+		])
+		thorn.position = Vector2(sx * 10, -h * 0.4)
+		thorn.color = _def_color.darkened(0.15)
+		_visual.add_child(thorn)
+
+
+# ── Garrison soldiers ─────────────────────────────────────────────────────────
+
+func _init_garrison() -> void:
+	if role != "garrison":
+		return
+	_compute_rally()
+	_clear_soldiers()
+	_soldiers.clear()
+	_respawn_timers.clear()
+	for i in soldier_count:
+		_spawn_soldier(i)
+		_respawn_timers.append(0.0)
+
+
+func _compute_rally() -> void:
+	_rally = global_position + Vector2(0, rally_dist)
+	if PathNetwork:
+		var best := global_position
+		var best_d := INF
+		for lane in PathNetwork.lanes:
+			if lane is PackedVector2Array and (lane as PackedVector2Array).size() >= 2:
+				var pts: PackedVector2Array = lane
+				var length := PathNetwork.lane_length(pts)
+				var d := 0.0
+				while d < length:
+					var sample: Dictionary = PathNetwork.sample_lane(pts, d)
+					var p: Vector2 = sample.get("pos", Vector2.ZERO)
+					var dist := p.distance_squared_to(global_position)
+					if dist < best_d:
+						best_d = dist
+						best = p
+					d += 40.0
+		_rally = best
+
+
+func _spawn_soldier(slot: int) -> void:
+	var unit: Node2D = GarrisonUnitScript.new() as Node2D
+	# Parent under World so soldiers live on the road, not under the pad slot
+	var host: Node = _world_host()
+	var offset := Vector2(float(slot - 1) * 18.0, float(slot % 2) * 8.0)
+	host.add_child(unit)
+	unit.global_position = global_position + Vector2(0, -8)
+	if unit.has_method("configure"):
+		unit.call("configure", soldier_hp, soldier_damage, soldier_range, self, _rally + offset)
+	while _soldiers.size() <= slot:
+		_soldiers.append(null)
+	_soldiers[slot] = unit
+
+
+func _world_host() -> Node:
+	var n: Node = self
+	while n:
+		if str(n.name) == "World":
+			return n
+		n = n.get_parent()
+	var p := get_parent()
+	return p if p else self
+
+
+func on_soldier_died(unit: Node) -> void:
+	for i in _soldiers.size():
+		if _soldiers[i] == unit:
+			_soldiers[i] = null
+			while _respawn_timers.size() <= i:
+				_respawn_timers.append(0.0)
+			_respawn_timers[i] = respawn_time
+			break
+
+
+func _clear_soldiers() -> void:
+	for s in _soldiers:
+		if s and is_instance_valid(s):
+			s.queue_free()
+	_soldiers.clear()
+	_respawn_timers.clear()
+
+
+func _exit_tree() -> void:
+	_clear_soldiers()
 
 
 func _process(delta: float) -> void:
@@ -459,15 +533,16 @@ func _process(delta: float) -> void:
 	_bob += delta
 	if _visual:
 		_visual.position.y = sin(_bob * 1.8) * 1.4
-	if _accent and role != "slow":
+	if _accent and role != "garrison":
 		_accent.modulate.a = 0.7 + 0.3 * sin(_bob * 3.0)
-	# Show layer tag with name labels
 	var tag := _visual.get_node_or_null("LayerTag") if _visual else null
 	if tag is CanvasItem and _name_label:
 		(tag as CanvasItem).visible = _name_label.visible
 
-	if aura_slow > 0.0:
-		_apply_slow_aura()
+	# Garrison: respawn soldiers, no projectile fire
+	if role == "garrison":
+		_tick_garrison(delta)
+		return
 
 	_cd = maxf(0.0, _cd - delta)
 	if _cd > 0.0:
@@ -475,13 +550,19 @@ func _process(delta: float) -> void:
 
 	var target := _find_target()
 	if target == null or not is_instance_valid(target):
-		# Slow aura towers still tick on cooldown so they feel alive
-		if role == "slow" and aura_slow > 0.0:
-			_cd = fire_rate
 		return
 
 	_cd = maxf(0.12, fire_rate)
 	_fire_at(target)
+
+
+func _tick_garrison(delta: float) -> void:
+	for i in _respawn_timers.size():
+		if _respawn_timers[i] > 0.0:
+			_respawn_timers[i] = maxf(0.0, _respawn_timers[i] - delta)
+			if _respawn_timers[i] <= 0.0:
+				if i >= _soldiers.size() or _soldiers[i] == null or not is_instance_valid(_soldiers[i]):
+					_spawn_soldier(i)
 
 
 func _enemy_is_flying(e: Node) -> bool:
@@ -507,19 +588,6 @@ func _can_target(e: Node) -> bool:
 			return true
 
 
-func _apply_slow_aura() -> void:
-	var tree := get_tree()
-	if tree == null:
-		return
-	var r2 := fire_range * fire_range
-	for e in tree.get_nodes_in_group("enemies"):
-		if not (e is Node2D) or not _can_target(e):
-			continue
-		if global_position.distance_squared_to(e.global_position) <= r2:
-			if e.has_method("apply_slow"):
-				e.call("apply_slow", aura_slow, 0.4)
-
-
 func _fire_at(target: Node2D) -> void:
 	if target == null or not is_instance_valid(target):
 		return
@@ -527,49 +595,17 @@ func _fire_at(target: Node2D) -> void:
 	if host == null:
 		host = self
 
-	match type_id:
-		"thornspire":
+	match special:
+		"multishot":
 			_fire_multishot(host)
-		"emberfall":
+		"magic_bolt":
+			_fire_magic(target, host)
+		"splash":
 			_fire_splash(target, host)
-		"skyshard":
-			_fire_chain(target, host)
-		"shardbow":
-			_fire_snipe_bolt(target, host)
-		"mistvent":
-			_fire_mist_pulse(target, host)
-		"rootgate":
-			_fire_root_pulse(target, host)
 		_:
-			# Fallback by special
-			match special:
-				"multishot":
-					_fire_multishot(host)
-				"chain":
-					_fire_chain(target, host)
-				"root":
-					_fire_root_pulse(target, host)
-				"splash":
-					_fire_splash(target, host)
-				_:
-					_hit_one(target, damage, host)
-					_fx_generic_spark(target.global_position)
-
-
-func _execute_damage(target: Node2D) -> int:
-	var dmg := damage
-	if target.has_method("is_elite") and bool(target.call("is_elite")):
-		dmg = int(float(dmg) * 1.35)
-	var hp_v = target.get("hp")
-	var max_v = target.get("max_hp")
-	if hp_v != null and max_v != null:
-		var mx := maxi(1, int(max_v))
-		if float(hp_v) / float(mx) <= 0.28:
-			dmg = int(float(dmg) * 1.6)
-	# Bonus vs flyers for all-target snipe
-	if _enemy_is_flying(target):
-		dmg = int(float(dmg) * 1.15)
-	return dmg
+			# dual_bolt / single
+			_fx_bolt(target.global_position, channel == "light")
+			_hit_one(target, damage, host)
 
 
 func _hit_one(target: Node2D, dmg: int, host: Node) -> void:
@@ -597,28 +633,26 @@ func _hit_one(target: Node2D, dmg: int, host: Node) -> void:
 
 
 func _fire_splash(target: Node2D, host: Node) -> void:
-	## Emberfall: lob a molten ember, then detonate a fire nova on impact.
 	var impact := target.global_position
-	_fx_ember_lob(impact, func():
+	_fx_heavy_lob(impact, func():
 		if not is_inside_tree():
 			return
 		var tree := get_tree()
 		if tree == null:
 			return
-		var r := maxf(splash, 80.0)
+		var r := maxf(splash, 70.0)
 		for e in tree.get_nodes_in_group("enemies"):
 			if not (e is Node2D) or not is_instance_valid(e) or not _can_target(e):
 				continue
 			if impact.distance_to(e.global_position) <= r:
 				var mult := 1.0 if (is_instance_valid(target) and e == target) else 0.55
 				_hit_one(e, int(float(damage) * mult), host)
-		_fx_ember_nova(impact, r)
+		_fx_ground_nova(impact, r)
 	)
 
 
 func _fire_multishot(host: Node) -> void:
-	## Thornspire: volley of flying thorns (no beam).
-	var targets := _enemies_in_range_sorted(2)
+	var targets := _enemies_in_range_sorted(2 + level)
 	if targets.is_empty():
 		return
 	var i := 0
@@ -629,68 +663,27 @@ func _fire_multishot(host: Node) -> void:
 		get_tree().create_timer(delay).timeout.connect(func():
 			if not is_instance_valid(tgt) or not is_inside_tree():
 				return
-			_fx_thorn_projectile(tgt.global_position)
+			_fx_bolt(tgt.global_position, false)
 			_hit_one(tgt, dmg, host)
 		)
 		i += 1
 
 
-func _fire_snipe_bolt(target: Node2D, host: Node) -> void:
-	## Shardbow: long crystal bolt flies to the target.
-	var dmg := _execute_damage(target)
-	var to := target.global_position
-	_fx_shard_bolt(to, func():
-		if is_instance_valid(target) and is_inside_tree():
-			_hit_one(target, dmg, host)
-			_fx_shard_impact(to)
-	)
-
-
-func _fire_mist_pulse(target: Node2D, host: Node) -> void:
-	## Mistvent: vent coughs a mist cloud; damage is a soft tick (aura does the slow).
+func _fire_magic(target: Node2D, host: Node) -> void:
+	var impact := target.global_position
+	_fx_bolt(impact, true)
 	_hit_one(target, damage, host)
-	_fx_mist_vent(target.global_position)
-
-
-func _fire_chain(primary: Node2D, host: Node) -> void:
-	## Skyshard: lightning forks through the air (jagged arcs, no solid beam).
-	var hit_list: Array[Node2D] = []
-	var cur: Node2D = primary
-	var dmg_f := float(damage)
-	var hops := maxi(1, chain_count)
-	var prev_pos := global_position + Vector2(0, -40)
-	for _i in hops:
-		if cur == null or not is_instance_valid(cur) or not _can_target(cur):
-			break
-		if cur in hit_list:
-			break
-		hit_list.append(cur)
-		_hit_one(cur, int(dmg_f), host)
-		_fx_lightning_arc(prev_pos, cur.global_position + Vector2(0, -12))
-		_fx_lightning_impact(cur.global_position)
-		prev_pos = cur.global_position + Vector2(0, -12)
-		dmg_f *= chain_falloff
-		cur = _nearest_enemy_from(cur.global_position, hit_list, 180.0)
-
-
-func _fire_root_pulse(target: Node2D, host: Node) -> void:
-	## Rootgate: grasping roots erupt under foes — no shot from the tower.
-	var tree := get_tree()
-	if tree == null:
-		return
-	var r := maxf(splash, 80.0)
-	_fx_root_gate_pulse()
-	for e in tree.get_nodes_in_group("enemies"):
-		if not (e is Node2D) or not is_instance_valid(e) or not _can_target(e):
-			continue
-		if target.global_position.distance_to(e.global_position) <= r:
-			var mult := 1.0 if e == target else 0.6
-			_hit_one(e, int(float(damage) * mult), host)
-			if e.has_method("apply_root"):
-				e.call("apply_root", root_duration)
-			if e.has_method("apply_slow"):
-				e.call("apply_slow", 0.35, root_duration + 0.3)
-			_fx_roots_at(e.global_position)
+	if splash > 0.0:
+		var tree := get_tree()
+		if tree:
+			var r := splash
+			for e in tree.get_nodes_in_group("enemies"):
+				if not (e is Node2D) or not is_instance_valid(e) or e == target or not _can_target(e):
+					continue
+				if impact.distance_to(e.global_position) <= r:
+					_hit_one(e, int(float(damage) * 0.45), host)
+		if FX:
+			FX.burst_particles(self, impact, Color(0.72, 0.48, 0.95), 10, "magic", 0.3)
 
 
 func _enemies_in_range_sorted(limit: int) -> Array[Node2D]:
@@ -712,24 +705,6 @@ func _enemies_in_range_sorted(limit: int) -> Array[Node2D]:
 	return out
 
 
-func _nearest_enemy_from(from: Vector2, exclude: Array[Node2D], max_dist: float) -> Node2D:
-	var best: Node2D = null
-	var best_d := max_dist * max_dist
-	var tree := get_tree()
-	if tree == null:
-		return null
-	for e in tree.get_nodes_in_group("enemies"):
-		if not (e is Node2D) or not is_instance_valid(e) or not _can_target(e):
-			continue
-		if e in exclude:
-			continue
-		var d2: float = from.distance_squared_to(e.global_position)
-		if d2 < best_d:
-			best_d = d2
-			best = e
-	return best
-
-
 func _find_target() -> Node2D:
 	var tree := get_tree()
 	if tree == null:
@@ -746,12 +721,7 @@ func _find_target() -> Node2D:
 			continue
 		var to_crystal: float = e.global_position.distance_to(crystal_pos)
 		var score := 10000.0 / maxf(40.0, to_crystal) + 200.0 / maxf(20.0, sqrt(d2))
-		if role == "snipe" and e.has_method("is_elite") and bool(e.call("is_elite")):
-			score *= 3.0
-		if role == "control" and e.has_method("is_rooted") and not bool(e.call("is_rooted")):
-			score *= 1.4
-		if role == "aoe":
-			# Prefer denser packs for splash
+		if role == "aoe" and splash > 0.0:
 			var near := 0
 			for o in tree.get_nodes_in_group("enemies"):
 				if o is Node2D and o != e and _can_target(o):
@@ -764,71 +734,51 @@ func _find_target() -> Node2D:
 	return best
 
 
-# ── Unique attack VFX ─────────────────────────────────────────────────────────
+# ── Attack VFX ────────────────────────────────────────────────────────────────
 
 func _muzzle_origin() -> Vector2:
 	return Vector2(0, -36)
 
 
-func _fx_generic_spark(at: Vector2) -> void:
-	if FX:
-		FX.burst_particles(self, at, _def_color, 8, "spark", 0.3)
-
-
-func _fx_thorn_projectile(world_to: Vector2) -> void:
-	## Flying thorn spike from spire to foe.
+func _fx_bolt(world_to: Vector2, magical: bool) -> void:
 	var origin := _muzzle_origin()
 	var dest := world_to - global_position + Vector2(0, -8)
-	var thorn := Polygon2D.new()
-	thorn.polygon = PackedVector2Array([
-		Vector2(0, -10), Vector2(3.5, 2), Vector2(0, 6), Vector2(-3.5, 2)
+	var bolt := Polygon2D.new()
+	bolt.polygon = PackedVector2Array([
+		Vector2(0, -8), Vector2(3, 2), Vector2(0, 5), Vector2(-3, 2)
 	])
-	thorn.color = Color(0.35, 0.75, 0.4, 0.95)
-	thorn.position = origin
-	thorn.z_index = 25
-	var ang := (dest - origin).angle() + PI * 0.5
-	thorn.rotation = ang
-	add_child(thorn)
-	# Tiny leaf fleck trailing
-	var leaf := Polygon2D.new()
-	leaf.polygon = PackedVector2Array([Vector2(-2, 0), Vector2(0, -5), Vector2(2, 0)])
-	leaf.color = Color(0.55, 0.9, 0.45, 0.7)
-	leaf.position = Vector2(0, 4)
-	thorn.add_child(leaf)
+	bolt.color = Color(0.75, 0.5, 1.0, 0.95) if magical else Color(0.5, 0.9, 0.55, 0.95)
+	bolt.position = origin
+	bolt.z_index = 25
+	bolt.rotation = (dest - origin).angle() + PI * 0.5
+	add_child(bolt)
 	var dist := origin.distance_to(dest)
-	var dur := clampf(dist / 900.0, 0.08, 0.2)
+	var dur := clampf(dist / 1100.0, 0.06, 0.18)
 	var tw := create_tween()
-	tw.tween_property(thorn, "position", dest, dur).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(bolt, "position", dest, dur).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tw.tween_callback(func():
 		if FX:
-			FX.burst_particles(self, world_to, Color(0.4, 0.85, 0.4), 6, "spark", 0.22)
-		if is_instance_valid(thorn):
-			thorn.queue_free()
+			var col := Color(0.75, 0.5, 1.0) if magical else Color(0.5, 0.9, 0.55)
+			FX.burst_particles(self, world_to, col, 5, "spark", 0.2)
+		if is_instance_valid(bolt):
+			bolt.queue_free()
 	)
 
 
-func _fx_ember_lob(world_to: Vector2, on_land: Callable) -> void:
-	## Arcing molten ball; detonates on landing.
+func _fx_heavy_lob(world_to: Vector2, on_land: Callable) -> void:
 	var origin := _muzzle_origin()
 	var dest := world_to - global_position
 	var ball := Node2D.new()
 	ball.position = origin
 	ball.z_index = 25
 	add_child(ball)
-	var core := FX.make_ellipse_poly(7, 7, 12, Color(1.0, 0.55, 0.15, 0.95)) if FX else Polygon2D.new()
-	if core.get_parent() == null:
-		core = Polygon2D.new()
-		core.polygon = PackedVector2Array([Vector2(-6, 0), Vector2(0, -6), Vector2(6, 0), Vector2(0, 6)])
-		core.color = Color(1.0, 0.5, 0.15)
+	var core := Polygon2D.new()
+	core.polygon = PackedVector2Array([Vector2(-6, 0), Vector2(0, -8), Vector2(6, 0), Vector2(0, 5)])
+	core.color = Color(0.45, 0.75, 0.35)
 	ball.add_child(core)
-	var glow := FX.make_ellipse_poly(12, 12, 14, Color(1.0, 0.4, 0.1, 0.35)) if FX else null
-	if glow:
-		ball.add_child(glow)
-	var mid := origin.lerp(dest, 0.5) + Vector2(0, -70.0 - origin.distance_to(dest) * 0.08)
-	var dur := clampf(origin.distance_to(dest) / 520.0, 0.22, 0.42)
+	var mid := origin.lerp(dest, 0.5) + Vector2(0, -60.0 - origin.distance_to(dest) * 0.06)
+	var dur := clampf(origin.distance_to(dest) / 480.0, 0.2, 0.4)
 	var tw := create_tween()
-	tw.set_parallel(false)
-	# Simple 2-segment arc
 	tw.tween_property(ball, "position", mid, dur * 0.5).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	tw.tween_property(ball, "position", dest, dur * 0.5).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
 	tw.tween_callback(func():
@@ -839,11 +789,10 @@ func _fx_ember_lob(world_to: Vector2, on_land: Callable) -> void:
 	)
 
 
-func _fx_ember_nova(world_at: Vector2, radius: float) -> void:
+func _fx_ground_nova(world_at: Vector2, radius: float) -> void:
 	var local := world_at - global_position
-	# Expanding fire rings
 	for i in 3:
-		var ring := FX.make_ellipse_poly(14 + i * 6, 9 + i * 4, 22, Color(1.0, 0.45 - i * 0.08, 0.1, 0.5 - i * 0.1)) if FX else null
+		var ring := FX.make_ellipse_poly(14 + i * 6, 9 + i * 4, 22, Color(0.4, 0.75, 0.35, 0.45 - i * 0.1)) if FX else null
 		if ring == null:
 			continue
 		ring.position = local
@@ -855,256 +804,5 @@ func _fx_ember_nova(world_at: Vector2, radius: float) -> void:
 		tw.tween_property(ring, "scale", Vector2(sc, sc * 0.65), 0.28 + i * 0.05).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 		tw.parallel().tween_property(ring, "modulate:a", 0.0, 0.28 + i * 0.05)
 		tw.tween_callback(ring.queue_free)
-	# Flame tongues
-	for j in 6:
-		var ang := TAU * float(j) / 6.0 + randf() * 0.2
-		var flame := Polygon2D.new()
-		flame.polygon = PackedVector2Array([
-			Vector2(0, 4), Vector2(5, -8), Vector2(0, -18), Vector2(-5, -8)
-		])
-		flame.color = Color(1.0, 0.55, 0.15, 0.85)
-		flame.position = local
-		flame.rotation = ang
-		flame.z_index = 19
-		add_child(flame)
-		var tip := local + Vector2(cos(ang), sin(ang)) * (radius * 0.35)
-		var tw2 := create_tween()
-		tw2.tween_property(flame, "position", tip, 0.2)
-		tw2.parallel().tween_property(flame, "modulate:a", 0.0, 0.22)
-		tw2.tween_callback(flame.queue_free)
 	if FX:
-		FX.burst_particles(self, world_at, Color(1.0, 0.5, 0.15), 16, "glow", 0.4)
-		FX.burst_particles(self, world_at, Color(0.95, 0.3, 0.1), 10, "spark", 0.35)
-
-
-func _fx_shard_bolt(world_to: Vector2, on_hit: Callable) -> void:
-	## Long crystalline arrow.
-	var origin := _muzzle_origin()
-	var dest := world_to - global_position + Vector2(0, -10)
-	var bolt := Node2D.new()
-	bolt.position = origin
-	bolt.z_index = 25
-	bolt.rotation = (dest - origin).angle()
-	add_child(bolt)
-	var shaft := Polygon2D.new()
-	shaft.polygon = PackedVector2Array([
-		Vector2(-4, -3), Vector2(22, -2), Vector2(28, 0), Vector2(22, 2), Vector2(-4, 3)
-	])
-	shaft.color = Color(0.95, 0.88, 0.45, 0.95)
-	bolt.add_child(shaft)
-	var tip := Polygon2D.new()
-	tip.polygon = PackedVector2Array([Vector2(28, 0), Vector2(38, -5), Vector2(38, 5)])
-	tip.color = Color(1.0, 0.98, 0.8, 1.0)
-	bolt.add_child(tip)
-	var fletch := Polygon2D.new()
-	fletch.polygon = PackedVector2Array([
-		Vector2(-4, 0), Vector2(-12, -7), Vector2(-8, 0), Vector2(-12, 7)
-	])
-	fletch.color = Color(0.85, 0.7, 0.35, 0.8)
-	bolt.add_child(fletch)
-	# Soft trail
-	var trail := Line2D.new()
-	trail.width = 3.0
-	trail.default_color = Color(0.95, 0.85, 0.45, 0.35)
-	trail.points = PackedVector2Array([Vector2(-8, 0), Vector2(10, 0)])
-	trail.z_index = -1
-	bolt.add_child(trail)
-	var dist := origin.distance_to(dest)
-	var dur := clampf(dist / 1400.0, 0.07, 0.16)
-	var tw := create_tween()
-	tw.tween_property(bolt, "position", dest, dur).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	tw.tween_callback(func():
-		if is_instance_valid(bolt):
-			bolt.queue_free()
-		if on_hit.is_valid():
-			on_hit.call()
-	)
-
-
-func _fx_shard_impact(world_at: Vector2) -> void:
-	var local := world_at - global_position
-	for i in 4:
-		var shard := Polygon2D.new()
-		shard.polygon = PackedVector2Array([Vector2(0, -6), Vector2(3, 0), Vector2(0, 4), Vector2(-3, 0)])
-		shard.color = Color(0.95, 0.9, 0.5, 0.9)
-		shard.position = local
-		shard.rotation = randf() * TAU
-		shard.z_index = 22
-		add_child(shard)
-		var out := local + Vector2(cos(shard.rotation), sin(shard.rotation)) * randf_range(18, 36)
-		var tw := create_tween()
-		tw.tween_property(shard, "position", out, 0.18)
-		tw.parallel().tween_property(shard, "modulate:a", 0.0, 0.18)
-		tw.tween_callback(shard.queue_free)
-	if FX:
-		FX.burst_particles(self, world_at, Color(0.95, 0.85, 0.4), 8, "star", 0.28)
-
-
-func _fx_mist_vent(world_to: Vector2) -> void:
-	## Clouds billow from the cauldron and wash toward the target.
-	var origin := _muzzle_origin() + Vector2(0, 8)
-	for i in 4:
-		var puff := FX.make_ellipse_poly(10 + i * 3, 8 + i * 2, 16, Color(0.6, 0.4, 0.9, 0.35 - i * 0.04)) if FX else null
-		if puff == null:
-			continue
-		puff.position = origin + Vector2(randf_range(-6, 6), randf_range(-4, 4))
-		puff.z_index = 20
-		puff.scale = Vector2(0.4, 0.4)
-		add_child(puff)
-		var dest := (world_to - global_position).lerp(origin, 0.15) + Vector2(randf_range(-20, 20), randf_range(-12, 12))
-		var tw := create_tween()
-		tw.tween_property(puff, "position", dest, 0.35 + i * 0.04).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-		tw.parallel().tween_property(puff, "scale", Vector2(1.6 + i * 0.2, 1.2 + i * 0.15), 0.4)
-		tw.parallel().tween_property(puff, "modulate:a", 0.0, 0.45)
-		tw.tween_callback(puff.queue_free)
-	# Soft mist bloom on the target
-	var bloom := FX.make_ellipse_poly(28, 18, 20, Color(0.65, 0.45, 0.95, 0.28)) if FX else null
-	if bloom:
-		bloom.position = world_to - global_position
-		bloom.z_index = 18
-		bloom.scale = Vector2(0.4, 0.4)
-		add_child(bloom)
-		var twb := create_tween()
-		twb.tween_property(bloom, "scale", Vector2(1.5, 1.1), 0.35)
-		twb.parallel().tween_property(bloom, "modulate:a", 0.0, 0.4)
-		twb.tween_callback(bloom.queue_free)
-	if FX:
-		FX.burst_particles(self, global_position + origin, Color(0.65, 0.45, 0.95), 8, "glow", 0.4)
-
-
-func _fx_lightning_arc(from_world: Vector2, to_world: Vector2) -> void:
-	## Jagged forked lightning (not a straight beam).
-	var a := from_world - global_position
-	var b := to_world - global_position
-	var pts := PackedVector2Array()
-	pts.append(a)
-	var segs := 5
-	for i in range(1, segs):
-		var t := float(i) / float(segs)
-		var p := a.lerp(b, t)
-		var perp := Vector2(-(b.y - a.y), b.x - a.x).normalized()
-		if perp.length_squared() < 0.01:
-			perp = Vector2.RIGHT
-		p += perp * randf_range(-14.0, 14.0) * (1.0 - absf(t - 0.5) * 0.5)
-		pts.append(p)
-	pts.append(b)
-	# Outer glow
-	var glow := Line2D.new()
-	glow.width = 7.0
-	glow.default_color = Color(0.55, 0.9, 1.0, 0.35)
-	glow.begin_cap_mode = Line2D.LINE_CAP_ROUND
-	glow.end_cap_mode = Line2D.LINE_CAP_ROUND
-	glow.joint_mode = Line2D.LINE_JOINT_ROUND
-	glow.antialiased = true
-	glow.points = pts
-	glow.z_index = 21
-	add_child(glow)
-	# Core bolt
-	var core := Line2D.new()
-	core.width = 2.2
-	core.default_color = Color(0.9, 0.98, 1.0, 0.95)
-	core.begin_cap_mode = Line2D.LINE_CAP_ROUND
-	core.end_cap_mode = Line2D.LINE_CAP_ROUND
-	core.joint_mode = Line2D.LINE_JOINT_ROUND
-	core.antialiased = true
-	core.points = pts
-	core.z_index = 22
-	add_child(core)
-	# Brief fork branch
-	if pts.size() > 3:
-		var mid: Vector2 = pts[pts.size() / 2]
-		var fork := Line2D.new()
-		fork.width = 1.5
-		fork.default_color = Color(0.7, 0.95, 1.0, 0.7)
-		fork.points = PackedVector2Array([
-			mid, mid + Vector2(randf_range(-20, 20), randf_range(-18, 8))
-		])
-		fork.z_index = 22
-		add_child(fork)
-		var twf := create_tween()
-		twf.tween_property(fork, "modulate:a", 0.0, 0.12)
-		twf.tween_callback(fork.queue_free)
-	var tw := create_tween()
-	tw.tween_property(glow, "modulate:a", 0.0, 0.16)
-	tw.parallel().tween_property(core, "modulate:a", 0.0, 0.14)
-	tw.tween_callback(func():
-		if is_instance_valid(glow):
-			glow.queue_free()
-		if is_instance_valid(core):
-			core.queue_free()
-	)
-
-
-func _fx_lightning_impact(world_at: Vector2) -> void:
-	var local := world_at - global_position
-	var flash := FX.make_ellipse_poly(10, 10, 12, Color(0.8, 0.95, 1.0, 0.7)) if FX else null
-	if flash:
-		flash.position = local + Vector2(0, -10)
-		flash.z_index = 23
-		add_child(flash)
-		var tw := create_tween()
-		tw.tween_property(flash, "scale", Vector2(2.2, 2.2), 0.12)
-		tw.parallel().tween_property(flash, "modulate:a", 0.0, 0.14)
-		tw.tween_callback(flash.queue_free)
-	if FX:
-		FX.burst_particles(self, world_at, Color(0.7, 0.95, 1.0), 6, "star", 0.25)
-
-
-func _fx_root_gate_pulse() -> void:
-	## Gate shudders — roots at base twitch.
-	if _visual:
-		var tw := create_tween()
-		tw.tween_property(_visual, "scale", Vector2.ONE * _level_scale() * 1.06, 0.06)
-		tw.tween_property(_visual, "scale", Vector2.ONE * _level_scale(), 0.12)
-	var base := Vector2(0, 6)
-	for sx in [-1.0, 1.0]:
-		var vine := Line2D.new()
-		vine.width = 3.0
-		vine.default_color = Color(0.35, 0.55, 0.28, 0.85)
-		vine.points = PackedVector2Array([
-			base, base + Vector2(sx * 18, -8), base + Vector2(sx * 28, 4)
-		])
-		vine.z_index = 15
-		add_child(vine)
-		var tw2 := create_tween()
-		tw2.tween_property(vine, "modulate:a", 0.0, 0.35)
-		tw2.tween_callback(vine.queue_free)
-
-
-func _fx_roots_at(world_at: Vector2) -> void:
-	## Grasping roots erupt under the enemy.
-	var local := world_at - global_position
-	var soil := FX.make_ellipse_poly(16, 9, 14, Color(0.2, 0.28, 0.14, 0.45)) if FX else null
-	if soil:
-		soil.position = local + Vector2(0, 6)
-		soil.z_index = 16
-		soil.scale = Vector2(0.3, 0.3)
-		add_child(soil)
-		var tws := create_tween()
-		tws.tween_property(soil, "scale", Vector2(1.4, 1.0), 0.2)
-		tws.parallel().tween_property(soil, "modulate:a", 0.0, 0.45)
-		tws.tween_callback(soil.queue_free)
-	for i in 5:
-		var ang := -0.6 + float(i) * 0.3 + randf_range(-0.1, 0.1)
-		var root := Line2D.new()
-		root.width = 2.8
-		root.default_color = Color(0.38, 0.55, 0.28, 0.95)
-		root.begin_cap_mode = Line2D.LINE_CAP_ROUND
-		root.end_cap_mode = Line2D.LINE_CAP_ROUND
-		var tip := Vector2(sin(ang) * 22.0, -8.0 - float(i) * 5.0)
-		root.points = PackedVector2Array([
-			Vector2.ZERO,
-			Vector2(sin(ang) * 8.0, -2.0),
-			tip
-		])
-		root.position = local + Vector2(0, 8)
-		root.z_index = 17
-		root.scale = Vector2(0.2, 0.2)
-		add_child(root)
-		var tw := create_tween()
-		tw.tween_property(root, "scale", Vector2.ONE, 0.14 + float(i) * 0.02).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-		tw.tween_interval(0.15)
-		tw.tween_property(root, "modulate:a", 0.0, 0.25)
-		tw.tween_callback(root.queue_free)
-	if FX:
-		FX.burst_particles(self, world_at, Color(0.4, 0.65, 0.3), 8, "spark", 0.3)
+		FX.burst_particles(self, world_at, Color(0.45, 0.8, 0.4), 14, "spark", 0.35)
