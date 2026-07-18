@@ -38,6 +38,8 @@
 
 **Working fiction:** Wardens guard a **Lightwell** that cradles a **Crystal**. Nightspawn and thralls push paths toward it. Players **awaken** map features (roots, standing stones, ruins, thorn gates) into defenses, fight on the field, and scramble economy under wave pressure.
 
+**Campaign story bible:** [`STORY.md`](STORY.md) — Thren, Soft Dark, Lord Umbrael, six chapter maps (*Dark Crystal* × *Legend*).
+
 ---
 
 ## 3. Design pillars
