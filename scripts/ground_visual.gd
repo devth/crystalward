@@ -1000,7 +1000,7 @@ func _place_sprite(tex: Texture2D, pos: Vector2, scale_mul: float, alpha: float 
 		return null
 	var s := Sprite2D.new()
 	s.texture = tex
-	s.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	s.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	s.centered = true
 	s.position = pos
 	s.scale = Vector2(scale_mul, scale_mul)

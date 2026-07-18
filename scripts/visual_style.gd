@@ -21,8 +21,9 @@ const DUST_ROSE := Color(0.78, 0.55, 0.62)
 const SKY_VIOLET := Color(0.42, 0.35, 0.58)
 
 # ── Gameplay tokens ─────────────────────────────────────────────────────────
-const OUTLINE := Color(0.10, 0.07, 0.16, 0.96)
-const SHADOW := Color(0.10, 0.06, 0.16, 0.48)
+# Soft ink wash (semi-transparent — painted edge, not arcade stroke)
+const OUTLINE := Color(0.14, 0.09, 0.18, 0.72)
+const SHADOW := Color(0.12, 0.08, 0.16, 0.38)
 const P1_TINT := Color(0.55, 0.88, 0.90)   # soft crystal cyan warden
 const P2_TINT := Color(0.78, 0.58, 0.92)  # amethyst warden
 const PATH_DIRT := Color(0.42, 0.38, 0.40, 0.95)  # cool mauve-taupe trail
@@ -74,7 +75,8 @@ func _ready() -> void:
 		_outline_mat = ShaderMaterial.new()
 		_outline_mat.shader = _outline_shader
 		_outline_mat.set_shader_parameter("outline_color", OUTLINE)
-		_outline_mat.set_shader_parameter("outline_width", 1.35)
+		_outline_mat.set_shader_parameter("outline_width", 1.2)
+		_outline_mat.set_shader_parameter("wash", 0.5)
 
 
 func apply_sprite_outline(sprite: CanvasItem, width: float = 1.35) -> void:
@@ -87,8 +89,9 @@ func apply_sprite_outline(sprite: CanvasItem, width: float = 1.35) -> void:
 	var mat := ShaderMaterial.new()
 	mat.shader = _outline_shader
 	mat.set_shader_parameter("outline_color", OUTLINE)
-	# Slightly stronger outline so sprites pop on soft ground
-	mat.set_shader_parameter("outline_width", maxf(width, 1.25))
+	# Soft ink edge — readable without hard gamey stroke
+	mat.set_shader_parameter("outline_width", maxf(width, 1.1))
+	mat.set_shader_parameter("wash", 0.5)
 	sprite.material = mat
 
 
@@ -115,15 +118,14 @@ func style_game_label(label: Label, size: int = 16, cream: bool = true) -> void:
 
 func style_hud_panel(panel: PanelContainer) -> void:
 	var sb := StyleBoxFlat.new()
-	# Deep purple-black castle glass
-	sb.bg_color = Color(0.07, 0.05, 0.12, 0.93)
-	sb.set_corner_radius_all(12)
-	# Soft amethyst + river-green rim
-	sb.border_color = Color(0.52, 0.42, 0.72, 0.45)
+	# Parchment-dark panel (illustration matte, not neon UI chrome)
+	sb.bg_color = Color(0.09, 0.07, 0.12, 0.88)
+	sb.set_corner_radius_all(10)
+	sb.border_color = Color(0.48, 0.38, 0.58, 0.4)
 	sb.set_border_width_all(1)
-	sb.shadow_color = Color(0.08, 0.04, 0.14, 0.5)
-	sb.shadow_size = 8
-	sb.shadow_offset = Vector2(0, 3)
+	sb.shadow_color = Color(0.06, 0.03, 0.1, 0.4)
+	sb.shadow_size = 10
+	sb.shadow_offset = Vector2(0, 4)
 	sb.content_margin_left = 14
 	sb.content_margin_right = 14
 	sb.content_margin_top = 8

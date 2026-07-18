@@ -1,7 +1,7 @@
 shader_type canvas_item;
 
-// Material-first forest floor: grass, dirt, rock, sand, wet shore.
-// Subtle textures — not sparkle junk. Clear midtones for gameplay.
+// Watercolor forest floor — wet-on-wet washes, granulation, soft edges.
+// Dark Crystal cover palette: moss, violet shadow, parchment light.
 
 // Thra floor — Dark Crystal: deep violet shadow, river-green moss, cool stone
 uniform vec4 col_shadow : source_color = vec4(0.10, 0.08, 0.14, 1.0);
@@ -112,13 +112,23 @@ void fragment() {
 	// Soft shadow pools in low land
 	col = mix(col, col_shadow.rgb, smoothstep(0.55, 1.0, n3) * (0.12 + wet_m * 0.1));
 
-	// Tiny natural grit — not crystal confetti
-	col += (hash(floor(UV * 120.0)) - 0.5) * 0.02;
+	// Pigment granulation (watercolor paper catching color)
+	float gran = fbm(uww * 14.0);
+	col = mix(col, col * (0.88 + gran * 0.22), 0.35);
+	// Soft wash bleed between materials
+	col = mix(col, mix(col_grass.rgb, col_moss.rgb, n2), 0.06);
+	// Paper tooth
+	col += (hash(floor(UV * 90.0 + gran * 3.0)) - 0.5) * 0.035;
+	// Cool violet in deep shade (cover-art shadow)
+	col = mix(col, col * vec3(0.85, 0.82, 0.95), smoothstep(0.4, 0.0, elev) * 0.18);
+	// Warm parchment lift on high ground
+	col = mix(col, col * vec3(1.08, 1.04, 0.92), smoothstep(0.35, 0.85, elev) * 0.12);
 
 	float edge = length(UV - 0.5);
-	col *= 1.0 - edge * 0.06;
-	col = (col - 0.5) * 1.05 + 0.5;
-	col = clamp(col, 0.0, 1.0);
+	col *= 1.0 - edge * 0.05;
+	// Soft painterly contrast (not crunchy game values)
+	col = (col - 0.5) * 0.94 + 0.5;
+	col = clamp(col, 0.04, 0.96);
 
 	COLOR = vec4(col, 1.0);
 }

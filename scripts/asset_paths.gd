@@ -416,7 +416,8 @@ func particle_texture(kind: String = "circle_soft") -> Texture2D:
 func make_pixel_sprite(tex: Texture2D, scale_mul: float = 3.0, centered: bool = true) -> Sprite2D:
 	var s := Sprite2D.new()
 	s.texture = tex
-	s.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	# Soft linear filter for watercolor / cover-art presentation
+	s.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	s.centered = centered
 	s.scale = Vector2(scale_mul, scale_mul)
 	return s

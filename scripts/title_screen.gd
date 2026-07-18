@@ -58,16 +58,16 @@ func _build_ui() -> void:
 	sub.text = "Defend the Lightwell"
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	sub.add_theme_font_size_override("font_size", 20)
-	sub.add_theme_color_override("font_color", Color(0.7, 0.95, 0.8))
-	sub.add_theme_color_override("font_outline_color", Color(0.05, 0.08, 0.06, 0.9))
+	sub.add_theme_color_override("font_color", Color(0.78, 0.72, 0.92))
+	sub.add_theme_color_override("font_outline_color", Color(0.06, 0.04, 0.1, 0.9))
 	sub.add_theme_constant_override("outline_size", 4)
 	center.add_child(sub)
 
 	var flavor := Label.new()
-	flavor.text = "A forest of thorns, mist, and crystal light.\nCo-op tower defense for 1–2 wardens."
+	flavor.text = "Hand-painted dark fantasy — thorns, mist, and crystal light.\nLocal co-op tower defense for 1–2 wardens."
 	flavor.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	flavor.add_theme_font_size_override("font_size", 14)
-	flavor.add_theme_color_override("font_color", Color(0.9, 0.88, 0.95, 0.92))
+	flavor.add_theme_color_override("font_color", Color(0.92, 0.88, 0.96, 0.92))
 	flavor.add_theme_color_override("font_outline_color", Color(0.05, 0.04, 0.1, 0.85))
 	flavor.add_theme_constant_override("outline_size", 3)
 	center.add_child(flavor)
