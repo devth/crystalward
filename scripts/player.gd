@@ -437,10 +437,8 @@ func _try_call_wave() -> void:
 
 func _cycle_pad(dir: int) -> void:
 	## Per-player tower pick — cycle unlocked types, preview on nearby pad.
-	## On a L1 Aetherbow pad, cycles PHYS/MAG upgrade branch instead.
 	if TowerTypes == null:
 		return
-	# Prefer site-local cycle (handles branch on built dualshot)
 	for n in _near_build:
 		if n and n.has_method("cycle_type"):
 			n.call("cycle_type", dir, player_index)
