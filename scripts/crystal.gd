@@ -1,5 +1,6 @@
 extends Node2D
-## Lightwell / Crystal — large multi-faceted gem: green / pink / purple shimmer, floating.
+## Lightwell / Crystal — Dark Crystal–inspired pure gem: clear lavender body,
+## amethyst energy, river-green + rose facets, floating above a stone well.
 
 @onready var _hp_bar: ProgressBar = $HpBar
 
@@ -29,128 +30,125 @@ func _ready() -> void:
 		z_index = VisualStyle.actor_z(global_position.y) + 20
 	else:
 		z_index = clampi(70 + int(global_position.y) + 2000, 50, 4000)
-	FX.style_progress_bar(_hp_bar, Color(0.75, 0.55, 0.95), Color(0.08, 0.07, 0.12, 0.9))
+	FX.style_progress_bar(_hp_bar, Color(0.68, 0.52, 0.88), Color(0.08, 0.06, 0.12, 0.9))
 	_hp_bar.position = Vector2(-56, 72)
 	_hp_bar.size = Vector2(112, 12)
 
 
 func _build_visuals() -> void:
-	# Stone well base
-	var well_shadow := FX.make_ellipse_poly(58, 24, 28, Color(0.08, 0.06, 0.12, 0.55))
+	# Stone well — castle purple-grey (Astronomist family)
+	var well_shadow := FX.make_ellipse_poly(58, 24, 28, Color(0.08, 0.05, 0.12, 0.55))
 	well_shadow.position = Vector2(0, 32)
 	well_shadow.z_index = -4
 	add_child(well_shadow)
 
-	var well := FX.make_ellipse_poly(48, 19, 28, Color(0.22, 0.18, 0.28, 0.9))
+	var well := FX.make_ellipse_poly(48, 19, 28, Color(0.22, 0.18, 0.30, 0.92))
 	well.position = Vector2(0, 30)
 	well.z_index = -3
 	add_child(well)
 
-	var well_rim := FX.make_ellipse_poly(42, 16, 26, Color(0.38, 0.32, 0.42, 0.85))
+	var well_rim := FX.make_ellipse_poly(42, 16, 26, Color(0.36, 0.32, 0.48, 0.88))
 	well_rim.position = Vector2(0, 28)
 	well_rim.z_index = -2
 	add_child(well_rim)
 
-	# Soft multi-hue pool
-	var pool := FX.make_ellipse_poly(22, 10, 18, Color(0.65, 0.45, 0.9, 0.32))
+	# Soft amethyst pool
+	var pool := FX.make_ellipse_poly(22, 10, 18, Color(0.58, 0.42, 0.82, 0.34))
 	pool.position = Vector2(0, 28)
 	pool.z_index = -1
 	add_child(pool)
 
-	_shadow = FX.make_ellipse_poly(28, 10, 18, Color(0.06, 0.04, 0.1, 0.5))
+	_shadow = FX.make_ellipse_poly(28, 10, 18, Color(0.06, 0.04, 0.12, 0.52))
 	_shadow.position = Vector2(0, 34)
 	_shadow.z_index = -1
 	add_child(_shadow)
 
-	# Soft vertical shaft
+	# Soft vertical shaft — pale crystal light
 	var shaft := Polygon2D.new()
 	shaft.polygon = PackedVector2Array([
 		Vector2(-12, -180), Vector2(12, -180), Vector2(7, 24), Vector2(-7, 24)
 	])
-	shaft.color = Color(0.75, 0.55, 0.95, 0.07)
+	shaft.color = Color(0.82, 0.72, 0.98, 0.08)
 	shaft.z_index = -5
 	add_child(shaft)
 
-	# Floating crystal root — larger
 	_float_root = Node2D.new()
 	_float_root.name = "FloatRoot"
 	_float_root.position = Vector2(0, -18)
 	_float_root.z_index = 4
 	add_child(_float_root)
 
-	_rim_glow = FX.make_ellipse_poly(32, 42, 22, Color(0.7, 0.45, 0.95, 0.2))
+	_rim_glow = FX.make_ellipse_poly(34, 44, 22, Color(0.62, 0.48, 0.88, 0.2))
 	_rim_glow.position = Vector2(0, -12)
 	_rim_glow.z_index = -1
 	_float_root.add_child(_rim_glow)
 
-	# Dark outline shell (scaled up)
 	var outline := Polygon2D.new()
 	outline.polygon = _main_body_pts(1.14)
-	outline.color = Color(0.1, 0.08, 0.14, 0.95)
+	outline.color = Color(0.12, 0.09, 0.18, 0.95)
 	outline.z_index = 0
 	_float_root.add_child(outline)
 
-	# Main body — soft lavender base
+	# Clear lavender body (film crystal read)
 	_core = Polygon2D.new()
 	_core.polygon = _main_body_pts(1.0)
-	_core.color = Color(0.62, 0.55, 0.88, 1.0)
+	_core.color = Color(0.78, 0.74, 0.92, 1.0)
 	_core.z_index = 1
 	_float_root.add_child(_core)
 
-	# Multi facets: green / pink / purple planes
+	# Facets: river-green / dust-rose / amethyst (Thra refraction)
 	_add_facet([
 		Vector2(0, -72), Vector2(-22, -48), Vector2(-14, -8), Vector2(0, 4)
-	], Color(0.35, 0.82, 0.58, 0.88), 2)
+	], Color(0.38, 0.68, 0.60, 0.86), 2)
 
 	_add_facet([
 		Vector2(0, -72), Vector2(22, -48), Vector2(18, -6), Vector2(0, 4)
-	], Color(0.95, 0.55, 0.78, 0.82), 2)
+	], Color(0.82, 0.55, 0.68, 0.8), 2)
 
 	_add_facet([
 		Vector2(-22, -48), Vector2(-32, -12), Vector2(-18, 18), Vector2(-8, -4)
-	], Color(0.48, 0.38, 0.88, 0.8), 2)
+	], Color(0.42, 0.34, 0.72, 0.82), 2)
 
 	_add_facet([
 		Vector2(22, -48), Vector2(32, -12), Vector2(18, 18), Vector2(8, -4)
-	], Color(0.72, 0.42, 0.92, 0.78), 2)
+	], Color(0.58, 0.42, 0.82, 0.78), 2)
 
 	_add_facet([
 		Vector2(0, -72), Vector2(12, -54), Vector2(4, -28), Vector2(0, -16), Vector2(-8, -28)
-	], Color(0.85, 0.95, 0.75, 0.55), 3)
+	], Color(0.88, 0.82, 0.98, 0.55), 3)
 
 	_add_facet([
 		Vector2(0, -72), Vector2(12, -54), Vector2(0, -38), Vector2(-12, -54)
-	], Color(1.0, 0.92, 0.98, 0.92), 3)
+	], Color(0.98, 0.96, 1.0, 0.94), 3)
 
 	_add_facet([
 		Vector2(-10, 8), Vector2(0, 38), Vector2(10, 8), Vector2(0, -4)
-	], Color(0.55, 0.78, 0.62, 0.55), 2)
+	], Color(0.48, 0.68, 0.62, 0.52), 2)
 
 	_add_facet([
 		Vector2(-18, 18), Vector2(0, 42), Vector2(18, 18), Vector2(8, 28), Vector2(-8, 28)
-	], Color(0.78, 0.48, 0.85, 0.7), 3)
+	], Color(0.62, 0.42, 0.78, 0.68), 3)
 
-	# Inner heart — soft magenta/pink core
-	_heart = FX.make_ellipse_poly(8, 14, 12, Color(0.95, 0.55, 0.82, 0.95))
+	# Inner heart — soft pure-crystal white with amethyst pulse
+	_heart = FX.make_ellipse_poly(8, 14, 12, Color(0.92, 0.88, 0.98, 0.95))
 	_heart.position = Vector2(0, -8)
 	_heart.z_index = 4
 	_float_root.add_child(_heart)
 
-	# Crown tip
 	var tip := Polygon2D.new()
 	tip.polygon = PackedVector2Array([
 		Vector2(0, -86), Vector2(8, -70), Vector2(0, -62), Vector2(-8, -70)
 	])
-	tip.color = Color(0.9, 0.75, 1.0, 0.98)
+	tip.color = Color(0.95, 0.90, 1.0, 0.98)
 	tip.z_index = 4
 	_float_root.add_child(tip)
 	_facets.append(tip)
 
-	# Orbiting shards — green / pink / purple
+	# Orbiting shards — teal / rose / amethyst
 	var shard_cols := [
-		Color(0.4, 0.9, 0.65, 0.85),
-		Color(0.95, 0.55, 0.8, 0.85),
-		Color(0.7, 0.45, 0.95, 0.85),
+		Color(0.45, 0.78, 0.70, 0.88),
+		Color(0.86, 0.58, 0.68, 0.88),
+		Color(0.62, 0.48, 0.88, 0.88),
 	]
 	for i in 3:
 		var shard := Polygon2D.new()
@@ -196,7 +194,6 @@ func _process(_delta: float) -> void:
 	var t := Time.get_ticks_msec() * 0.001
 	_shimmer_t = t
 
-	# Bigger float bob
 	_float_y = -14.0 + sin(t * 1.15) * 6.5
 	if _float_root:
 		_float_root.position.y = _float_y
@@ -211,11 +208,11 @@ func _process(_delta: float) -> void:
 
 	if _rim_glow:
 		_rim_glow.modulate.a = 0.65 + 0.35 * sin(t * 1.9)
-		# Cycle rim hue green → pink → purple
-		var hue_t := fmod(t * 0.35, 3.0)
-		var g := Color(0.4, 0.9, 0.65, 0.22)
-		var p := Color(0.95, 0.5, 0.8, 0.22)
-		var u := Color(0.7, 0.4, 0.95, 0.22)
+		# Cycle: river green → dust rose → amethyst
+		var hue_t := fmod(t * 0.32, 3.0)
+		var g := Color(0.42, 0.72, 0.64, 0.22)
+		var p := Color(0.86, 0.52, 0.66, 0.22)
+		var u := Color(0.58, 0.42, 0.88, 0.22)
 		var rim: Color
 		if hue_t < 1.0:
 			rim = g.lerp(p, hue_t)
@@ -228,14 +225,12 @@ func _process(_delta: float) -> void:
 	if _core:
 		var pulse := 1.0 + 0.025 * sin(t * 2.2)
 		_core.scale = Vector2(pulse, pulse)
-		var healthy := Color(0.62, 0.55, 0.88, 1.0)
-		var hurt := Color(0.85, 0.28, 0.35, 1.0)
-		# Soft green-pink shimmer on body
-		var shimmer := 0.5 + 0.5 * sin(t * 1.6)
-		healthy = healthy.lerp(Color(0.5, 0.78, 0.7, 1.0), shimmer * 0.25)
+		var healthy := Color(0.78, 0.74, 0.92, 1.0)
+		var hurt := Color(0.82, 0.28, 0.38, 1.0)
+		var shimmer := 0.5 + 0.5 * sin(t * 1.5)
+		healthy = healthy.lerp(Color(0.55, 0.72, 0.70, 1.0), shimmer * 0.2)
 		_core.color = healthy.lerp(hurt, 1.0 - _health_t)
 
-	# Facet shimmer — pulse alpha / slight color drift
 	for i in _facets.size():
 		var f: Polygon2D = _facets[i]
 		if not is_instance_valid(f):
@@ -248,9 +243,9 @@ func _process(_delta: float) -> void:
 	if _heart:
 		var hp := 1.0 + 0.1 * sin(t * 3.2)
 		_heart.scale = Vector2(hp, hp)
-		var pink := Color(0.95, 0.55, 0.82, 0.95)
-		var dim := Color(0.75, 0.3, 0.3, 0.8)
-		var pulse_col := pink.lerp(Color(0.7, 0.45, 0.95, 0.95), 0.5 + 0.5 * sin(t * 1.8))
+		var pure := Color(0.95, 0.92, 1.0, 0.95)
+		var dim := Color(0.72, 0.28, 0.35, 0.8)
+		var pulse_col := pure.lerp(Color(0.62, 0.48, 0.88, 0.95), 0.45 + 0.45 * sin(t * 1.7))
 		_heart.color = pulse_col.lerp(dim, 1.0 - _health_t)
 
 	if _float_root:

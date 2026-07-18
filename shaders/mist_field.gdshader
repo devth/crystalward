@@ -1,7 +1,8 @@
 shader_type canvas_item;
 
-uniform vec4 mist_a : source_color = vec4(0.45, 0.25, 0.7, 0.35);
-uniform vec4 mist_b : source_color = vec4(0.25, 0.55, 0.45, 0.25);
+// Castle mist — amethyst + Bismark steel-teal
+uniform vec4 mist_a : source_color = vec4(0.42, 0.28, 0.62, 0.32);
+uniform vec4 mist_b : source_color = vec4(0.28, 0.48, 0.52, 0.22);
 uniform float speed : hint_range(0.1, 3.0) = 0.6;
 
 float hash(vec2 p) {

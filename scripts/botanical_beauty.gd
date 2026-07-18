@@ -3,13 +3,14 @@ extends Node2D
 ## Lushness lives in the ground shader materials.
 
 
-const LEGEND_GREEN := Color(0.36, 0.52, 0.4)
-const LEGEND_MOSS := Color(0.32, 0.48, 0.36)
-const LEGEND_BLOOM_PINK := Color(0.85, 0.55, 0.7)
-const LEGEND_BLOOM_LILAC := Color(0.7, 0.58, 0.88)
-const LEGEND_BLOOM_GOLD := Color(0.92, 0.8, 0.45)
-const LEGEND_BLOOM_WHITE := Color(0.8, 0.92, 0.95)
-const LEGEND_FERN := Color(0.34, 0.5, 0.38)
+# Thra blooms — river green, dust rose, amethyst, soft crystal white
+const LEGEND_GREEN := Color(0.34, 0.50, 0.44)
+const LEGEND_MOSS := Color(0.28, 0.42, 0.38)
+const LEGEND_BLOOM_PINK := Color(0.80, 0.52, 0.62)
+const LEGEND_BLOOM_LILAC := Color(0.62, 0.48, 0.82)
+const LEGEND_BLOOM_GOLD := Color(0.88, 0.76, 0.48)
+const LEGEND_BLOOM_WHITE := Color(0.86, 0.88, 0.96)
+const LEGEND_FERN := Color(0.30, 0.46, 0.40)
 
 
 func paint(parent: Node2D) -> void:

@@ -1,29 +1,48 @@
 extends Node
-## Crystalward visual language — ethereal gold + pastel shimmer.
+## Crystalward visual language — The Dark Crystal / Thra ethereal palette.
 ## Autoloaded as VisualStyle.
-## Outlines stay strong so actors read clearly on the soft world.
+## Reference: deep Astronomist violet, Bismark steel-blue, River Green teal,
+## pure crystal lavender-white, soft amber light flex (Froud fairy-tale grade).
 
-const OUTLINE := Color(0.12, 0.08, 0.18, 0.96)
-const SHADOW := Color(0.12, 0.08, 0.16, 0.42)
-const P1_TINT := Color(0.55, 0.92, 0.9)   # soft cyan crystal warden
-const P2_TINT := Color(0.82, 0.62, 0.95)  # pastel violet warden
-const PATH_DIRT := Color(0.48, 0.38, 0.32, 0.95)
-const TOWER_MOSS := Color(0.42, 0.58, 0.48)
-const ESSENCE_GLOW := Color(0.65, 0.95, 0.92)
-const CRYSTAL_CORE := Color(0.7, 0.92, 0.98)
-const UI_CREAM := Color(0.97, 0.94, 0.98)
-const UI_INK := Color(0.16, 0.12, 0.2)
-# Ethereal glade palette — soft gold, sage, lilac pearl
-const FOREST_DEEP := Color(0.16, 0.2, 0.22)
-const FOREST_MOSS := Color(0.32, 0.48, 0.4)
-const FOREST_MIST := Color(0.62, 0.52, 0.78)
-const LEGEND_MEADOW := Color(0.4, 0.58, 0.48)
-const LEGEND_BLOOM := Color(0.78, 0.58, 0.9)
-const LEGEND_GOLDEN_HOUR := Color(0.96, 0.84, 0.5)
-const PASTEL_BLUSH := Color(0.92, 0.7, 0.78)
-const PASTEL_LILAC := Color(0.75, 0.68, 0.92)
-const PASTEL_MINT := Color(0.62, 0.88, 0.78)
-const CHAMPAGNE := Color(0.96, 0.88, 0.62)
+# ── Dark Crystal core swatches ──────────────────────────────────────────────
+## #473B6E Astronomist — castle stone / night shadow
+const ASTRONOMIST := Color(0.278, 0.231, 0.431)
+## #456988 Bismark — mist, water, cold stone
+const BISMARK := Color(0.271, 0.412, 0.533)
+## #6DA195 River Green — Thra moss / living green
+const RIVER_GREEN := Color(0.427, 0.631, 0.584)
+## Pure Crystal heart (clear gem + violet energy)
+const CRYSTAL_WHITE := Color(0.93, 0.90, 0.98)
+const CRYSTAL_AMETHYST := Color(0.62, 0.48, 0.82)
+const CRYSTAL_TEAL_FACET := Color(0.45, 0.72, 0.68)
+## Light-flex warm accents (film fairy-tale grade — sparingly)
+const THRA_AMBER := Color(0.90, 0.78, 0.48)
+const DUST_ROSE := Color(0.78, 0.55, 0.62)
+const SKY_VIOLET := Color(0.42, 0.35, 0.58)
+
+# ── Gameplay tokens ─────────────────────────────────────────────────────────
+const OUTLINE := Color(0.10, 0.07, 0.16, 0.96)
+const SHADOW := Color(0.10, 0.06, 0.16, 0.48)
+const P1_TINT := Color(0.55, 0.88, 0.90)   # soft crystal cyan warden
+const P2_TINT := Color(0.78, 0.58, 0.92)  # amethyst warden
+const PATH_DIRT := Color(0.42, 0.38, 0.40, 0.95)  # cool mauve-taupe trail
+const TOWER_MOSS := Color(0.38, 0.55, 0.48)
+const ESSENCE_GLOW := Color(0.72, 0.88, 0.92)
+const CRYSTAL_CORE := Color(0.78, 0.72, 0.95)
+const UI_CREAM := Color(0.94, 0.92, 0.98)
+const UI_INK := Color(0.12, 0.09, 0.18)
+
+# Ethereal Thra glade
+const FOREST_DEEP := Color(0.12, 0.16, 0.18)
+const FOREST_MOSS := Color(0.28, 0.42, 0.38)
+const FOREST_MIST := Color(0.48, 0.40, 0.62)
+const LEGEND_MEADOW := Color(0.36, 0.52, 0.46)
+const LEGEND_BLOOM := Color(0.72, 0.52, 0.78)
+const LEGEND_GOLDEN_HOUR := Color(0.90, 0.78, 0.48)
+const PASTEL_BLUSH := Color(0.82, 0.62, 0.70)
+const PASTEL_LILAC := Color(0.68, 0.58, 0.88)
+const PASTEL_MINT := Color(0.52, 0.78, 0.72)
+const CHAMPAGNE := Color(0.90, 0.82, 0.58)
 
 ## Z layers — ground always under actors. Never use Main y_sort (covers north map).
 ## Godot CanvasItem.z_index is clamped to [-4096, 4096]; stay well inside that.
@@ -68,7 +87,7 @@ func apply_sprite_outline(sprite: CanvasItem, width: float = 1.35) -> void:
 	var mat := ShaderMaterial.new()
 	mat.shader = _outline_shader
 	mat.set_shader_parameter("outline_color", OUTLINE)
-	# Slightly stronger outline so sprites pop on pastel ground
+	# Slightly stronger outline so sprites pop on soft ground
 	mat.set_shader_parameter("outline_width", maxf(width, 1.25))
 	sprite.material = mat
 
@@ -90,17 +109,19 @@ func make_blob_shadow(parent: Node2D, rx: float = 18.0, ry: float = 8.0, y: floa
 func style_game_label(label: Label, size: int = 16, cream: bool = true) -> void:
 	label.add_theme_font_size_override("font_size", size)
 	label.add_theme_color_override("font_color", UI_CREAM if cream else UI_INK)
-	label.add_theme_color_override("font_outline_color", Color(0.05, 0.04, 0.1, 0.9))
+	label.add_theme_color_override("font_outline_color", Color(0.06, 0.04, 0.12, 0.92))
 	label.add_theme_constant_override("outline_size", 5)
 
 
 func style_hud_panel(panel: PanelContainer) -> void:
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.06, 0.05, 0.1, 0.92)
+	# Deep purple-black castle glass
+	sb.bg_color = Color(0.07, 0.05, 0.12, 0.93)
 	sb.set_corner_radius_all(12)
-	sb.border_color = Color(0.45, 0.7, 0.75, 0.4)
+	# Soft amethyst + river-green rim
+	sb.border_color = Color(0.52, 0.42, 0.72, 0.45)
 	sb.set_border_width_all(1)
-	sb.shadow_color = Color(0, 0, 0, 0.45)
+	sb.shadow_color = Color(0.08, 0.04, 0.14, 0.5)
 	sb.shadow_size = 8
 	sb.shadow_offset = Vector2(0, 3)
 	sb.content_margin_left = 14

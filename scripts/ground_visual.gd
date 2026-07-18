@@ -2,8 +2,8 @@ extends Node2D
 ## Ground + dirt roads + forest props.
 ## All ground art stays under actors (Ground node z=-200 absolute). Props use local z only.
 
-# Soft natural canopy tint for sparse trees only
-const FOREST_MODULATE := Color(0.48, 0.68, 0.52)
+# Thra canopy tint — river-green with cool violet undertone
+const FOREST_MODULATE := Color(0.42, 0.58, 0.52)
 const FLOOR_EXTENT := 3200.0
 ## Soft dirt-road gradient texture (V = across road width). Cached once.
 static var _dirt_tex: Texture2D
@@ -75,7 +75,7 @@ func _build_floor() -> void:
 		fm.shader = lush
 		floor_poly.material = fm
 	else:
-		floor_poly.color = Color(0.16, 0.42, 0.22)
+		floor_poly.color = Color(0.14, 0.30, 0.26)
 	add_child(floor_poly)
 
 
@@ -115,23 +115,23 @@ func _build_altitude_field() -> void:
 			var a: float
 			var r := 52.0 + absf(elev) * 48.0 + slope * 40.0
 			if elev > 0.55:
-				col = Color(0.38, 0.38, 0.42, 1.0)  # high rock
+				col = Color(0.36, 0.34, 0.44, 1.0)  # high violet stone
 				a = 0.16 + elev * 0.14
 				r *= 1.1
 			elif elev > 0.28:
-				col = Color(0.28, 0.46, 0.28, 1.0)  # upper meadow
+				col = Color(0.26, 0.42, 0.36, 1.0)  # upper river-green meadow
 				a = 0.14 + elev * 0.12
 			elif elev > 0.05:
-				col = Color(0.22, 0.4, 0.24, 1.0)  # mid grass
+				col = Color(0.20, 0.36, 0.30, 1.0)  # mid Thra moss
 				a = 0.1 + elev * 0.1
 			elif elev > -0.2:
-				col = Color(0.18, 0.32, 0.22, 1.0)  # low grass
+				col = Color(0.16, 0.28, 0.26, 1.0)  # low glade
 				a = 0.08 + absf(elev) * 0.06
 			elif elev > -0.5:
-				col = Color(0.16, 0.26, 0.28, 1.0)  # damp hollow
+				col = Color(0.14, 0.24, 0.30, 1.0)  # damp Bismark hollow
 				a = 0.12 + absf(elev) * 0.1
 			else:
-				col = Color(0.14, 0.22, 0.3, 1.0)  # deep basin
+				col = Color(0.14, 0.16, 0.28, 1.0)  # deep Astronomist basin
 				a = 0.14 + absf(elev) * 0.1
 
 			col.a = clampf(a, 0.06, 0.32)
@@ -169,7 +169,7 @@ func _build_altitude_field() -> void:
 				var lit_pos := pos + uphill * 18.0
 				var lit := _organic_poly(
 					lit_pos, r * 0.45, 0.5, 8, rng,
-					Color(0.45, 0.55, 0.38, clampf(0.04 + slope * 4.0, 0.04, 0.12)), Z_HILL + 1
+					Color(0.42, 0.55, 0.48, clampf(0.04 + slope * 4.0, 0.04, 0.12)), Z_HILL + 1
 				)
 				add_child(lit)
 
@@ -183,7 +183,7 @@ func _build_altitude_field() -> void:
 				cliff.polygon = PackedVector2Array([
 					base - side, base + side, base + side * 0.4 + up, base - side * 0.4 + up
 				])
-				cliff.color = Color(0.3, 0.3, 0.34, 0.35 + elev * 0.15)
+				cliff.color = Color(0.28, 0.26, 0.36, 0.35 + elev * 0.15)
 				cliff.z_index = Z_HILL + 2
 				add_child(cliff)
 
@@ -203,9 +203,9 @@ func _build_altitude_field() -> void:
 			var pts := _organic_shore_pts(c, rad * t, 0.7, 16, rng, 100 + ri, stretch, fang)
 			var ring_col: Color
 			if elev_f > 0.0:
-				ring_col = Color(0.3, 0.48, 0.3, 0.07 + elev_f * 0.04)
+				ring_col = Color(0.28, 0.44, 0.38, 0.07 + elev_f * 0.04)
 			else:
-				ring_col = Color(0.2, 0.32, 0.38, 0.08 + absf(elev_f) * 0.05)
+				ring_col = Color(0.22, 0.28, 0.42, 0.08 + absf(elev_f) * 0.05)
 			_add_filled_poly(pts, ring_col, Z_HILL)
 
 
@@ -232,31 +232,31 @@ func _build_elevation_base() -> void:
 				continue
 			var r := 36.0 + absf(elev) * 70.0
 			if elev > 0.4:
-				var rock := _organic_poly(pos, r * 0.85, 0.68, 10, rng, Color(0.34, 0.34, 0.38, 0.14 + elev * 0.1), Z_HILL + 1)
+				var rock := _organic_poly(pos, r * 0.85, 0.68, 10, rng, Color(0.32, 0.30, 0.40, 0.14 + elev * 0.1), Z_HILL + 1)
 				add_child(rock)
 			elif elev < -0.25:
-				var wet := _organic_poly(pos, r * 1.05, 0.72, 12, rng, Color(0.18, 0.28, 0.26, 0.12 + absf(elev) * 0.1), Z_HILL)
+				var wet := _organic_poly(pos, r * 1.05, 0.72, 12, rng, Color(0.16, 0.26, 0.30, 0.12 + absf(elev) * 0.1), Z_HILL)
 				add_child(wet)
 	for f in PathNetwork.features:
 		if str(f.get("kind", "")) not in ["lake", "pond"]:
 			continue
 		var c: Vector2 = f.get("pos", Vector2.ZERO)
 		var rad: float = float(f.get("radius", 100.0))
-		var sand := _organic_poly(c, rad * 1.28, 0.72, 16, rng, Color(0.44, 0.4, 0.3, 0.2), Z_HILL)
+		var sand := _organic_poly(c, rad * 1.28, 0.72, 16, rng, Color(0.42, 0.38, 0.34, 0.2), Z_HILL)
 		add_child(sand)
 
 
 func _build_plaza() -> void:
-	## Open glade around the crystal — dirt/grass clearing, not fog or prop circle.
-	var outer := _ellipse(Vector2(0, 40), 320, 200, Color(0.22, 0.32, 0.24, 0.35), Z_PLAZA)
+	## Open glade around the crystal — soft Thra clearing, amethyst light.
+	var outer := _ellipse(Vector2(0, 40), 320, 200, Color(0.18, 0.28, 0.26, 0.36), Z_PLAZA)
 	add_child(outer)
-	var clear := _ellipse(Vector2(0, 40), 220, 140, Color(0.32, 0.28, 0.22, 0.4), Z_PLAZA)
+	var clear := _ellipse(Vector2(0, 40), 220, 140, Color(0.28, 0.26, 0.34, 0.38), Z_PLAZA)
 	add_child(clear)
-	# Soft packed earth pad the crystal sits on
-	var pad := _ellipse(Vector2(0, 40), 90, 48, Color(0.4, 0.32, 0.24, 0.45), Z_PLAZA)
+	# Cool stone pad under the crystal
+	var pad := _ellipse(Vector2(0, 40), 90, 48, Color(0.32, 0.28, 0.38, 0.48), Z_PLAZA)
 	add_child(pad)
-	# Very subtle warm rim (not a fog ball)
-	var warm := _ellipse(Vector2(0, 40), 70, 38, Color(0.9, 0.78, 0.45, 0.1), Z_PLAZA)
+	# Soft crystal light wash (amethyst, not fog)
+	var warm := _ellipse(Vector2(0, 40), 70, 38, Color(0.72, 0.58, 0.88, 0.12), Z_PLAZA)
 	add_child(warm)
 	# Four standing stones only — landmarks, not clutter
 	var rng := RandomNumberGenerator.new()
@@ -452,7 +452,7 @@ func _add_natural_water(f: Dictionary, rng: RandomNumberGenerator) -> void:
 	_add_filled_poly(wet, Color(0.12, 0.2, 0.18, 0.5), Z_WATER + 2)
 
 	# Main water surface (organic)
-	var water_col := Color(0.3, 0.55, 0.65, 0.78) if is_pond else Color(0.26, 0.5, 0.62, 0.8)
+	var water_col := Color(0.32, 0.52, 0.62, 0.78) if is_pond else Color(0.28, 0.45, 0.58, 0.8)
 	var water := _organic_shore_pts(center, r * 0.98, 0.68, 20, rng, seed + 3, stretch, 0.05)
 	_add_filled_poly(water, water_col, Z_WATER + 3)
 
@@ -465,12 +465,12 @@ func _add_natural_water(f: Dictionary, rng: RandomNumberGenerator) -> void:
 		var lrx: float = float(lobe.get("rx", 0.7)) * r
 		var lry: float = float(lobe.get("ry", 0.5)) * r
 		var deep := _organic_shore_pts(center + o, maxf(lrx, lry) * 0.7, lry / maxf(0.2, lrx), 12, rng, seed + 10 + i, Vector2(1.0, 1.0), rng.randf() * 0.5)
-		_add_filled_poly(deep, Color(0.16, 0.32, 0.5, 0.55), Z_WATER + 4)
+		_add_filled_poly(deep, Color(0.16, 0.28, 0.48, 0.55), Z_WATER + 4)
 
 	# Shallow bay highlight
 	var bay_o := Vector2(r * 0.2, -r * 0.08)
 	var shallow := _organic_shore_pts(center + bay_o, r * 0.38, 0.65, 10, rng, seed + 20, Vector2(1.3, 0.7), 0.3)
-	_add_filled_poly(shallow, Color(0.42, 0.68, 0.72, 0.28), Z_WATER + 4)
+	_add_filled_poly(shallow, Color(0.40, 0.62, 0.68, 0.28), Z_WATER + 4)
 
 	# Specular flecks inside water (few)
 	for i in (3 if is_pond else 6):
@@ -627,7 +627,7 @@ func _add_crystal_grove(center: Vector2, radius: float, rng: RandomNumberGenerat
 		var p := center + o
 		if PathNetwork and PathNetwork.dist_to_path(p) < PATH_CLEAR:
 			continue
-		var tint := Color(0.55, 0.9, 0.95, 0.9) if i % 2 == 0 else Color(0.95, 0.75, 0.45, 0.88)
+		var tint := Color(0.55, 0.78, 0.82, 0.9) if i % 2 == 0 else Color(0.68, 0.52, 0.88, 0.88)
 		_add_ethereal_crystal(p, rng.randf_range(0.85, 1.45), tint, rng)
 
 
@@ -705,8 +705,8 @@ func _add_forest_cluster(
 func _build_landmarks() -> void:
 	# Two small crystal markers far from well — don't compete with home crystal.
 	var crystals: Array = [
-		[Vector2(-280, -160), 0.75, Color(0.6, 0.88, 0.95, 0.85)],
-		[Vector2(300, -140), 0.7, Color(0.95, 0.82, 0.5, 0.85)],
+		[Vector2(-280, -160), 0.75, Color(0.55, 0.78, 0.80, 0.85)],
+		[Vector2(300, -140), 0.7, Color(0.72, 0.55, 0.88, 0.85)],
 	]
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 77
@@ -728,11 +728,11 @@ func _build_botanicals() -> void:
 func _build_atmosphere_light() -> void:
 	if FX == null:
 		return
-	# Champagne gold + lilac pearl motes (ethereal shimmer, light density)
-	var amber := FX.spark_particles(self, Color(0.98, 0.88, 0.55, 0.45), 20, "star")
+	# Crystal motes — amber light-flex, teal essence, amethyst spark
+	var amber := FX.spark_particles(self, Color(0.90, 0.78, 0.48, 0.4), 20, "star")
 	amber.position = Vector2(0, 40)
 	amber.z_index = Z_DECOR
-	amber.amount = 18
+	amber.amount = 16
 	amber.lifetime = 4.0
 	var pm := amber.process_material as ParticleProcessMaterial
 	if pm:
@@ -741,11 +741,11 @@ func _build_atmosphere_light() -> void:
 		pm.initial_velocity_min = 1.0
 		pm.initial_velocity_max = 7.0
 		pm.gravity = Vector3(0, -2.0, 0)
-	var cyan := FX.spark_particles(self, Color(0.65, 0.92, 0.96, 0.38), 14, "glow")
+	var cyan := FX.spark_particles(self, Color(0.52, 0.78, 0.78, 0.36), 14, "glow")
 	cyan.position = Vector2(0, 30)
 	cyan.z_index = Z_DECOR
 	cyan.amount = 14
-	var violet := FX.spark_particles(self, Color(0.82, 0.68, 0.96, 0.3), 12, "magic")
+	var violet := FX.spark_particles(self, Color(0.68, 0.52, 0.88, 0.32), 12, "magic")
 	violet.position = Vector2(0, 60)
 	violet.z_index = Z_DECOR
 	violet.amount = 12
@@ -875,10 +875,10 @@ func _add_path_ribbon(pts: PackedVector2Array, half_width: float) -> void:
 	_dirt_edge_tex = null
 	_ensure_dirt_textures()
 
-	# Soft green verge — blends into forest floor
+	# Soft river-green verge — blends into Thra floor
 	var moss := Line2D.new()
 	moss.width = half_width * 2.15
-	moss.default_color = Color(0.16, 0.28, 0.18, 0.42)
+	moss.default_color = Color(0.14, 0.26, 0.22, 0.44)
 	moss.begin_cap_mode = Line2D.LINE_CAP_ROUND
 	moss.end_cap_mode = Line2D.LINE_CAP_ROUND
 	moss.joint_mode = Line2D.LINE_JOINT_ROUND
@@ -910,7 +910,7 @@ func _ensure_dirt_textures() -> void:
 
 
 func _make_dirt_gradient_tex(for_edge: bool) -> Texture2D:
-	## Cool forest path: grey-taupe dirt with soft greenish rim. Not orange-brown.
+	## Thra path: cool mauve-taupe with river-green rim (castle-road, not mud).
 	var w := 24
 	var h := 96
 	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
@@ -921,15 +921,15 @@ func _make_dirt_gradient_tex(for_edge: bool) -> Texture2D:
 
 		var col: Color
 		if for_edge:
-			# Soft mossy shoulder
-			var mid := Color(0.28, 0.32, 0.26, 0.55)
-			var out := Color(0.18, 0.26, 0.18, 0.0)
+			# Soft mossy shoulder with violet undertone
+			var mid := Color(0.26, 0.32, 0.30, 0.55)
+			var out := Color(0.16, 0.24, 0.22, 0.0)
 			col = mid.lerp(out, t)
 		else:
-			# Cool packed earth (desaturated — reads as trail, not mud)
-			var crown := Color(0.52, 0.48, 0.42, 1.0)   # light dusty center
-			var body := Color(0.40, 0.38, 0.34, 1.0)    # cool taupe
-			var rim := Color(0.30, 0.32, 0.28, 1.0)     # greenish earth edge
+			# Cool packed earth with slight mauve (stone dust of Thra)
+			var crown := Color(0.50, 0.46, 0.48, 1.0)   # dusty center
+			var body := Color(0.38, 0.36, 0.40, 1.0)    # mauve taupe
+			var rim := Color(0.28, 0.32, 0.30, 1.0)     # river-green earth edge
 			col = crown.lerp(body, t * 0.65).lerp(rim, t * 0.85)
 			# Soft alpha at extreme edge so it merges with grass verge
 			col.a = clampf(1.0 - pow(edge, 2.6) * 0.28, 0.82, 1.0)

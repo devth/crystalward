@@ -3,18 +3,19 @@ shader_type canvas_item;
 // Material-first forest floor: grass, dirt, rock, sand, wet shore.
 // Subtle textures — not sparkle junk. Clear midtones for gameplay.
 
-uniform vec4 col_shadow : source_color = vec4(0.10, 0.12, 0.11, 1.0);
-uniform vec4 col_grass_deep : source_color = vec4(0.14, 0.28, 0.18, 1.0);
-uniform vec4 col_grass : source_color = vec4(0.22, 0.40, 0.26, 1.0);
-uniform vec4 col_grass_lit : source_color = vec4(0.34, 0.52, 0.32, 1.0);
-uniform vec4 col_dirt_dark : source_color = vec4(0.20, 0.14, 0.10, 1.0);
-uniform vec4 col_dirt : source_color = vec4(0.36, 0.26, 0.18, 1.0);
-uniform vec4 col_dirt_lit : source_color = vec4(0.48, 0.36, 0.24, 1.0);
-uniform vec4 col_sand : source_color = vec4(0.52, 0.46, 0.32, 1.0);
-uniform vec4 col_rock : source_color = vec4(0.28, 0.28, 0.32, 1.0);
-uniform vec4 col_rock_lit : source_color = vec4(0.42, 0.42, 0.46, 1.0);
-uniform vec4 col_wet : source_color = vec4(0.16, 0.26, 0.28, 1.0);
-uniform vec4 col_moss : source_color = vec4(0.28, 0.42, 0.24, 1.0);
+// Thra floor — Dark Crystal: deep violet shadow, river-green moss, cool stone
+uniform vec4 col_shadow : source_color = vec4(0.10, 0.08, 0.14, 1.0);
+uniform vec4 col_grass_deep : source_color = vec4(0.12, 0.22, 0.20, 1.0);
+uniform vec4 col_grass : source_color = vec4(0.20, 0.36, 0.30, 1.0);
+uniform vec4 col_grass_lit : source_color = vec4(0.32, 0.50, 0.42, 1.0);
+uniform vec4 col_dirt_dark : source_color = vec4(0.18, 0.14, 0.16, 1.0);
+uniform vec4 col_dirt : source_color = vec4(0.32, 0.28, 0.30, 1.0);
+uniform vec4 col_dirt_lit : source_color = vec4(0.44, 0.40, 0.38, 1.0);
+uniform vec4 col_sand : source_color = vec4(0.48, 0.42, 0.36, 1.0);
+uniform vec4 col_rock : source_color = vec4(0.26, 0.24, 0.34, 1.0);
+uniform vec4 col_rock_lit : source_color = vec4(0.40, 0.38, 0.48, 1.0);
+uniform vec4 col_wet : source_color = vec4(0.14, 0.24, 0.30, 1.0);
+uniform vec4 col_moss : source_color = vec4(0.26, 0.42, 0.36, 1.0);
 uniform float scale : hint_range(1.0, 40.0) = 14.0;
 uniform float time_scale : hint_range(0.0, 1.0) = 0.01;
 

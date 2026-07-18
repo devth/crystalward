@@ -13,8 +13,8 @@ func _draw() -> void:
 	var r := view_size
 	var center := Vector2(r * 0.5, r * 0.5)
 	# Background
-	draw_circle(center, r * 0.48, Color(0.05, 0.07, 0.06, 0.9))
-	draw_arc(center, r * 0.48, 0, TAU, 48, Color(0.5, 0.45, 0.32, 0.65), 2.0)
+	draw_circle(center, r * 0.48, Color(0.06, 0.05, 0.10, 0.9))
+	draw_arc(center, r * 0.48, 0, TAU, 48, Color(0.42, 0.38, 0.58, 0.65), 2.0)
 
 	# Paths
 	if PathNetwork:
@@ -23,10 +23,10 @@ func _draw() -> void:
 			for i in range(pts.size() - 1):
 				var a := _world_to_mini(pts[i], center)
 				var b := _world_to_mini(pts[i + 1], center)
-				draw_line(a, b, Color(0.55, 0.4, 0.25, 0.55), 1.8)
+				draw_line(a, b, Color(0.48, 0.42, 0.45, 0.55), 1.8)
 
 	# Crystal
-	draw_circle(_world_to_mini(PathNetwork.CRYSTAL if PathNetwork else Vector2.ZERO, center), 4.0, Color(0.55, 0.85, 0.95, 0.95))
+	draw_circle(_world_to_mini(PathNetwork.CRYSTAL if PathNetwork else Vector2.ZERO, center), 4.0, Color(0.72, 0.62, 0.95, 0.95))
 
 	# Enemies / wardens / fairies
 	var tree := get_tree()

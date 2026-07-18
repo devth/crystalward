@@ -60,16 +60,16 @@ func _build_visuals() -> void:
 		VisualStyle.make_blob_shadow(self, 42, 20, 12)
 	_platform = Node2D.new()
 	add_child(_platform)
-	# Large ethereal crystal plinth — readable build pad from far away
-	var outer := FX.make_ellipse_poly(48, 26, 32, Color(0.16, 0.14, 0.26, 0.88))
+	# Large ethereal plinth — Astronomist stone + crystal light
+	var outer := FX.make_ellipse_poly(48, 26, 32, Color(0.14, 0.11, 0.22, 0.9))
 	_platform.add_child(outer)
-	var ring := FX.make_ellipse_poly(40, 21, 30, Color(0.45, 0.75, 0.85, 0.28))
+	var ring := FX.make_ellipse_poly(40, 21, 30, Color(0.42, 0.55, 0.62, 0.28))
 	_platform.add_child(ring)
-	var mid := FX.make_ellipse_poly(32, 17, 28, Color(0.32, 0.26, 0.45, 0.82))
+	var mid := FX.make_ellipse_poly(32, 17, 28, Color(0.30, 0.24, 0.42, 0.84))
 	_platform.add_child(mid)
-	var glow := FX.make_ellipse_poly(20, 11, 20, Color(0.55, 0.9, 0.98, 0.32))
+	var glow := FX.make_ellipse_poly(20, 11, 20, Color(0.58, 0.48, 0.85, 0.34))
 	_platform.add_child(glow)
-	var inner := FX.make_ellipse_poly(12, 7, 16, Color(0.95, 0.8, 0.45, 0.45))
+	var inner := FX.make_ellipse_poly(12, 7, 16, Color(0.88, 0.78, 0.52, 0.42))
 	_platform.add_child(inner)
 	# Dashed-feel spokes so empty pads read as “build here”
 	for i in 6:
@@ -78,7 +78,7 @@ func _build_visuals() -> void:
 		spoke.polygon = PackedVector2Array([
 			Vector2(-2, 0), Vector2(2, 0), Vector2(1.5, -10), Vector2(-1.5, -10)
 		])
-		spoke.color = Color(0.65, 0.9, 0.95, 0.4)
+		spoke.color = Color(0.62, 0.72, 0.88, 0.42)
 		spoke.position = Vector2(cos(ang), sin(ang) * 0.65) * 28.0
 		spoke.rotation = ang + PI * 0.5
 		_platform.add_child(spoke)
@@ -91,7 +91,13 @@ func _build_visuals() -> void:
 		shard.polygon = PackedVector2Array([
 			Vector2(0, -h), Vector2(5, -h * 0.4), Vector2(2.5, 3), Vector2(-2.5, 3), Vector2(-5, -h * 0.4)
 		])
-		shard.color = Color(0.55, 0.9, 0.95, 0.85) if i != 1 else Color(0.95, 0.75, 0.45, 0.88)
+		# Teal / amethyst / amber crystal shards
+		var scols := [
+			Color(0.48, 0.78, 0.72, 0.88),
+			Color(0.68, 0.52, 0.88, 0.9),
+			Color(0.90, 0.78, 0.48, 0.88),
+		]
+		shard.color = scols[i]
 		shard.position = Vector2(sin(ang) * 12.0, -8)
 		shard.rotation = ang * 0.35
 		_crystal_ornament.add_child(shard)

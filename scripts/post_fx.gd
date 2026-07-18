@@ -37,23 +37,23 @@ func _try_soft_bloom() -> bool:
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var mat := ShaderMaterial.new()
 	mat.shader = sh
-	# Mild bloom on highlights only — crystal silhouette must stay readable
-	mat.set_shader_parameter("bloom_intensity", 0.16)
-	mat.set_shader_parameter("bloom_threshold", 0.72)
-	mat.set_shader_parameter("saturation", 1.04)
-	mat.set_shader_parameter("contrast", 1.12)
-	mat.set_shader_parameter("tint", Color(1.02, 1.0, 1.02, 1.0))
-	mat.set_shader_parameter("gold_lift", 0.015)
-	mat.set_shader_parameter("clarity", 0.55)
+	# Mild bloom — Dark Crystal violet/teal grade, crystal stays readable
+	mat.set_shader_parameter("bloom_intensity", 0.18)
+	mat.set_shader_parameter("bloom_threshold", 0.70)
+	mat.set_shader_parameter("saturation", 1.06)
+	mat.set_shader_parameter("contrast", 1.1)
+	mat.set_shader_parameter("tint", Color(0.99, 0.97, 1.04, 1.0))
+	mat.set_shader_parameter("gold_lift", 0.018)
+	mat.set_shader_parameter("clarity", 0.52)
 	rect.material = mat
 	add_child(rect)
 	return true
 
 
 func _add_simple_vignette() -> void:
-	# Soft lilac edge without screen-texture (safe on headless / compatibility).
+	# Soft Astronomist-violet edge without screen-texture (safe on headless).
 	var rect := ColorRect.new()
 	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	rect.color = Color(0.22, 0.14, 0.28, 0.08)
+	rect.color = Color(0.18, 0.12, 0.28, 0.1)
 	add_child(rect)

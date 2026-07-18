@@ -17,7 +17,7 @@ const DEFS := {
 		"target": "ground",
 		"target_label": "GND",
 		"cost": 28,
-		"color": Color(0.72, 0.55, 0.38),
+		"color": Color(0.68, 0.52, 0.42),
 		"desc": "Soldiers leave the pad and block ground foes.",
 		"damage": 10,
 		"fire_rate": 0.55,
@@ -39,7 +39,7 @@ const DEFS := {
 		"target": "both",
 		"target_label": "ALL",
 		"cost": 24,
-		"color": Color(0.55, 0.78, 0.95),
+		"color": Color(0.58, 0.68, 0.92),
 		"desc": "Hits air & ground. Upgrade → Physical or Magical.",
 		"damage": 11,
 		"fire_rate": 0.48,
@@ -56,7 +56,7 @@ const DEFS := {
 		"target": "ground",
 		"target_label": "GND",
 		"cost": 30,
-		"color": Color(0.42, 0.72, 0.38),
+		"color": Color(0.40, 0.66, 0.52),
 		"desc": "Slow heavy ground hits. Upgrade → AOE splash.",
 		"damage": 34,
 		"fire_rate": 0.95,
@@ -237,9 +237,9 @@ func branch_label(branch: String) -> String:
 func branch_color(branch: String) -> Color:
 	match branch:
 		BRANCH_MAGICAL:
-			return Color(0.72, 0.48, 0.95)
+			return Color(0.68, 0.48, 0.88)
 		_:
-			return Color(0.55, 0.85, 0.45)
+			return Color(0.48, 0.78, 0.58)
 
 
 func def_for(id: String) -> Dictionary:
