@@ -9,8 +9,8 @@ enum State { EMPTY, QUEUED, BUILT }
 var state: State = State.EMPTY
 var _queue_left: float = 0.0
 var _tower: Node2D = null
-var _queued_type: String = "dualshot"
-var _preview_type: String = "dualshot"
+var _queued_type: String = "arrow"
+var _preview_type: String = "arrow"
 var _last_builder: int = 0
 var _platform: Node2D
 var _range_preview: Polygon2D
@@ -138,23 +138,19 @@ func _refresh_label() -> void:
 			State.EMPTY:
 				var d: Dictionary = TowerTypes.def_for(_preview_type)
 				var n := TowerTypes.unlocked_count()
-				var extra := ""
-				if str(_preview_type) == "dualshot":
-					var br: String = TowerTypes.selected_branch_for(_last_builder)
-					extra = " →%s" % TowerTypes.branch_label(br)
-				_label.text = "%s%s %d✦  Z/X · %d" % [d.get("name"), extra, d.get("cost"), n]
+				var cap := TowerTypes.max_level_for(_preview_type) if TowerTypes.has_method("max_level_for") else 1
+				_label.text = "%s %d✦  Z/X · %d  (max Lv%d)" % [d.get("name"), d.get("cost"), n, cap]
 			State.QUEUED:
 				_label.text = "Building %s..." % TowerTypes.def_for(_queued_type).get("name")
 			State.BUILT:
 				if _tower and _tower.get("level") != null:
 					var lv: int = int(_tower.level)
-					if lv >= GameState.TOWER_MAX_LEVEL:
-						_label.text = "Max · E sell"
-					elif str(_tower.get("type_id")) == "dualshot" and lv <= 1:
-						var br: String = TowerTypes.selected_branch_for(_last_builder)
-						_label.text = "Q →%s · E sell" % TowerTypes.branch_label(br)
+					var tid := str(_tower.get("type_id"))
+					var cap := TowerTypes.max_level_for(tid) if TowerTypes.has_method("max_level_for") else GameState.TOWER_MAX_LEVEL
+					if lv >= cap:
+						_label.text = "Max Lv%d · E sell" % cap
 					else:
-						_label.text = "Q up · E sell"
+						_label.text = "Q →Lv%d · E sell" % (lv + 1)
 				else:
 					_label.text = "Online"
 	_sync_swatch()
@@ -197,24 +193,12 @@ func cycle_type(dir: int, player_index: int = 0) -> void:
 	if TowerTypes == null:
 		return
 	_last_builder = player_index
-	# On a L1 Aetherbow, Z/X picks Physical vs Magical upgrade branch
-	if state == State.BUILT and _tower and str(_tower.get("type_id")) == "dualshot":
-		var lv := int(_tower.get("level")) if _tower.get("level") != null else 1
-		var br_locked := str(_tower.get("dps_branch")) if _tower.get("dps_branch") != null else ""
-		if lv <= 1 and br_locked == "":
-			var br: String = TowerTypes.cycle_branch_for_player(player_index, dir)
-			FloatingText.spawn(get_parent(), global_position + Vector2(0, -30), "Upgrade → %s" % TowerTypes.branch_label(br), TowerTypes.branch_color(br))
-			_refresh_label()
-			return
 	var id: String = TowerTypes.cycle_for_player(player_index, dir)
 	if state == State.EMPTY:
 		_preview_type = id
 		_refresh_label()
 	var d: Dictionary = TowerTypes.def_for(id)
-	var msg := str(d.get("name"))
-	if id == "dualshot":
-		msg += " →%s" % TowerTypes.branch_label(TowerTypes.selected_branch_for(player_index))
-	FloatingText.spawn(get_parent(), global_position + Vector2(0, -30), msg, d.get("color"))
+	FloatingText.spawn(get_parent(), global_position + Vector2(0, -30), str(d.get("name")), d.get("color"))
 
 
 func set_preview_from_player(player_index: int) -> void:
@@ -233,7 +217,7 @@ func try_queue_build(player_index: int = 0) -> bool:
 	if state != State.EMPTY:
 		return false
 	_last_builder = player_index
-	_queued_type = TowerTypes.selected_id_for(player_index) if TowerTypes else "dualshot"
+	_queued_type = TowerTypes.selected_id_for(player_index) if TowerTypes else "arrow"
 	if TowerTypes and not TowerTypes.is_unlocked(_queued_type):
 		_queued_type = TowerTypes.selected_id_for(player_index)
 	var cost: int = TowerTypes.cost_for(_queued_type) if TowerTypes else GameState.TOWER_COST_ESSENCE

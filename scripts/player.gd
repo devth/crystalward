@@ -447,10 +447,7 @@ func _cycle_pad(dir: int) -> void:
 			return
 	var id: String = TowerTypes.cycle_for_player(player_index, dir)
 	var d: Dictionary = TowerTypes.def_for(id)
-	var msg := str(d.get("name"))
-	if id == "dualshot":
-		msg += " →%s" % TowerTypes.branch_label(TowerTypes.selected_branch_for(player_index))
-	FloatingText.spawn(get_parent(), global_position + Vector2(0, -36), msg, d.get("color"))
+	FloatingText.spawn(get_parent(), global_position + Vector2(0, -36), str(d.get("name")), d.get("color"))
 
 
 func _try_spawn_fairy() -> void:

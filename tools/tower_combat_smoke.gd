@@ -31,10 +31,10 @@ func _run() -> void:
 		return
 
 	var tower: Node2D = tower_ps.instantiate() as Node2D
-	tower.set("type_id", "dualshot")
+	tower.set("type_id", "arrow")
 	world.add_child(tower)
 	if tower.has_method("configure"):
-		tower.call("configure", "dualshot", 24)
+		tower.call("configure", "arrow", 22)
 	tower.global_position = Vector2(0, 200)
 	print("tower fire_range=", tower.get("fire_range"), " damage=", tower.get("damage"), " fire_rate=", tower.get("fire_rate"))
 	print("tower in group towers=", tower.is_in_group("towers"))
