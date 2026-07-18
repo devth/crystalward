@@ -391,15 +391,20 @@ func _refresh_wave_prep() -> void:
 	if EnemyKinds and EnemyKinds.has_method("matchup_hint"):
 		hint = str(EnemyKinds.matchup_hint(kind_id))
 
+	var is_boss := bool(d.get("boss", false))
 	if title:
-		if prep:
-			title.text = "NEXT SURGE  ·  WAVE %d" % next_n
+		if is_boss:
+			title.text = ("NEXT  ·  BOSS PHASE %d" if prep else "BOSS  ·  PHASE %d") % next_n
+		elif prep:
+			title.text = "NEXT PHASE  ·  %d" % next_n
 		else:
-			title.text = "SURGE ACTIVE  ·  WAVE %d" % next_n
+			title.text = "PHASE ACTIVE  ·  %d" % next_n
 	var flying := bool(d.get("flying", false))
 	if kind_name:
 		var tag := short
-		if flying and short != "FLYER" and short != "WRAITH":
+		if is_boss:
+			tag = "BOSS"
+		elif flying and short != "FLYER" and short != "WRAITH":
 			tag = "AIR · %s" % short if short != "" else "AIR"
 		elif flying and short == "":
 			tag = "AIR"
@@ -407,7 +412,9 @@ func _refresh_wave_prep() -> void:
 		kind_name.add_theme_color_override("font_color", col.lightened(0.25))
 	if kind_hint:
 		var base_hint := hint if prep else str(d.get("blurb", ""))
-		if flying:
+		if is_boss:
+			kind_hint.text = "☠ Large · slow · very strong  ·  " + str(d.get("blurb", base_hint))
+		elif flying:
 			kind_hint.text = "✈ FLYING — ground towers miss  ·  " + base_hint
 		else:
 			kind_hint.text = base_hint

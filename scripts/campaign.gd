@@ -27,8 +27,8 @@ func maps() -> Array:
 			"id": "glade",
 			"chapter": 1,
 			"name": "Homeland Vale",
-			"blurb": "Gentle Gelfling meadow. Soft paths. The Crystal still sings pure.",
-			"story": "The Soft Dark is only a rumor in the pollen. One road. Ten soft lessons.",
+			"blurb": "Eastern meadows. Clean essence. One road. Phase 10: Rootfather Harrow.",
+			"story": "Umbrite is thin here. Umbrael sends the ruined grove-warden to prove the vale cannot hold.",
 			"difficulty": 1,
 			"waves": PHASES_PER_LEVEL,
 			"start_essence": 180,
@@ -42,13 +42,14 @@ func maps() -> Array:
 			"theme": Color(1.08, 1.06, 0.98),
 			"lane_set": "single",
 			"look": "homeland",
+			"boss_id": "boss_harrow",
 		},
 		{
 			"id": "thorns",
 			"chapter": 2,
 			"name": "Twinveil Crossing",
-			"blurb": "Mist-rivers braid. Two roads meet at the well. Split your light.",
-			"story": "The dusk learns your names. Hold both mouths of the river.",
+			"blurb": "Two river roads meet at the ford. Split your light or lose the well.",
+			"story": "Umbrael needs the crossing. Hold both mouths of the Veil.",
 			"difficulty": 2,
 			"waves": PHASES_PER_LEVEL,
 			"start_essence": 140,
@@ -62,13 +63,14 @@ func maps() -> Array:
 			"theme": Color(0.96, 1.02, 1.06),
 			"lane_set": "dual",
 			"look": "twinveil",
+			"boss_id": "boss_fordwidow",
 		},
 		{
 			"id": "bog",
 			"chapter": 3,
 			"name": "Crosswind Mire",
-			"blurb": "Night-flowers open. Diagonal roads share one dry throat.",
-			"story": "Beauty as bait. The Soft Dark perfumes the marsh.",
+			"blurb": "Peat roads and a dry choke. Umbrite farms in the marsh.",
+			"story": "Temple-land gone wrong. Hold the ridge.",
 			"difficulty": 3,
 			"waves": PHASES_PER_LEVEL,
 			"start_essence": 115,
@@ -82,13 +84,14 @@ func maps() -> Array:
 			"theme": Color(0.92, 1.0, 0.96),
 			"lane_set": "cross",
 			"look": "mire",
+			"boss_id": "boss_mirel",
 		},
 		{
 			"id": "march",
 			"chapter": 4,
 			"name": "Western March",
-			"blurb": "Two long serpents across the dusk-heath. Little shared cover.",
-			"story": "Umbrael’s highway. The light grows tired. Choose which serpent to starve.",
+			"blurb": "Two long military roads. Little shared cover. Armies pass here.",
+			"story": "Vesk’s processions. Choose which serpent to starve.",
 			"difficulty": 4,
 			"waves": PHASES_PER_LEVEL,
 			"start_essence": 100,
@@ -102,13 +105,14 @@ func maps() -> Array:
 			"theme": Color(0.98, 0.96, 1.05),
 			"lane_set": "winding",
 			"look": "march",
+			"boss_id": "boss_vesk",
 		},
 		{
 			"id": "conjunction",
 			"chapter": 5,
 			"name": "Nightfall Gate",
-			"blurb": "Three portals. Conjunction. Hold until the Crystal knits.",
-			"story": "The Gloaming Court arrives. Endure, or Thren forgets the sun.",
+			"blurb": "Three portals to the Castle. Conjunction peaks. Umbrael comes.",
+			"story": "Break the traitor or the last Lightwell dies.",
 			"difficulty": 5,
 			"waves": PHASES_PER_LEVEL,
 			"start_essence": 90,
@@ -122,6 +126,7 @@ func maps() -> Array:
 			"theme": Color(1.02, 0.94, 1.08),
 			"lane_set": "full",
 			"look": "gate",
+			"boss_id": "boss_umbrael",
 		},
 	]
 
@@ -139,6 +144,15 @@ func current_map() -> Dictionary:
 
 func current_look() -> String:
 	return str(current_map().get("look", "homeland"))
+
+
+func boss_id_for_map(map_id: String = "") -> String:
+	var m: Dictionary = get_map(map_id) if map_id != "" else current_map()
+	return str(m.get("boss_id", "boss_harrow"))
+
+
+func is_boss_phase(phase: int) -> bool:
+	return phase >= PHASES_PER_LEVEL
 
 
 func tower_unlock_tier() -> int:

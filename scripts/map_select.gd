@@ -163,7 +163,10 @@ func _map_row(m: Dictionary) -> Control:
 	var star_s := ""
 	for i in 3:
 		star_s += "★" if i < stars else "☆"
-	meta.text = "Epic %d/5 · %d phases · Best %s" % [m.get("difficulty"), m.get("waves"), star_s]
+	var boss_n := ""
+	if EnemyKinds and m.has("boss_id"):
+		boss_n = " · Boss: %s" % EnemyKinds.display_name(str(m.get("boss_id")))
+	meta.text = "Epic %d/5 · %d phases%s · Best %s" % [m.get("difficulty"), m.get("waves"), boss_n, star_s]
 	meta.add_theme_font_size_override("font_size", 12)
 	meta.add_theme_color_override("font_color", Color(0.85, 0.75, 0.45))
 	info.add_child(meta)

@@ -25,9 +25,9 @@ const KINDS := {
 		"color": Color(0.55, 0.85, 0.45),
 	},
 	"shade": {
-		"name": "Soft Dark",
+		"name": "Umbrite Shades",
 		"short": "FLYER",
-		"blurb": "Air spirits. Skyshard & light burn them; ground towers miss.",
+		"blurb": "Air spirits of stagnant essence. Light burns them; ground towers miss.",
 		"flying": true,
 		"hp_mult": 0.95,
 		"speed_mult": 1.15,
@@ -178,27 +178,148 @@ const KINDS := {
 		"skin": "slime",
 		"color": Color(0.45, 0.85, 0.55),
 	},
+	## ── Level bosses (phase 10 only) — large, slow, very durable ──────────
+	"boss_harrow": {
+		"name": "Rootfather Harrow",
+		"short": "BOSS",
+		"blurb": "Grove-warden poisoned by umbrite. Slow colossus of root and sap.",
+		"flying": false,
+		"boss": true,
+		"hp_mult": 9.5,
+		"speed_mult": 0.32,
+		"scale_mult": 2.55,
+		"path_slack": 4.0,
+		"sep_radius": 90.0,
+		"min_path_gap": 140.0,
+		"spawn_spacing": 99.0,
+		"weak_channels": ["light", "shatter"],
+		"resist_channels": ["mist"],
+		"weak_specials": ["splash", "aoe"],
+		"resist_specials": ["slow_aura", "root"],
+		"skin": "plant",
+		"color": Color(0.35, 0.55, 0.28),
+		"crystal_damage_mult": 1.0,
+		"leak_lives": 2,
+		"intro": "Rootfather Harrow comes — the vale’s own guardian, ruined.",
+	},
+	"boss_fordwidow": {
+		"name": "The Ford-Widow",
+		"short": "BOSS",
+		"blurb": "Maera the ford-keeper, remade in silt and drowned bronze.",
+		"flying": false,
+		"boss": true,
+		"hp_mult": 10.5,
+		"speed_mult": 0.34,
+		"scale_mult": 2.45,
+		"path_slack": 6.0,
+		"sep_radius": 88.0,
+		"min_path_gap": 135.0,
+		"spawn_spacing": 99.0,
+		"weak_channels": ["light", "mist"],
+		"resist_channels": ["thorn"],
+		"weak_specials": ["chain", "magic_bolt"],
+		"resist_specials": ["root"],
+		"skin": "aquatic",
+		"color": Color(0.40, 0.55, 0.72),
+		"crystal_damage_mult": 1.0,
+		"leak_lives": 2,
+		"intro": "The Ford-Widow walks — Maera of the dusk-bell, still ringing.",
+	},
+	"boss_mirel": {
+		"name": "Bog-Crown Mirel",
+		"short": "BOSS",
+		"blurb": "Fallen moss-abbot under a crown of living peat.",
+		"flying": false,
+		"boss": true,
+		"hp_mult": 12.0,
+		"speed_mult": 0.28,
+		"scale_mult": 2.7,
+		"path_slack": 4.0,
+		"sep_radius": 95.0,
+		"min_path_gap": 150.0,
+		"spawn_spacing": 99.0,
+		"weak_channels": ["light", "shatter"],
+		"resist_channels": ["mist", "thorn"],
+		"weak_specials": ["splash", "aoe", "execute"],
+		"resist_specials": ["slow_aura", "root"],
+		"skin": "plant",
+		"color": Color(0.28, 0.42, 0.32),
+		"crystal_damage_mult": 1.0,
+		"leak_lives": 3,
+		"intro": "Bog-Crown Mirel rises — the temple’s mistake on root-legs.",
+	},
+	"boss_vesk": {
+		"name": "Marshal Vesk",
+		"short": "BOSS",
+		"blurb": "Umbrael’s field marshal in umbrite plate. Believes the dusk is mercy.",
+		"flying": false,
+		"boss": true,
+		"hp_mult": 13.5,
+		"speed_mult": 0.36,
+		"scale_mult": 2.5,
+		"path_slack": 3.0,
+		"sep_radius": 92.0,
+		"min_path_gap": 145.0,
+		"spawn_spacing": 99.0,
+		"weak_channels": ["light"],
+		"resist_channels": ["mist", "thorn"],
+		"weak_specials": ["execute", "snipe", "magic_bolt"],
+		"resist_specials": ["slow_aura", "root", "multishot"],
+		"skin": "demon",
+		"color": Color(0.55, 0.35, 0.32),
+		"crystal_damage_mult": 1.0,
+		"leak_lives": 3,
+		"intro": "Marshal Vesk: “Stand aside. The Crystal is killing itself.”",
+	},
+	"boss_umbrael": {
+		"name": "Lord Umbrael",
+		"short": "BOSS",
+		"blurb": "Traitor of the Castle Court. Umbrite-crowned. The campaign’s end.",
+		"flying": false,
+		"boss": true,
+		"hp_mult": 16.0,
+		"speed_mult": 0.30,
+		"scale_mult": 2.9,
+		"path_slack": 2.0,
+		"sep_radius": 100.0,
+		"min_path_gap": 160.0,
+		"spawn_spacing": 99.0,
+		"weak_channels": ["light"],
+		"resist_channels": ["thorn", "mist"],
+		"weak_specials": ["execute", "snipe", "magic_bolt", "splash"],
+		"resist_specials": ["slow_aura", "root", "multishot"],
+		"skin": "demon",
+		"color": Color(0.42, 0.28, 0.55),
+		"crystal_damage_mult": 1.0,
+		"leak_lives": 4,
+		"intro": "Lord Umbrael comes for the Gate. Hold the tether.",
+	},
 }
 
-## Wave cycle — flyers every other surge so Skyshard always matters.
+## Wave cycle for phases 1–9. Phase 10 is always the map boss (see Campaign).
 const WAVE_ORDER: Array[String] = [
 	"thrall",      # 1 ground
-	"shade",       # 2 flyer  ← early air pressure
+	"shade",       # 2 flyer
 	"ironclad",    # 3 ground
-	"gloomwing",   # 4 flyer flock
+	"gloomwing",   # 4 flyer
 	"skitter",     # 5 ground
-	"wraith",      # 6 flyer elite-feel
+	"wraith",      # 6 flyer
 	"brute",       # 7 ground
-	"mothswarm",   # 8 flyer swarm
+	"mothswarm",   # 8 flyer
 	"blight",      # 9 ground
 ]
 
 
 func kind_for_wave(wave: int) -> String:
+	## Regular phases only. Boss phase is resolved by WaveManager + Campaign.
 	if WAVE_ORDER.is_empty():
 		return "thrall"
 	var i := (maxi(1, wave) - 1) % WAVE_ORDER.size()
 	return WAVE_ORDER[i]
+
+
+func is_boss(kind_id: String) -> bool:
+	return bool(def_for(kind_id).get("boss", false))
 
 
 func def_for(kind_id: String) -> Dictionary:

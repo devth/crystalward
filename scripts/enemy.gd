@@ -37,6 +37,8 @@ var _path_dist: float = 0.0
 var _lane_len: float = 0.0
 var _lateral: float = 0.0
 var _is_elite: bool = false
+var _is_boss: bool = false
+var _leak_lives: int = 1
 var _face_sign: float = 1.0
 var _slow: float = 0.0
 var _slow_t: float = 0.0
@@ -118,8 +120,13 @@ func configure_kind(id: String, base_hp: int = -1, base_speed: float = -1.0) -> 
 	_kind_skin_key = str(d.get("skin", ""))
 	_kind_color = d.get("color", Color(0.85, 0.3, 0.45)) as Color
 	is_flying = bool(d.get("flying", false))
+	_is_boss = bool(d.get("boss", false))
+	_leak_lives = maxi(1, int(d.get("leak_lives", 1)))
 	var cdm := float(d.get("crystal_damage_mult", 1.0))
 	crystal_damage = maxi(1, int(float(crystal_damage) * cdm))
+	var sc_m := float(d.get("scale_mult", 1.0))
+	if sc_m != 1.0 and sc_m > 0.0:
+		scale = Vector2.ONE * sc_m
 	var sm := float(d.get("scale_mult", 1.0))
 	if sm != 1.0:
 		scale = Vector2(sm, sm)
@@ -145,6 +152,8 @@ func assign_lane(lane: PackedVector2Array) -> void:
 
 
 func make_elite() -> void:
+	if _is_boss:
+		return
 	_is_elite = true
 	max_hp = int(max_hp * 2.2)
 	hp = max_hp
@@ -160,6 +169,56 @@ func make_elite() -> void:
 		var ring := FX.make_ellipse_poly(22, 14, 20, Color(0.95, 0.5, 0.3, 0.25))
 		ring.z_index = -1
 		_visual.add_child(ring)
+
+
+func make_boss() -> void:
+	## Large slow champion — called after configure_kind + enter tree.
+	_is_boss = true
+	_is_elite = false
+	# Ensure HP bar / label match boss scale
+	if _bar:
+		_bar.size = Vector2(72, 10)
+		_bar.position = Vector2(-36, -52)
+		_bar.max_value = max_hp
+		_bar.value = hp
+	if has_node("AirTag"):
+		$AirTag.queue_free()
+	var tag := Label.new()
+	tag.name = "BossTag"
+	tag.text = "BOSS"
+	tag.position = Vector2(-18, -68)
+	tag.add_theme_font_size_override("font_size", 12)
+	tag.add_theme_color_override("font_color", Color(1.0, 0.85, 0.35))
+	tag.add_theme_color_override("font_outline_color", Color(0.08, 0.04, 0.1, 0.95))
+	tag.add_theme_constant_override("outline_size", 3)
+	add_child(tag)
+	var name_l := Label.new()
+	name_l.name = "BossName"
+	name_l.text = EnemyKinds.display_name(kind_id) if EnemyKinds else kind_id
+	name_l.position = Vector2(-48, -82)
+	name_l.add_theme_font_size_override("font_size", 11)
+	name_l.add_theme_color_override("font_color", Color(0.95, 0.9, 1.0))
+	name_l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.95))
+	name_l.add_theme_constant_override("outline_size", 3)
+	add_child(name_l)
+	if _visual:
+		var crown := Polygon2D.new()
+		crown.polygon = PackedVector2Array([
+			Vector2(-16, -28), Vector2(-8, -42), Vector2(0, -34), Vector2(8, -42),
+			Vector2(16, -28), Vector2(10, -24), Vector2(0, -30), Vector2(-10, -24)
+		])
+		crown.color = Color(0.55, 0.35, 0.72, 0.9)
+		crown.z_index = 5
+		_visual.add_child(crown)
+		var ring := FX.make_ellipse_poly(36, 20, 28, Color(0.65, 0.4, 0.9, 0.22))
+		ring.z_index = -1
+		_visual.add_child(ring)
+	if _body_sprite and VisualStyle:
+		VisualStyle.apply_sprite_outline(_body_sprite, 2.0)
+	if Juice:
+		Juice.shake(6.0)
+	if GameState:
+		GameState.message.emit("☠ %s enters the path" % (EnemyKinds.display_name(kind_id) if EnemyKinds else "Boss"))
 
 
 func _build_visuals() -> void:
@@ -438,7 +497,14 @@ func _fallback_to_crystal(spd: float) -> void:
 
 
 func _leak() -> void:
-	GameState.damage_crystal(crystal_damage)
+	# Bosses can cost multiple lives when they reach the Lightwell
+	var lives := _leak_lives if _is_boss else 1
+	for _i in lives:
+		GameState.damage_crystal(crystal_damage)
+	if _is_boss and GameState:
+		GameState.message.emit("☠ %s breached the Lightwell (−%d ♥)" % [
+			EnemyKinds.display_name(kind_id) if EnemyKinds else "Boss", lives
+		])
 	if Sfx:
 		Sfx.crystal_hurt()
 	if Juice:
@@ -543,6 +609,14 @@ func is_elite() -> bool:
 	return _is_elite
 
 
+func is_boss() -> bool:
+	return _is_boss
+
+
+func get_leak_lives() -> int:
+	return _leak_lives
+
+
 func is_air() -> bool:
 	return is_flying
 
@@ -598,10 +672,20 @@ func take_damage(amount: int, from_channel: String = "", from_special: String = 
 
 
 func _die() -> void:
-	GameState.reward_kill(_is_elite, global_position)
-	if _is_elite and Juice:
-		Juice.shake(8.0)
-		Juice.flash(Color(1.0, 0.6, 0.3, 0.3), 0.12)
+	if _is_boss:
+		GameState.reward_kill(true, global_position, true)
+		if GameState:
+			GameState.message.emit("✦ %s falls. The Lightwell holds." % (
+				EnemyKinds.display_name(kind_id) if EnemyKinds else "Boss"
+			))
+		if Juice:
+			Juice.shake(14.0)
+			Juice.flash(Color(0.75, 0.55, 0.95, 0.4), 0.25)
+	else:
+		GameState.reward_kill(_is_elite, global_position, false)
+		if _is_elite and Juice:
+			Juice.shake(8.0)
+			Juice.flash(Color(1.0, 0.6, 0.3, 0.3), 0.12)
 	_spawn_death_poof()
 	queue_free()
 

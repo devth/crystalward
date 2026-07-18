@@ -102,9 +102,27 @@ func get_next_wave_number() -> int:
 func get_next_kind_id() -> String:
 	if EnemyKinds == null:
 		return _wave_kind
+	var next_n := _wave + 1 if (_phase == Phase.WAIT_FIRST or _phase == Phase.CALM) else _wave
+	if _is_boss_phase_number(next_n):
+		return _boss_kind_id()
 	if _phase == Phase.WAIT_FIRST or _phase == Phase.CALM:
-		return EnemyKinds.kind_for_wave(_wave + 1)
+		return EnemyKinds.kind_for_wave(next_n)
 	return _wave_kind
+
+
+func _is_boss_phase_number(n: int) -> bool:
+	return n >= GameState.waves_to_win and GameState.waves_to_win > 0
+
+
+func _boss_kind_id() -> String:
+	if Campaign and Campaign.has_method("boss_id_for_map"):
+		return Campaign.boss_id_for_map()
+	var m := _map_def()
+	return str(m.get("boss_id", "boss_harrow"))
+
+
+func is_boss_phase_active() -> bool:
+	return _is_boss_phase_number(_wave) and (_phase == Phase.SPAWNING or _phase == Phase.IN_WAVE)
 
 
 func is_prep() -> bool:
@@ -154,7 +172,11 @@ func _process(delta: float) -> void:
 					_timer = calm_between_waves
 					_prep_total = maxf(0.1, calm_between_waves)
 					_can_call_early = true
-					GameState.message.emit("Wave clear! Fortify — next in %ds (or Call Early)" % int(calm_between_waves))
+					var next_is_boss := _is_boss_phase_number(_wave + 1)
+					if next_is_boss:
+						GameState.message.emit("Boss approaches — fortify! %ds (or Call Early)" % int(calm_between_waves))
+					else:
+						GameState.message.emit("Phase clear! Fortify — next in %ds (or Call Early)" % int(calm_between_waves))
 					GameState.wave_phase_changed.emit("prep", _timer)
 		Phase.CALM:
 			_timer -= delta
@@ -176,50 +198,66 @@ func _begin_wave() -> void:
 	if TowerTypes and TowerTypes.has_method("on_wave_started"):
 		TowerTypes.on_wave_started(_wave)
 
-	# One kind per surge
-	_wave_kind = EnemyKinds.kind_for_wave(_wave) if EnemyKinds else "thrall"
+	var map := _map_def()
+	var boss_phase := _is_boss_phase_number(_wave)
+
+	# Phases 1–9: rotating kinds. Phase 10: map boss only.
+	if boss_phase:
+		_wave_kind = _boss_kind_id()
+	else:
+		_wave_kind = EnemyKinds.kind_for_wave(_wave) if EnemyKinds else "thrall"
+
 	var kind_def: Dictionary = EnemyKinds.def_for(_wave_kind) if EnemyKinds else {}
 	_spawn_spacing = float(kind_def.get("spawn_spacing", 0.9))
 
-	var map := _map_def()
 	var kind_name: String = str(kind_def.get("name", "Nightspawn"))
 	var hint: String = EnemyKinds.matchup_hint(_wave_kind) if EnemyKinds else ""
 	var flying := bool(kind_def.get("flying", false))
-	if flying:
-		GameState.message.emit("⚔ SURGE %d — %s  ✈ FLYING" % [_wave, kind_name])
+	var is_boss := bool(kind_def.get("boss", false)) or boss_phase
+
+	if is_boss:
+		var intro: String = str(kind_def.get("intro", "A champion walks the road."))
+		GameState.message.emit("☠ PHASE %d — BOSS: %s" % [_wave, kind_name])
+		GameState.message.emit(intro)
+	elif flying:
+		GameState.message.emit("⚔ Phase %d — %s  ✈ FLYING" % [_wave, kind_name])
 	else:
-		GameState.message.emit("⚔ SURGE %d — %s" % [_wave, kind_name])
-	if hint != "":
-		# Brief matchup tip so players know which towers to lean on
+		GameState.message.emit("⚔ Phase %d — %s" % [_wave, kind_name])
+	if hint != "" and not is_boss:
 		GameState.message.emit(hint)
-	if flying:
-		GameState.message.emit("Air units! Skyshard / Shardbow — ground towers cannot hit them.")
+	if flying and not is_boss:
+		GameState.message.emit("Air units — ground-only towers cannot hit them.")
 	if Sfx:
 		Sfx.wave_start()
 	if Juice:
 		var col: Color = kind_def.get("color", Color(0.95, 0.4, 0.25)) as Color
-		Juice.flash(Color(col.r, col.g, col.b, 0.28), 0.22)
-		Juice.shake(3.0 if int(map.get("difficulty", 3)) <= 1 else 5.0)
+		Juice.flash(Color(col.r, col.g, col.b, 0.35 if is_boss else 0.28), 0.28 if is_boss else 0.22)
+		Juice.shake(8.0 if is_boss else (3.0 if int(map.get("difficulty", 3)) <= 1 else 5.0))
 
-	var count_scale := float(map.get("enemy_count_scale", 1.0))
-	var base_count := 5 + _wave * 3
-	_to_spawn = maxi(3, int(round(float(base_count) * count_scale)))
-	# Fewer units for brutes so they don't still blob
-	if float(kind_def.get("hp_mult", 1.0)) > 1.4:
-		_to_spawn = maxi(3, int(round(float(_to_spawn) * 0.75)))
-
-	if map.get("elites", true) == false or int(map.get("difficulty", 3)) <= 1:
+	if is_boss:
+		# One large champion — no trash, no elites
+		_to_spawn = 1
 		_elites_left = 0
+		_spawn_spacing = 0.5
 	else:
-		_elites_left = 0
-		if _wave >= 3:
-			_elites_left = 1
-		if _wave >= 6:
-			_elites_left = 2
+		var count_scale := float(map.get("enemy_count_scale", 1.0))
+		var base_count := 5 + _wave * 3
+		_to_spawn = maxi(3, int(round(float(base_count) * count_scale)))
+		if float(kind_def.get("hp_mult", 1.0)) > 1.4:
+			_to_spawn = maxi(3, int(round(float(_to_spawn) * 0.75)))
 
-	# Map difficulty stretches spacing slightly
-	if count_scale < 0.7:
-		_spawn_spacing = maxf(_spawn_spacing, 1.0)
+		if map.get("elites", true) == false or int(map.get("difficulty", 3)) <= 1:
+			_elites_left = 0
+		else:
+			_elites_left = 0
+			if _wave >= 3:
+				_elites_left = 1
+			if _wave >= 6:
+				_elites_left = 2
+
+		if count_scale < 0.7:
+			_spawn_spacing = maxf(_spawn_spacing, 1.0)
+
 	_spawn_cd = 0.15
 	_phase = Phase.SPAWNING
 	_can_call_early = false
@@ -242,10 +280,17 @@ func _spawn_one(elite: bool = false) -> void:
 	var e: Node2D = enemy_scene.instantiate() as Node2D
 	if e == null:
 		return
+	var kind_def: Dictionary = EnemyKinds.def_for(_wave_kind) if EnemyKinds else {}
+	var is_boss := bool(kind_def.get("boss", false))
 	var hp_s := float(map.get("enemy_hp_scale", 1.0))
 	var spd_s := float(map.get("enemy_speed_scale", 1.0))
+	# Bosses get a high baseline before kind mult so they stay spongy on easy maps
 	var base_hp := maxi(12, int((26 + _wave * 7) * hp_s))
-	var base_spd := maxf(28.0, (48.0 + _wave * 3.8) * spd_s)
+	if is_boss:
+		base_hp = maxi(80, int((55 + _wave * 12) * maxf(0.75, hp_s)))
+	var base_spd := maxf(22.0, (48.0 + _wave * 3.8) * spd_s)
+	if is_boss:
+		base_spd = maxf(18.0, 42.0 * spd_s)  # kind speed_mult will slow further
 	# Configure kind BEFORE add_child so _ready builds correct visuals
 	if e.has_method("configure_kind"):
 		e.call("configure_kind", _wave_kind, base_hp, base_spd)
@@ -260,6 +305,8 @@ func _spawn_one(elite: bool = false) -> void:
 	host.add_child(e)
 	if e.has_method("assign_lane") and lane.size() > 0:
 		e.call("assign_lane", lane)
-	if elite and e.has_method("make_elite"):
+	if is_boss and e.has_method("make_boss"):
+		e.call("make_boss")
+	elif elite and e.has_method("make_elite"):
 		e.call("make_elite")
 		GameState.message.emit("⚠ Elite %s!" % (EnemyKinds.display_name(_wave_kind) if EnemyKinds else "spawn"))

@@ -23,6 +23,7 @@ const GATHER_PROGRESS_RATE := 1.2
 const GATHER_NEED := 1.0
 const ESSENCE_PER_KILL := 2
 const ESSENCE_PER_ELITE := 8
+const ESSENCE_PER_BOSS := 40
 const EARLY_WAVE_BONUS := 12
 const STARTING_ESSENCE := 80  ## KR gives room to open with a few towers
 const STARTING_DUST := 0
@@ -189,7 +190,7 @@ func try_spend_crystal_dust(amount: int) -> bool:
 	return true
 
 
-func reward_kill(elite: bool = false, world_pos: Vector2 = Vector2.ZERO) -> void:
+func reward_kill(elite: bool = false, world_pos: Vector2 = Vector2.ZERO, boss: bool = false) -> void:
 	if is_game_over:
 		return
 	enemies_killed += 1
@@ -197,17 +198,21 @@ func reward_kill(elite: bool = false, world_pos: Vector2 = Vector2.ZERO) -> void
 	var tree := get_tree()
 	var parent: Node = tree.current_scene if tree else null
 	if parent == null or world_pos == Vector2.ZERO:
-		# Fallback: instant credit
-		var bounty := ESSENCE_PER_ELITE if elite else ESSENCE_PER_KILL
+		var bounty := ESSENCE_PER_BOSS if boss else (ESSENCE_PER_ELITE if elite else ESSENCE_PER_KILL)
 		add_essence(bounty)
+		if boss:
+			add_crystal_dust(3)
 		return
-	var ess_amt := ESSENCE_PER_ELITE if elite else ESSENCE_PER_KILL
-	# Elite drops extra shards
-	var drops := 2 if elite else 1
+	var ess_amt := ESSENCE_PER_BOSS if boss else (ESSENCE_PER_ELITE if elite else ESSENCE_PER_KILL)
+	var drops := 5 if boss else (2 if elite else 1)
 	for i in drops:
-		var offset := Vector2(randf_range(-16, 16), randf_range(-12, 12))
-		_LootDrop.spawn_essence(parent, world_pos + offset, ess_amt if i == 0 else maxi(1, ess_amt / 2))
-	if elite or randf() < 0.22:
+		var offset := Vector2(randf_range(-20, 20), randf_range(-16, 16))
+		var amt := ess_amt if i == 0 else maxi(1, ess_amt / drops)
+		_LootDrop.spawn_essence(parent, world_pos + offset, amt)
+	if boss:
+		for j in 3:
+			_LootDrop.spawn_dust(parent, world_pos + Vector2(randf_range(-14, 14), randf_range(-10, 10)), 1)
+	elif elite or randf() < 0.22:
 		_LootDrop.spawn_dust(parent, world_pos + Vector2(randf_range(-10, 10), randf_range(-8, 8)), 1 if not elite else 2)
 
 
