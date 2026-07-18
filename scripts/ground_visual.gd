@@ -247,17 +247,19 @@ func _build_elevation_base() -> void:
 
 
 func _build_plaza() -> void:
-	## Open glade around the crystal — soft Thra clearing, amethyst light.
-	var outer := _ellipse(Vector2(0, 40), 320, 200, Color(0.18, 0.28, 0.26, 0.36), Z_PLAZA)
+	## Castle courtyard around the Crystal Tower — dark stone + Thra moss edge.
+	var outer := _ellipse(Vector2(0, 40), 360, 220, Color(0.14, 0.18, 0.20, 0.4), Z_PLAZA)
 	add_child(outer)
-	var clear := _ellipse(Vector2(0, 40), 220, 140, Color(0.28, 0.26, 0.34, 0.38), Z_PLAZA)
+	# Obsidian / Astronomist stone approach
+	var clear := _ellipse(Vector2(0, 40), 260, 160, Color(0.16, 0.13, 0.22, 0.45), Z_PLAZA)
 	add_child(clear)
-	# Cool stone pad under the crystal
-	var pad := _ellipse(Vector2(0, 40), 90, 48, Color(0.32, 0.28, 0.38, 0.48), Z_PLAZA)
-	add_child(pad)
-	# Soft crystal light wash (amethyst, not fog)
-	var warm := _ellipse(Vector2(0, 40), 70, 38, Color(0.72, 0.58, 0.88, 0.12), Z_PLAZA)
+	var stone := _ellipse(Vector2(0, 40), 160, 88, Color(0.20, 0.16, 0.28, 0.5), Z_PLAZA)
+	add_child(stone)
+	# Soft amethyst + fire wash under the tower
+	var warm := _ellipse(Vector2(0, 40), 90, 48, Color(0.55, 0.35, 0.72, 0.12), Z_PLAZA)
 	add_child(warm)
+	var fire_ring := _ellipse(Vector2(0, 48), 55, 28, Color(0.85, 0.4, 0.18, 0.08), Z_PLAZA)
+	add_child(fire_ring)
 	# Four standing stones only — landmarks, not clutter
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 1982
