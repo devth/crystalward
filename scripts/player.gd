@@ -680,7 +680,12 @@ func _try_jump() -> void:
 		if FX:
 			FX.burst_particles(get_parent(), global_position, Color(0.7, 0.85, 1.0), 8, "star", 0.25)
 	if Sfx:
-		Sfx.attack()
+		if is_double and Sfx.has_method("jump_double"):
+			Sfx.jump_double()
+		elif Sfx.has_method("jump"):
+			Sfx.jump()
+		else:
+			Sfx.attack()
 
 
 func _update_jump(delta: float) -> void:
@@ -716,6 +721,8 @@ func _on_landed(hard: bool, from_air_jump: bool) -> void:
 		return
 	if FX:
 		FX.burst_particles(get_parent(), global_position, Color(0.6, 0.8, 0.5, 0.5), 6, "puff", 0.2)
+	if Sfx and Sfx.has_method("land"):
+		Sfx.land()
 	if Powers and Powers.has("pollen_burst"):
 		_spawn_pollen_cloud()
 	if Powers and Powers.has("stomp") and (hard or from_air_jump):

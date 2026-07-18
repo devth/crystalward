@@ -515,12 +515,22 @@ func _fire_at(target: Node2D) -> void:
 		host = self
 	match special:
 		"arrow", "snipe":
+			if Sfx and Sfx.has_method("shoot"):
+				Sfx.shoot()
 			_fire_aimed_bolt(target, host, false)
 		"briar":
+			if Sfx and Sfx.has_method("shoot"):
+				Sfx.shoot()
 			_fire_briar(target, host)
 		"arcane":
+			if Sfx and Sfx.has_method("magic_cast"):
+				Sfx.magic_cast()
+			elif Sfx and Sfx.has_method("shoot"):
+				Sfx.shoot()
 			_fire_aimed_bolt(target, host, true)
 		"splash":
+			if Sfx and Sfx.has_method("shoot"):
+				Sfx.shoot()
 			_fire_splash(target, host)
 		_:
 			_hit_one(target, damage, host)
