@@ -1,7 +1,7 @@
 shader_type canvas_item;
 
-// Watercolor forest floor — wet-on-wet washes, granulation, soft edges.
-// Dark Crystal cover palette: moss, violet shadow, parchment light.
+// Integrated cover-art landscape floor — fine detail, wet washes, realistic light.
+// No prop clutter; the ground itself carries the painting.
 
 // Thra floor — Dark Crystal: deep violet shadow, river-green moss, cool stone
 uniform vec4 col_shadow : source_color = vec4(0.10, 0.08, 0.14, 1.0);

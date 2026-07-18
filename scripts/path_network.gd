@@ -14,7 +14,7 @@ var lanes: Array = []
 var spawn_anchors: Array[Vector2] = []
 var active_lane_set: String = "single"
 ## { id, pos, kind, radius, elev }
-## kind: forest | fairy_ring | crystal_grove | mountain | hill | lake | pond
+## kind: canopy | hill | lake | pond  (no sticker mountains / prop forests)
 var features: Array[Dictionary] = []
 ## Swimmable water ellipses: { pos, rx, ry, kind } — rebuilt with features.
 var water_bodies: Array[Dictionary] = []
@@ -65,17 +65,16 @@ func rebuild(lane_set: String = "single") -> void:
 func _place_shared_features() -> void:
 	## Natural landforms: ridges, irregular hills, multi-lobe lakes (not random circles).
 	if active_lane_set in ["single", "simple"]:
-		# Mountain ridges (elongated via "ridge" stretch in ground visual)
-		_feature("south_ridge", Vector2(40, 1480), "mountain", 190.0, 1.15, {"stretch": Vector2(1.6, 0.7), "angle": 0.35})
-		_feature("east_massif", Vector2(820, 180), "mountain", 175.0, 1.05, {"stretch": Vector2(1.2, 1.4), "angle": -0.4})
-		_feature("north_ridge", Vector2(-40, -640), "mountain", 180.0, 1.1, {"stretch": Vector2(1.8, 0.65), "angle": 0.1})
-		_feature("west_massif", Vector2(-860, 160), "mountain", 170.0, 1.0, {"stretch": Vector2(1.15, 1.35), "angle": 0.5})
-		# Rolling hills / knolls
-		_feature("se_hills", Vector2(580, 1050), "hill", 160.0, 0.58, {"stretch": Vector2(1.5, 0.85), "angle": 0.6})
-		_feature("ne_knoll", Vector2(480, -460), "hill", 145.0, 0.5, {"stretch": Vector2(1.3, 0.9), "angle": -0.3})
-		_feature("nw_knoll", Vector2(-600, -340), "hill", 150.0, 0.52, {"stretch": Vector2(1.4, 0.8), "angle": 0.2})
-		_feature("sw_rise", Vector2(-540, 880), "hill", 155.0, 0.55, {"stretch": Vector2(1.35, 0.95), "angle": -0.5})
-		_feature("mid_knoll", Vector2(140, 220), "hill", 110.0, 0.4, {"stretch": Vector2(1.2, 1.0), "angle": 0.15})
+		# Soft rolling highland only — continuous landscape, no peak stickers
+		_feature("south_rise", Vector2(40, 1480), "hill", 220.0, 0.72, {"stretch": Vector2(1.8, 0.75), "angle": 0.35})
+		_feature("east_rise", Vector2(820, 180), "hill", 200.0, 0.68, {"stretch": Vector2(1.3, 1.35), "angle": -0.4})
+		_feature("north_rise", Vector2(-40, -640), "hill", 210.0, 0.7, {"stretch": Vector2(1.9, 0.7), "angle": 0.1})
+		_feature("west_rise", Vector2(-860, 160), "hill", 195.0, 0.65, {"stretch": Vector2(1.2, 1.4), "angle": 0.5})
+		_feature("se_hills", Vector2(580, 1050), "hill", 170.0, 0.55, {"stretch": Vector2(1.5, 0.85), "angle": 0.6})
+		_feature("ne_knoll", Vector2(480, -460), "hill", 155.0, 0.48, {"stretch": Vector2(1.3, 0.9), "angle": -0.3})
+		_feature("nw_knoll", Vector2(-600, -340), "hill", 160.0, 0.5, {"stretch": Vector2(1.4, 0.8), "angle": 0.2})
+		_feature("sw_rise", Vector2(-540, 880), "hill", 165.0, 0.52, {"stretch": Vector2(1.35, 0.95), "angle": -0.5})
+		_feature("mid_knoll", Vector2(140, 220), "hill", 120.0, 0.38, {"stretch": Vector2(1.2, 1.0), "angle": 0.15})
 		# Natural water systems — elongated basins, multi-lobe (seed drives shore shape)
 		_water("lake_amber", Vector2(440, 400), "lake", 200.0, -0.7, 11, [
 			{"o": Vector2(0, 0), "rx": 1.0, "ry": 0.55},
@@ -113,22 +112,21 @@ func _place_shared_features() -> void:
 			{"o": Vector2(55, 15), "rx": 0.55, "ry": 0.35},
 			{"o": Vector2(-50, -10), "rx": 0.45, "ry": 0.38},
 		])
-		# Sparse woods / crystal
-		_feature("inner_grove", Vector2(-240, -100), "forest", 140.0, 0.18)
-		_feature("east_wood", Vector2(540, -60), "forest", 130.0, 0.18)
-		_feature("south_wood", Vector2(-260, 1300), "forest", 140.0, 0.16)
-		_feature("crystal_spur", Vector2(180, -200), "crystal_grove", 85.0, 0.22)
-		_feature("far_crystals", Vector2(200, 1920), "crystal_grove", 90.0, 0.2)
+		# Soft canopy mass (painted washes, not tree stickers)
+		_feature("inner_grove", Vector2(-240, -100), "canopy", 160.0, 0.2)
+		_feature("east_wood", Vector2(540, -60), "canopy", 150.0, 0.2)
+		_feature("south_wood", Vector2(-260, 1300), "canopy", 160.0, 0.18)
+		_feature("far_canopy", Vector2(200, 1920), "canopy", 170.0, 0.16)
 		return
-	# Multi-path maps
-	_feature("north_peak", Vector2(-80, -820), "mountain", 190.0, 1.15, {"stretch": Vector2(1.5, 0.75), "angle": 0.2})
-	_feature("south_ridge", Vector2(100, 980), "mountain", 175.0, 1.05, {"stretch": Vector2(1.6, 0.7), "angle": -0.25})
-	_feature("west_mountain", Vector2(-880, 120), "mountain", 165.0, 1.0, {"stretch": Vector2(1.1, 1.4), "angle": 0.4})
-	_feature("east_peak", Vector2(900, -80), "mountain", 160.0, 0.95, {"stretch": Vector2(1.25, 1.2), "angle": -0.35})
-	_feature("west_hill", Vector2(-720, 40), "hill", 170.0, 0.6, {"stretch": Vector2(1.4, 0.9), "angle": 0.3})
-	_feature("east_hill", Vector2(760, -40), "hill", 160.0, 0.55, {"stretch": Vector2(1.35, 0.95), "angle": -0.2})
-	_feature("sw_hill", Vector2(-480, 720), "hill", 145.0, 0.5, {"stretch": Vector2(1.3, 1.0), "angle": 0.5})
-	_feature("ne_hill", Vector2(500, -520), "hill", 135.0, 0.48, {"stretch": Vector2(1.25, 0.9), "angle": -0.4})
+	# Multi-path maps — rolling highlands only
+	_feature("north_rise", Vector2(-80, -820), "hill", 210.0, 0.72, {"stretch": Vector2(1.6, 0.8), "angle": 0.2})
+	_feature("south_rise", Vector2(100, 980), "hill", 200.0, 0.68, {"stretch": Vector2(1.7, 0.75), "angle": -0.25})
+	_feature("west_rise", Vector2(-880, 120), "hill", 190.0, 0.65, {"stretch": Vector2(1.15, 1.35), "angle": 0.4})
+	_feature("east_rise", Vector2(900, -80), "hill", 185.0, 0.62, {"stretch": Vector2(1.3, 1.15), "angle": -0.35})
+	_feature("west_hill", Vector2(-720, 40), "hill", 170.0, 0.55, {"stretch": Vector2(1.4, 0.9), "angle": 0.3})
+	_feature("east_hill", Vector2(760, -40), "hill", 160.0, 0.52, {"stretch": Vector2(1.35, 0.95), "angle": -0.2})
+	_feature("sw_hill", Vector2(-480, 720), "hill", 155.0, 0.48, {"stretch": Vector2(1.3, 1.0), "angle": 0.5})
+	_feature("ne_hill", Vector2(500, -520), "hill", 145.0, 0.46, {"stretch": Vector2(1.25, 0.9), "angle": -0.4})
 	_water("lake_west", Vector2(-540, 400), "lake", 185.0, -0.7, 101, [
 		{"o": Vector2(0, 0), "rx": 0.9, "ry": 0.65},
 		{"o": Vector2(-70, 50), "rx": 0.55, "ry": 0.5},
@@ -145,11 +143,10 @@ func _place_shared_features() -> void:
 		{"o": Vector2(0, 0), "rx": 0.95, "ry": 0.7},
 		{"o": Vector2(30, -25), "rx": 0.45, "ry": 0.4},
 	])
-	_feature("nw_wood", Vector2(-540, -440), "forest", 150.0, 0.2)
-	_feature("ne_wood", Vector2(580, -420), "forest", 140.0, 0.2)
-	_feature("sw_wood", Vector2(-500, 640), "forest", 150.0, 0.2)
-	_feature("se_wood", Vector2(540, 620), "forest", 140.0, 0.2)
-	_feature("crystal_spur", Vector2(-200, -220), "crystal_grove", 95.0, 0.25)
+	_feature("nw_wood", Vector2(-540, -440), "canopy", 170.0, 0.2)
+	_feature("ne_wood", Vector2(580, -420), "canopy", 160.0, 0.2)
+	_feature("sw_wood", Vector2(-500, 640), "canopy", 170.0, 0.2)
+	_feature("se_wood", Vector2(540, 620), "canopy", 160.0, 0.2)
 
 
 func _feature(id: String, pos: Vector2, kind: String, radius: float, elev: float = 0.0, extra: Dictionary = {}) -> void:
@@ -294,7 +291,7 @@ func _clear_features_from_paths() -> void:
 		var f: Dictionary = features[i]
 		var pos: Vector2 = f.get("pos", Vector2.ZERO)
 		var kind: String = str(f.get("kind", ""))
-		var need := PATH_CLEAR_RADIUS + (90.0 if kind == "mountain" else 55.0)
+		var need := PATH_CLEAR_RADIUS + (70.0 if kind == "hill" else 55.0)
 		if kind == "lake":
 			need = PATH_CLEAR_RADIUS + 45.0
 		elif kind == "pond":
