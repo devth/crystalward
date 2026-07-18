@@ -515,12 +515,18 @@ func _fire_at(target: Node2D) -> void:
 		host = self
 	match special:
 		"arrow", "snipe":
-			if Sfx and Sfx.has_method("shoot"):
-				Sfx.shoot()
+			if Sfx:
+				if Sfx.has_method("arrow_twang"):
+					Sfx.arrow_twang()
+				elif Sfx.has_method("shoot"):
+					Sfx.shoot()
 			_fire_aimed_bolt(target, host, false)
 		"briar":
-			if Sfx and Sfx.has_method("shoot"):
-				Sfx.shoot()
+			if Sfx:
+				if Sfx.has_method("ground_bomb"):
+					Sfx.ground_bomb()
+				elif Sfx.has_method("shoot"):
+					Sfx.shoot()
 			_fire_briar(target, host)
 		"arcane":
 			if Sfx and Sfx.has_method("magic_cast"):
@@ -529,8 +535,13 @@ func _fire_at(target: Node2D) -> void:
 				Sfx.shoot()
 			_fire_aimed_bolt(target, host, true)
 		"splash":
-			if Sfx and Sfx.has_method("shoot"):
-				Sfx.shoot()
+			if Sfx:
+				if Sfx.has_method("mortar_boom"):
+					Sfx.mortar_boom()
+				elif Sfx.has_method("ground_bomb"):
+					Sfx.ground_bomb()
+				elif Sfx.has_method("shoot"):
+					Sfx.shoot()
 			_fire_splash(target, host)
 		_:
 			_hit_one(target, damage, host)
